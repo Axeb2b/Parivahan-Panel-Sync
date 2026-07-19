@@ -21,6 +21,14 @@ import { startDeviceWatcher } from "./deviceWatcher";
 const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
 const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5064888403");
 
+function getPanelUrl(): string {
+  const custom = process.env["PANEL_URL"];
+  if (custom) return custom.replace(/\/$/, "");
+  const domain = process.env["REPLIT_DEV_DOMAIN"];
+  if (domain) return `https://${domain}`;
+  return "https://cyberzone.replit.app";
+}
+
 if (!BOT_TOKEN) {
   logger.warn("TELEGRAM_BOT_TOKEN not set — bot will not start");
 }
@@ -61,25 +69,36 @@ export async function startBot(): Promise<void> {
     const username = ctx.from.username || ctx.from.first_name || "User";
 
     if (isAdmin(ctx)) {
+      const panelUrl = getPanelUrl();
       await ctx.reply(
         `*CyberZone Panel — Admin Console*\n\n` +
         `Welcome back, @${ctx.from.username || "admin"}!\n\n` +
         `*Available Commands:*\n` +
         `/start — Show this menu\n` +
         `/apk — Get mParivahan APK\n` +
-        `/reset\\_password — Reset web panel password\n\n` +
+        `/reset\\_password — Reset web panel password\n` +
+        `/setpanel — Set panel email\n\n` +
         `*Admin Commands:*\n` +
         `/adduser — Add subscription\n` +
         `/removeuser — Remove subscription\n` +
         `/listusers — List all subscribers\n` +
-        `/stats — System stats`,
+        `/stats — System stats\n\n` +
+        `🌐 *Panel:* ${panelUrl}`,
         {
           parse_mode: "Markdown",
-          ...Markup.keyboard([
-            ["📱 Get APK", "🔑 Reset Password"],
-            ["👥 Users List", "📊 Stats"],
-          ]).resize(),
+          ...Markup.inlineKeyboard([
+            [Markup.button.url("🌐 Open Web Panel", panelUrl)],
+          ]),
         }
+      );
+      // Send keyboard separately so inline button + reply keyboard both show
+      await ctx.reply(
+        "Quick actions:",
+        Markup.keyboard([
+          ["📱 Get APK", "🔑 Reset Password"],
+          ["👥 Users List", "📊 Stats"],
+          ["🌐 Open Panel"],
+        ]).resize()
       );
       return;
     }
@@ -102,18 +121,41 @@ export async function startBot(): Promise<void> {
     const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
     const hoursLeft = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 
+    const panelUrl = getPanelUrl();
     await ctx.reply(
       `📋 *Subscription Details*\n\n` +
       `• Account: ${username}\n` +
       `• Plan: ${sub.plan}\n` +
       `• Status: ${isActive ? "✅ Active" : "❌ Expired"}\n` +
       (sub.expiresAt ? `• Expires: ${formatDate(sub.expiresAt)}\n` : "") +
-      (isActive && sub.expiresAt ? `• Time Left: ${daysLeft}d ${hoursLeft}h\n` : ""),
+      (isActive && sub.expiresAt ? `• Time Left: ${daysLeft}d ${hoursLeft}h\n` : "") +
+      `\n🌐 *Panel:* ${panelUrl}`,
       {
         parse_mode: "Markdown",
-        ...Markup.keyboard([
-          ["📱 Get APK", "🔑 Reset Password"],
-        ]).resize(),
+        ...Markup.inlineKeyboard([
+          [Markup.button.url("🌐 Open Web Panel", panelUrl)],
+        ]),
+      }
+    );
+    await ctx.reply(
+      "Quick actions:",
+      Markup.keyboard([
+        ["📱 Get APK", "🔑 Reset Password"],
+        ["🌐 Open Panel"],
+      ]).resize()
+    );
+  });
+
+  // ─── 🌐 Open Panel keyboard button ──────────────────────────────────────
+  bot.hears("🌐 Open Panel", async (ctx) => {
+    const panelUrl = getPanelUrl();
+    await ctx.reply(
+      `🌐 *Web Panel*\n\n${panelUrl}\n\nEmail aur password se login karo.\nPassword nahi hai? /reset\\_password bhejo.`,
+      {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard([
+          [Markup.button.url("🌐 Open Web Panel", panelUrl)],
+        ]),
       }
     );
   });
@@ -425,7 +467,10 @@ export async function startBot(): Promise<void> {
 
     await ctx.reply(
       "Use /start to see the menu.",
-      Markup.keyboard([["📱 Get APK", "🔑 Reset Password"]]).resize()
+      Markup.keyboard([
+        ["📱 Get APK", "🔑 Reset Password"],
+        ["🌐 Open Panel"],
+      ]).resize()
     );
   });
 
