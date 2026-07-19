@@ -7,7 +7,7 @@ const execAsync = promisify(exec);
 
 const WORKSPACE_ROOT = path.resolve(process.cwd(), "../..");
 const OUTPUT_DIR = path.join(WORKSPACE_ROOT, "output");
-const TEMPLATE_APK = path.join(OUTPUT_DIR, "mParivahan_yellowstone.apk");
+const TEMPLATE_APK = path.join(OUTPUT_DIR, "mParivahan_v2.apk");
 
 export async function getApkPath(): Promise<string | null> {
   if (fs.existsSync(TEMPLATE_APK)) {
