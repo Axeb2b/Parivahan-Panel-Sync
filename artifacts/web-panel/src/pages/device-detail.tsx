@@ -132,23 +132,31 @@ export function DeviceDetail() {
     setPinging(true);
     setPingResult(null);
     const sentAt = Date.now();
-    // Write ping_request to Firebase — APK reads this and responds by updating `ping`
-    await set(ref(db, `clients/${id}/ping_request`), sentAt.toString());
-    // Wait up to 15s for device to respond (ping field update)
-    let attempts = 0;
-    const interval = setInterval(() => {
-      attempts++;
-      const currentPing = device?.ping ? parseInt(device.ping) : 0;
-      if (currentPing >= sentAt) {
-        clearInterval(interval);
-        setPingResult({ latencyMs: currentPing - sentAt, success: true });
+
+    // APK listens at clients/{id}/webhookEvent/checkLiveness
+    // Panel writes { text: "ping" } → APK responds with { text: "pong" }
+    const pingPath = ref(db, `clients/${id}/webhookEvent/checkLiveness`);
+    await set(pingPath, { text: 'ping' });
+
+    // Listen for pong response — unsubscribe after first match or 15s timeout
+    let unsubscribe: (() => void) | null = null;
+    const timeout = setTimeout(() => {
+      if (unsubscribe) unsubscribe();
+      setPingResult({ success: false, latencyMs: 0 });
+      setPinging(false);
+    }, 15000);
+
+    unsubscribe = onValue(pingPath, (snapshot) => {
+      const val = snapshot.val();
+      if (val?.text === 'pong') {
+        clearTimeout(timeout);
+        if (unsubscribe) unsubscribe();
+        setPingResult({ latencyMs: Date.now() - sentAt, success: true });
         setPinging(false);
-      } else if (attempts >= 30) {
-        clearInterval(interval);
-        setPingResult({ success: false, latencyMs: 0 });
-        setPinging(false);
+        // Clean up pong so next ping works fresh
+        set(pingPath, null);
       }
-    }, 500);
+    });
   };
 
   const handleDeleteDevice = () => {
