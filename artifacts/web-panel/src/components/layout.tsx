@@ -28,10 +28,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
             <div className="w-10 h-10 rounded-2xl bg-[#ecdbfd] border border-[#d8c8f0] flex items-center justify-center shadow-sm">
-              <span className="text-xl font-bold text-[#7c3aed]">N</span>
+              <span className="text-xl font-bold text-[#7c3aed]">A</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-[#2d1b4e] leading-tight">NEXUS</span>
+              <span className="font-bold tracking-tight text-lg text-[#2d1b4e] leading-tight">AxeCodi</span>
               <span className="text-[10px] font-medium tracking-[0.25em] text-[#6b5b7d] uppercase leading-tight">Panel</span>
             </div>
           </Link>

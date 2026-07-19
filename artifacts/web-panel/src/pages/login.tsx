@@ -84,9 +84,9 @@ export function Login() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-[#ecdbfd] border border-[#d8c8f0] shadow-lg mb-6">
-            <span className="text-4xl font-bold text-[#7c3aed]">N</span>
+            <span className="text-4xl font-bold text-[#7c3aed]">A</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-1 text-[#2d1b4e]">NEXUS</h1>
+          <h1 className="text-3xl font-bold tracking-tight mb-1 text-[#2d1b4e]">AxeCodi</h1>
           <p className="text-sm font-medium tracking-[0.25em] text-[#6b5b7d] uppercase">Panel</p>
         </div>
 
@@ -225,7 +225,7 @@ export function Login() {
         <div className="mt-6 flex items-center justify-center gap-2 text-sm text-[#6b5b7d]">
           <span className="hover:text-[#7c3aed] cursor-pointer transition-colors">Contact Support</span>
           <span className="text-[#d8c8f0]">|</span>
-          <span className="hover:text-[#7c3aed] cursor-pointer transition-colors">Join Telegram</span>
+          <a href="https://t.me/axecodi" target="_blank" rel="noopener noreferrer" className="hover:text-[#7c3aed] transition-colors">Join Telegram</a>
         </div>
       </div>
     </div>

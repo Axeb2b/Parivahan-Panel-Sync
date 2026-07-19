@@ -118,7 +118,7 @@ export default function LoginScreen() {
                 <Text style={styles.logoLetter}>N</Text>
               </View>
             </View>
-            <Text style={styles.appName}>NEXUS</Text>
+            <Text style={styles.appName}>AxeCodi</Text>
             <Text style={styles.appSub}>PANEL  ·  AXECODI.AI</Text>
           </Animated.View>
 
@@ -225,7 +225,7 @@ export default function LoginScreen() {
             )}
           </Animated.View>
 
-          <Text style={styles.footer}>Nexus Panel  ·  v1.0.0</Text>
+          <Text style={styles.footer}>AxeCodi Panel  ·  v1.0.0</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>

