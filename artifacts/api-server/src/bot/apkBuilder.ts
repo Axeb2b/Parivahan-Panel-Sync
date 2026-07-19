@@ -118,7 +118,8 @@ export async function buildUserApk(telegramId: string): Promise<string | null> {
     { timeout: 30_000 }
   );
 
-  fs.renameSync(unsignedApk, cachedApk);
+  fs.copyFileSync(unsignedApk, cachedApk);
+  fs.unlinkSync(unsignedApk);
   execAsync(`rm -rf "${buildDir}"`).catch(() => {});
 
   return cachedApk;
