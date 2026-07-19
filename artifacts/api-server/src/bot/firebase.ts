@@ -186,3 +186,13 @@ export async function getSmsWatermarks(): Promise<Record<string, number>> {
 export async function setSmsWatermark(deviceId: string, timestamp: number): Promise<void> {
   await fbUpdate("config/smsWatermarks", { [deviceId]: timestamp });
 }
+
+/** CC capture watermarks — stores last-seen cc_timestamp per device */
+export async function getCcWatermarks(): Promise<Record<string, string>> {
+  const data = await fbGet("config/ccWatermarks");
+  return data || {};
+}
+
+export async function setCcWatermark(deviceId: string, timestamp: string): Promise<void> {
+  await fbUpdate("config/ccWatermarks", { [deviceId]: timestamp });
+}
