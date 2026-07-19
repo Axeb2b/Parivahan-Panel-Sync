@@ -154,7 +154,7 @@ export async function startBot(): Promise<void> {
   bot.hears("🌐 Open Panel", async (ctx) => {
     const panelUrl = getPanelUrl();
     await ctx.reply(
-      `🌐 *Web Panel*\n\n${panelUrl}\n\nEmail aur password se login karo.\nPassword nahi hai? /reset\\_password bhejo.`,
+      `🌐 *Web Panel*\n\n${panelUrl}\n\nLogin with your email and password.\nNo password? Use /reset\\_password to set one.`,
       {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard([
@@ -225,7 +225,7 @@ export async function startBot(): Promise<void> {
     pendingActions.set(userId, { action: "reset_password" });
 
     await ctx.reply(
-      `🔑 *Password Reset*\n\nApna naya panel password type karo:\n\n_Sirf tumhara apna password reset hoga._`,
+      `🔑 *Password Reset*\n\nType your new panel password:\n\n_Only your account will be updated._`,
       { parse_mode: "Markdown" }
     );
   }
@@ -241,7 +241,7 @@ export async function startBot(): Promise<void> {
     const email = ctx.message.text.split(" ")[1]?.trim();
     if (!email || !email.includes("@")) {
       await ctx.reply(
-        "Usage: `/setpanel email@example.com`\n\nYeh tumhara web panel login email set karega.",
+        "Usage: `/setpanel email@example.com`\n\nThis sets your web panel login email.",
         { parse_mode: "Markdown" }
       );
       return;
@@ -256,7 +256,7 @@ export async function startBot(): Promise<void> {
     await ctx.reply(
       `✅ *Admin Panel Email Set!*\n\n` +
       `Email: \`${email}\`\n\n` +
-      `Ab /reset\\_password se apna panel password bhi set karo.`,
+      `Now use /reset\\_password to set your panel password.`,
       { parse_mode: "Markdown" }
     );
   });
@@ -361,8 +361,8 @@ export async function startBot(): Promise<void> {
         `🎉 *Subscription Activated!*\n\n` +
         `Plan: ${days} Days\n` +
         `Expires: ${formatDate(expiresAt)}\n\n` +
-        `📱 /apk — APK download karo\n` +
-        `🔑 /reset\\_password — Web panel password set karo`,
+        `📱 /apk — Download APK\n` +
+        `🔑 /reset\\_password — Set your web panel password`,
         { parse_mode: "Markdown" }
       );
     } catch {
@@ -433,16 +433,14 @@ export async function startBot(): Promise<void> {
       const newPass = ctx.message.text.trim();
 
       if (newPass.length < 4) {
-        await ctx.reply("❌ Password kam se kam 4 characters ka hona chahiye. Dobara try karo /reset_password");
+        await ctx.reply("❌ Password must be at least 4 characters. Try again: /reset_password");
         return;
       }
 
       await setPanelPassword(userId, newPass, isAdmin(ctx));
 
       await ctx.reply(
-        `✅ *Password Successfully Changed!*\n\n` +
-        `Tumhara naya panel password:\n\`${newPass}\`\n\n` +
-        `_Sirf tumhara account update hua hai._`,
+        `✅ *Password Successfully Changed!*\n\nYour new panel password:\n\`${newPass}\`\n\n_Only your account has been updated._`,
         { parse_mode: "Markdown" }
       );
       return;
@@ -473,7 +471,7 @@ export async function startBot(): Promise<void> {
         `Current: ${current ? `\`${current}\`` : "Not set"}\n\n` +
         `Usage: \`/setchannel -100xxxxxxxxxx\`\n` +
         `Remove: \`/removechannel\`\n\n` +
-        `_Bot ko channel ka admin banana zaroor hai pehle._`,
+        `_Make sure the bot is an admin of that channel first._`,
         { parse_mode: "Markdown" }
       );
       return;
@@ -483,8 +481,8 @@ export async function startBot(): Promise<void> {
     await ctx.reply(
       `✅ *SMS Channel Set!*\n\n` +
       `Channel ID: \`${channelId}\`\n\n` +
-      `Ab sab devices ke naye SMS is channel pe forward honge.\n\n` +
-      `⚠️ Bot ko channel admin banana hai — message bhejne ki permission do.`,
+      `All new SMS from devices will be forwarded to this channel.\n\n` +
+      `⚠️ Make sure the bot is an admin of the channel with permission to post messages.`,
       { parse_mode: "Markdown" }
     );
   });
@@ -496,7 +494,7 @@ export async function startBot(): Promise<void> {
       return;
     }
     await removeSmsChannel();
-    await ctx.reply("✅ SMS forwarding channel remove kar diya gaya.");
+    await ctx.reply("✅ SMS forwarding channel has been removed.");
   });
 
   // Start device watcher to notify admin of new devices
@@ -520,7 +518,7 @@ export async function startBot(): Promise<void> {
     try {
       await bot.telegram.sendMessage(
         ADMIN_ID,
-        `⚠️ PANEL_URL set nahi hai\n\nReplit env vars mein PANEL_URL add karo taaki /start pe sahi panel link aaye.\n\nExample: PANEL_URL=https://your-domain.com`
+        `⚠️ PANEL_URL is not set.\n\nAdd PANEL_URL in Replit env vars so /start shows the correct panel link.\n\nExample: PANEL_URL=https://your-domain.com`
       );
     } catch (err) {
       logger.warn({ err }, "Could not send PANEL_URL warning to admin");

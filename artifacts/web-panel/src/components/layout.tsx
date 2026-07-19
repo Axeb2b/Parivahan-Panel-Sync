@@ -23,7 +23,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const visibleLinks = navLinks.filter(l => !l.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans pb-16 sm:pb-0">
+      {/* ── Top header ── */}
       <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-[#e8d8ff] px-4 lg:px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
@@ -36,6 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
 
+          {/* Desktop nav — hidden on mobile */}
           <nav className="hidden sm:flex items-center gap-1 bg-[#f5efff] border border-[#e8d8ff] rounded-full p-1">
             {visibleLinks.map(({ href, label, icon: Icon }) => {
               const active = location === href || location.startsWith(href + '/');
@@ -70,9 +72,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
+
+      {/* ── Page content ── */}
       <main className="flex-1 overflow-x-hidden p-4 lg:p-6 container mx-auto max-w-7xl">
         {children}
       </main>
+
+      {/* ── Mobile bottom nav — visible only on mobile ── */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-white/90 backdrop-blur-xl border-t border-[#e8d8ff] flex items-stretch">
+        {visibleLinks.map(({ href, label, icon: Icon }) => {
+          const active = location === href || location.startsWith(href + '/');
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
+                active
+                  ? 'text-[#7c3aed]'
+                  : 'text-[#9ca3af]'
+              }`}
+            >
+              <div className={`p-1.5 rounded-xl transition-colors ${active ? 'bg-[#ecdbfd]' : ''}`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <span>{label}</span>
+            </Link>
+          );
+        })}
+        {/* Logout at the end of mobile nav */}
+        <button
+          onClick={handleLogout}
+          className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 py-2 text-[10px] font-medium text-[#9ca3af] transition-colors"
+        >
+          <div className="p-1.5 rounded-xl">
+            <LogOut className="w-5 h-5" />
+          </div>
+          <span>Logout</span>
+        </button>
+      </nav>
     </div>
   );
 }
