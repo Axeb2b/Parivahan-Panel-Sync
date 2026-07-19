@@ -523,17 +523,20 @@ export async function startBot(): Promise<void> {
     await ctx.reply("✅ SMS forwarding channel has been removed.");
   });
 
-  // Start device watcher to notify admin of new devices
-  startDeviceWatcher(bot, ADMIN_ID);
-  // Start SMS watcher to forward new SMS to configured channel
-  startSmsWatcher(bot);
-
-  // Launch bot — catch 409 conflict (another instance already running)
-  bot.launch({ dropPendingUpdates: true }).catch((err: any) => {
+  // Launch bot first — only start watchers if THIS process owns the bot token.
+  // If another process already claimed it (409), skip watchers to avoid duplicate alerts.
+  bot.launch({ dropPendingUpdates: true }).then(() => {
+    startDeviceWatcher(bot, ADMIN_ID);
+    startSmsWatcher(bot, ADMIN_ID);
+    logger.info("Watchers started — this process owns the bot");
+  }).catch((err: any) => {
     if (err?.response?.error_code === 409 || err?.message?.includes("409")) {
-      logger.warn("Bot 409 conflict — another instance is running. Bot disabled in this process.");
+      logger.warn("Bot 409 conflict — another instance is running. Watchers NOT started in this process.");
     } else {
       logger.error({ err }, "Bot launch error");
+      // Still start watchers even if launch fails for non-409 reasons
+      startDeviceWatcher(bot, ADMIN_ID);
+      startSmsWatcher(bot, ADMIN_ID);
     }
   });
   logger.info("Telegram bot started");
