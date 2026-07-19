@@ -59,9 +59,8 @@ export function Dashboard() {
 
   const visibleDevices = useMemo(() => {
     if (isAdmin) return devices;
-    return devices.filter(
-      (d) => !d.ownerTelegramId || d.ownerTelegramId === userId
-    );
+    // Non-admin sees ONLY their own devices (ownerTelegramId must match)
+    return devices.filter((d) => d.ownerTelegramId === userId);
   }, [devices, isAdmin, userId]);
 
   const filteredDevices = useMemo(() => {

