@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Pk0zTJ8Gvw0xs5I9S3hMO"
+uri = "file://output/mParivahan_yellowstone.apk"
+type = "unspecified"
+title = "mParivahan APK (Yellowstone Firebase)"
+
+[[outputs]]
+id = "V7nK76X4dcTZaSVtxJ0Oe"
+uri = "file://output/Panel_yellowstone.apk"
+type = "unspecified"
+title = "Panel APK (Yellowstone Firebase)"
