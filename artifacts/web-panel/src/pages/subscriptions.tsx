@@ -45,6 +45,8 @@ export function Subscriptions() {
   const [form, setForm] = useState({
     telegramId: '',
     username: '',
+    email: '',
+    panelPassword: '',
     days: '30',
     plan: '1 Month',
   });
@@ -78,7 +80,7 @@ export function Subscriptions() {
       });
       toast({ title: 'Success', description: `Subscription added for ${form.username || form.telegramId}` });
       setShowForm(false);
-      setForm({ telegramId: '', username: '', days: '30', plan: '1 Month' });
+      setForm({ telegramId: '', username: '', email: '', panelPassword: '', days: '30', plan: '1 Month' });
       fetchSubs();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -146,7 +148,8 @@ export function Subscriptions() {
           <h3 className="text-sm font-mono font-semibold text-primary mb-4 uppercase tracking-widest">
             New Subscription
           </h3>
-          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Row 1 */}
             <div>
               <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block mb-1">
                 Telegram ID *
@@ -195,6 +198,31 @@ export function Subscriptions() {
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               </div>
+            </div>
+            {/* Row 2 — panel login fields */}
+            <div>
+              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+                Panel Email <span className="text-primary/60">(login ke liye)</span>
+              </label>
+              <input
+                type="email"
+                placeholder="user@example.com"
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary transition-all"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+                Panel Password <span className="text-muted-foreground/50">(optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="User /reset_password se bhi set kar sakta hai"
+                value={form.panelPassword}
+                onChange={e => setForm(f => ({ ...f, panelPassword: e.target.value }))}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-primary transition-all"
+              />
             </div>
             <div className="flex items-end gap-2">
               <button

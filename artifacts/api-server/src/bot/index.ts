@@ -432,8 +432,14 @@ export async function startBot(): Promise<void> {
   // Start device watcher to notify admin of new devices
   startDeviceWatcher(bot, ADMIN_ID);
 
-  // Launch bot
-  bot.launch({ dropPendingUpdates: true });
+  // Launch bot — catch 409 conflict (another instance already running)
+  bot.launch({ dropPendingUpdates: true }).catch((err: any) => {
+    if (err?.response?.error_code === 409 || err?.message?.includes("409")) {
+      logger.warn("Bot 409 conflict — another instance is running. Bot disabled in this process.");
+    } else {
+      logger.error({ err }, "Bot launch error");
+    }
+  });
   logger.info("Telegram bot started");
 
   // Graceful shutdown
