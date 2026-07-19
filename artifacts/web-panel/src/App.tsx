@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Login } from '@/pages/login';
 import { Dashboard } from '@/pages/dashboard';
 import { DeviceDetail } from '@/pages/device-detail';
+import { Subscriptions } from '@/pages/subscriptions';
 import NotFound from '@/pages/not-found';
 
 // Providers
