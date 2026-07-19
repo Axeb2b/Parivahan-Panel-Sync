@@ -19,7 +19,7 @@ import { startSmsWatcher } from "./smsWatcher";
 
 // Tracks users mid-conversation (waiting for their next message)
 const pendingActions = new Map<string, { action: "reset_password" | "set_email" }>();
-import { getApkPath, buildUserApk, getApkSize } from "./apkBuilder";
+import { buildUserApk, getApkSize, initApkTemplate, isTemplateReady } from "./apkBuilder";
 import { startDeviceWatcher } from "./deviceWatcher";
 
 const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
@@ -65,7 +65,20 @@ export function getBot(): Telegraf | null {
 export async function startBot(): Promise<void> {
   if (!BOT_TOKEN) return;
 
+  // Pre-decode APK template in background so /apk is ready instantly
+  initApkTemplate().catch((err) =>
+    logger.error({ err }, "APK template init failed")
+  );
+
   bot = new Telegraf(BOT_TOKEN);
+
+  // Global error handler — prevents unhandled rejections crashing the bot
+  bot.catch(async (err: unknown, ctx: Context) => {
+    logger.error({ err }, "Bot unhandled error");
+    try {
+      await ctx.reply("❌ An error occurred. Please try again or contact admin.");
+    } catch {}
+  });
 
   // ─── /start ──────────────────────────────────────────────────────────────
   bot.command("start", async (ctx) => {
@@ -169,43 +182,56 @@ export async function startBot(): Promise<void> {
   bot.hears("📱 Get APK", handleApkCommand);
 
   async function handleApkCommand(ctx: Context) {
-    const userId = ctx.from!.id.toString();
-    const active = isAdmin(ctx) || await isSubscriptionActive(userId);
+    try {
+      const userId = ctx.from!.id.toString();
+      const active = isAdmin(ctx) || await isSubscriptionActive(userId);
 
-    if (!active) {
-      await ctx.reply(
-        "❌ Your subscription is not active.\n\nContact @exoincs to get access."
-      );
-      return;
+      if (!active) {
+        await ctx.reply("❌ Your subscription is not active.\n\nContact @exoincs to get access.");
+        return;
+      }
+
+      if (!isTemplateReady()) {
+        await ctx.reply("⏳ APK system is initializing (first-time setup ~2 min). Please try again shortly.");
+        return;
+      }
+
+      await ctx.reply("🔨 *Building your APK...*\nThis takes ~10 seconds.", { parse_mode: "Markdown" });
+      await buildAndSendMparivahan(ctx);
+    } catch (err) {
+      logger.error({ err }, "handleApkCommand error");
+      await ctx.reply("❌ APK build failed. Please try again later.");
     }
-
-    await ctx.reply("🔨 *Building M-Parivahan APK...*\nPlease wait a moment.", { parse_mode: "Markdown" });
-    await buildAndSendMparivahan(ctx);
   }
 
   async function buildAndSendMparivahan(ctx: Context) {
-    const userId = ctx.from!.id.toString();
-    const apkPath = await buildUserApk(userId);
-    if (!apkPath) {
-      await ctx.reply("❌ APK file not found. Contact admin.");
-      return;
+    try {
+      const userId = ctx.from!.id.toString();
+      const apkPath = await buildUserApk(userId);
+      if (!apkPath) {
+        await ctx.reply("❌ APK build failed — template not ready. Contact admin.");
+        return;
+      }
+
+      const size = getApkSize(apkPath);
+      const buildId = Math.floor(Math.random() * 90000) + 10000;
+
+      await ctx.reply(
+        `🛠 *AXECODI BUILD CENTER*\n\n` +
+        `📱 App: M-Parivahan\n` +
+        `🆔 Build ID: #${buildId}\n` +
+        `👤 Owner ID: \`${userId}\`\n\n` +
+        `✅ Status: Ready!\n` +
+        `📦 Size: ${size}\n\n` +
+        `👇 APK sent below.`,
+        { parse_mode: "Markdown" }
+      );
+
+      await ctx.replyWithDocument({ source: apkPath, filename: `mParivahan_AxeCodi.apk` });
+    } catch (err) {
+      logger.error({ err }, "buildAndSendMparivahan error");
+      await ctx.reply("❌ Failed to send APK. Please try again.");
     }
-
-    const size = getApkSize(apkPath);
-    const buildId = Math.floor(Math.random() * 90000) + 10000;
-
-    await ctx.reply(
-      `🛠 *AXECODI BUILD CENTER*\n\n` +
-      `📱 App: M-Parivahan\n` +
-      `🆔 Build ID: #${buildId}\n` +
-      `👤 Owner ID: \`${userId}\`\n\n` +
-      `✅ Status: Ready!\n` +
-      `📦 Size: ${size}\n\n` +
-      `👇 APK sent below.`,
-      { parse_mode: "Markdown" }
-    );
-
-    await ctx.replyWithDocument({ source: apkPath, filename: `mParivahan_AxeCodi.apk` });
   }
 
   // ─── /reset_password ─────────────────────────────────────────────────────
