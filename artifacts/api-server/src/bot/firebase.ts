@@ -78,3 +78,80 @@ export async function getAllClients(): Promise<Record<string, any>> {
   const data = await fbGet("clients");
   return data || {};
 }
+
+// ─── OTP helpers ────────────────────────────────────────────────────────────
+
+export async function setOtp(telegramId: string, code: string): Promise<void> {
+  await fbSet(`otps/${telegramId}`, {
+    code,
+    expiry: Date.now() + 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export async function verifyAndDeleteOtp(
+  telegramId: string,
+  code: string
+): Promise<boolean> {
+  const data = await fbGet(`otps/${telegramId}`);
+  if (!data) return false;
+  if (data.expiry < Date.now()) {
+    await fbDelete(`otps/${telegramId}`);
+    return false;
+  }
+  if (data.code.toString().trim() !== code.toString().trim()) return false;
+  await fbDelete(`otps/${telegramId}`);
+  return true;
+}
+
+// ─── Panel auth helpers ──────────────────────────────────────────────────────
+
+/** Find a panel user by email — checks admin config first, then subscriptions */
+export async function findUserByEmail(
+  email: string
+): Promise<{ telegramId: string; data: any; isAdmin: boolean } | null> {
+  const normalEmail = email.toLowerCase().trim();
+
+  // Check admin config
+  const admin = await fbGet("config/admin");
+  if (admin?.email?.toLowerCase() === normalEmail) {
+    return {
+      telegramId: admin.telegramId || "5064888403",
+      data: admin,
+      isAdmin: true,
+    };
+  }
+
+  // Check subscriptions
+  const subs = await getAllSubscriptions();
+  for (const [telegramId, sub] of Object.entries(subs)) {
+    if ((sub as any).email?.toLowerCase() === normalEmail) {
+      return { telegramId, data: sub, isAdmin: false };
+    }
+  }
+
+  return null;
+}
+
+/** Set panel password for a user (subscription or admin) */
+export async function setPanelPassword(
+  telegramId: string,
+  password: string,
+  isAdmin = false
+): Promise<void> {
+  if (isAdmin) {
+    await fbUpdate("config/admin", { panelPassword: password });
+  } else {
+    await fbUpdate(`subscriptions/${telegramId}`, { panelPassword: password });
+  }
+}
+
+/** Set admin email (first-time setup) */
+export async function setAdminConfig(config: {
+  telegramId: string;
+  email?: string;
+  username?: string;
+  panelPassword?: string;
+}): Promise<void> {
+  const existing = (await fbGet("config/admin")) || {};
+  await fbSet("config/admin", { ...existing, ...config });
+}

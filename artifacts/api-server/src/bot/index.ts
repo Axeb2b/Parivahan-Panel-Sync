@@ -9,7 +9,12 @@ import {
   fbGet,
   fbSet,
   fbUpdate,
+  setPanelPassword,
+  setAdminConfig,
 } from "./firebase";
+
+// Tracks users mid-conversation (waiting for their next message)
+const pendingActions = new Map<string, { action: "reset_password" | "set_email" }>();
 import { getApkPath, getPanelApkPath, getApkSize } from "./apkBuilder";
 import { startDeviceWatcher } from "./deviceWatcher";
 
@@ -191,23 +196,45 @@ export async function startBot(): Promise<void> {
       return;
     }
 
-    // Generate random 8-char password
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-    let newPass = "";
-    for (let i = 0; i < 8; i++) {
-      newPass += chars[Math.floor(Math.random() * chars.length)];
-    }
-
-    // Save to Firebase /config/password
-    await fbSet("config/password", newPass);
+    // Mark user as awaiting new password input
+    pendingActions.set(userId, { action: "reset_password" });
 
     await ctx.reply(
-      `✅ *Password Changed!*\n\n` +
-      `Your new web panel password:\n\`${newPass}\`\n\n` +
-      `Login at your panel URL.`,
+      `🔑 *Password Reset*\n\nApna naya panel password type karo:\n\n_Sirf tumhara apna password reset hoga._`,
       { parse_mode: "Markdown" }
     );
   }
+
+  // ─── Admin: /setpanel — admin apna email set kare ───────────────────────
+  // Usage: /setpanel email@example.com
+  bot.command("setpanel", async (ctx) => {
+    if (!isAdmin(ctx)) {
+      await ctx.reply("❌ Admin only.");
+      return;
+    }
+
+    const email = ctx.message.text.split(" ")[1]?.trim();
+    if (!email || !email.includes("@")) {
+      await ctx.reply(
+        "Usage: `/setpanel email@example.com`\n\nYeh tumhara web panel login email set karega.",
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    await setAdminConfig({
+      telegramId: ADMIN_ID.toString(),
+      email,
+      username: ctx.from.username || "Admin",
+    });
+
+    await ctx.reply(
+      `✅ *Admin Panel Email Set!*\n\n` +
+      `Email: \`${email}\`\n\n` +
+      `Ab /reset\\_password se apna panel password bhi set karo.`,
+      { parse_mode: "Markdown" }
+    );
+  });
 
   // ─── /stats ──────────────────────────────────────────────────────────────
   bot.command("stats", async (ctx) => {
@@ -246,7 +273,7 @@ export async function startBot(): Promise<void> {
   });
 
   // ─── Admin: /adduser ─────────────────────────────────────────────────────
-  // Usage: /adduser 123456789 30 username
+  // Usage: /adduser 123456789 30 username email@example.com
   bot.command("adduser", async (ctx) => {
     if (!isAdmin(ctx)) {
       await ctx.reply("❌ Admin only.");
@@ -256,13 +283,13 @@ export async function startBot(): Promise<void> {
     const parts = ctx.message.text.split(" ").slice(1);
     if (parts.length < 2) {
       await ctx.reply(
-        "Usage: `/adduser {telegramId} {days} {username}`\n\nExample:\n`/adduser 123456789 30 @username`",
+        "Usage: `/adduser {telegramId} {days} {username} {email}`\n\nExample:\n`/adduser 123456789 30 @username user@email.com`\n\n_Email optional but required for web panel login._",
         { parse_mode: "Markdown" }
       );
       return;
     }
 
-    const [telegramId, daysStr, username = "unknown"] = parts;
+    const [telegramId, daysStr, username = "unknown", email] = parts;
     const days = parseInt(daysStr);
 
     if (isNaN(days) || days <= 0) {
@@ -273,7 +300,6 @@ export async function startBot(): Promise<void> {
     const existing = await getSubscription(telegramId);
     const now = Date.now();
 
-    // If already active, extend from expiry; otherwise from now
     const baseTime = existing?.status === "active" && existing.expiresAt && existing.expiresAt > now
       ? existing.expiresAt
       : now;
@@ -287,7 +313,8 @@ export async function startBot(): Promise<void> {
       status: "active",
       expiresAt,
       createdAt: existing?.createdAt || now,
-    });
+      ...(email ? { email: email.toLowerCase() } : {}),
+    } as any);
 
     const daysLeft = Math.floor((expiresAt - now) / (1000 * 60 * 60 * 24));
 
@@ -297,7 +324,8 @@ export async function startBot(): Promise<void> {
       `🆔 ID: \`${telegramId}\`\n` +
       `📅 Plan: ${days} Days\n` +
       `⏰ Expires: ${formatDate(expiresAt)}\n` +
-      `🕐 Total Days Left: ${daysLeft}d`,
+      `🕐 Days Left: ${daysLeft}d\n` +
+      (email ? `📧 Email: ${email}` : `⚠️ No email set — user won't be able to login to panel`),
       { parse_mode: "Markdown" }
     );
 
@@ -308,7 +336,8 @@ export async function startBot(): Promise<void> {
         `🎉 *Subscription Activated!*\n\n` +
         `Plan: ${days} Days\n` +
         `Expires: ${formatDate(expiresAt)}\n\n` +
-        `Use /apk to get your APK!\nUse /reset\\_password to set your panel password.`,
+        `📱 /apk — APK download karo\n` +
+        `🔑 /reset\\_password — Web panel password set karo`,
         { parse_mode: "Markdown" }
       );
     } catch {
@@ -371,6 +400,29 @@ export async function startBot(): Promise<void> {
 
   // ─── Default text handler ────────────────────────────────────────────────
   bot.on("text", async (ctx) => {
+    const userId = ctx.from.id.toString();
+    const pending = pendingActions.get(userId);
+
+    if (pending?.action === "reset_password") {
+      pendingActions.delete(userId);
+      const newPass = ctx.message.text.trim();
+
+      if (newPass.length < 4) {
+        await ctx.reply("❌ Password kam se kam 4 characters ka hona chahiye. Dobara try karo /reset_password");
+        return;
+      }
+
+      await setPanelPassword(userId, newPass, isAdmin(ctx));
+
+      await ctx.reply(
+        `✅ *Password Successfully Changed!*\n\n` +
+        `Tumhara naya panel password:\n\`${newPass}\`\n\n` +
+        `_Sirf tumhara account update hua hai._`,
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
     await ctx.reply(
       "Use /start to see the menu.",
       Markup.keyboard([["📱 Get APK", "🔑 Reset Password"]]).resize()

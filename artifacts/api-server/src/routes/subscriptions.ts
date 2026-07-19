@@ -49,7 +49,7 @@ router.get("/subscriptions", async (_req, res) => {
 // POST /api/subscriptions — add/extend
 router.post("/subscriptions", async (req, res) => {
   try {
-    const { telegramId, username, days, plan } = req.body;
+    const { telegramId, username, days, plan, email, panelPassword } = req.body;
 
     if (!telegramId || !days) {
       return res.status(400).json({ error: "telegramId and days are required" });
@@ -76,7 +76,9 @@ router.post("/subscriptions", async (req, res) => {
       status: "active",
       expiresAt,
       createdAt: existing?.createdAt || now,
-    });
+      ...(email ? { email: email.toLowerCase() } : {}),
+      ...(panelPassword ? { panelPassword } : {}),
+    } as any);
 
     // Send Telegram notification to user
     const bot = getBot();
@@ -87,7 +89,8 @@ router.post("/subscriptions", async (req, res) => {
           `🎉 *Subscription Activated!*\n\n` +
           `Plan: ${plan || daysNum + " Days"}\n` +
           `Expires: ${formatDate(expiresAt)}\n\n` +
-          `Use /apk to get your APK!\nUse /reset\\_password to set your panel password.`,
+          `📱 /apk — APK download karo\n` +
+          `🔑 /reset\\_password — Web panel password set karo`,
           { parse_mode: "Markdown" }
         );
       } catch {
