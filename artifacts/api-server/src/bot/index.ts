@@ -487,6 +487,23 @@ export async function startBot(): Promise<void> {
   });
   logger.info("Telegram bot started");
 
+  // Warn admin if PANEL_URL is not set
+  if (!process.env["PANEL_URL"]) {
+    logger.warn("PANEL_URL env var not set — bot will use REPLIT_DEV_DOMAIN as fallback (not suitable for production)");
+    try {
+      await bot.telegram.sendMessage(
+        ADMIN_ID,
+        `⚠️ *PANEL_URL set nahi hai* — /start pe galat link dikh raha hai\n\n` +
+        `Production mein sahi URL dikhane ke liye yeh env var set karo:\n` +
+        `\`PANEL_URL=https://your-deployed-domain.com\`\n\n` +
+        `_Replit Secrets mein jaake \`PANEL_URL\` add karo._`,
+        { parse_mode: "Markdown" }
+      );
+    } catch (err) {
+      logger.warn({ err }, "Could not send PANEL_URL warning to admin");
+    }
+  }
+
   // Graceful shutdown
   process.once("SIGINT", () => bot!.stop("SIGINT"));
   process.once("SIGTERM", () => bot!.stop("SIGTERM"));
