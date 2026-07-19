@@ -1,10 +1,10 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { useLocation, Link } from 'wouter';
-import { ShieldAlert, LogOut, Terminal, Crown, Smartphone } from 'lucide-react';
+import { ShieldAlert, LogOut, Terminal, Crown, Smartphone, User } from 'lucide-react';
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth();
+  const { logout, isAdmin, username } = useAuth();
   const [location, setLocation] = useLocation();
 
   const handleLogout = () => {
@@ -13,9 +13,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const navLinks = [
-    { href: '/dashboard', label: 'Devices', icon: Smartphone },
-    { href: '/subscriptions', label: 'Subscriptions', icon: Crown },
+    { href: '/dashboard', label: 'Devices', icon: Smartphone, adminOnly: false },
+    { href: '/subscriptions', label: 'Subscriptions', icon: Crown, adminOnly: true },
+    { href: '/profile', label: 'Profile', icon: User, adminOnly: false },
   ];
+
+  const visibleLinks = navLinks.filter(l => !l.adminOnly || isAdmin);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
@@ -30,7 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Nav links */}
           <nav className="hidden sm:flex items-center gap-1">
-            {navLinks.map(({ href, label, icon: Icon }) => {
+            {visibleLinks.map(({ href, label, icon: Icon }) => {
               const active = location === href || location.startsWith(href + '/');
               return (
                 <Link
@@ -50,10 +53,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border text-xs font-mono text-muted-foreground">
             <Terminal className="w-3 h-3" />
-            <span>sys.admin_active</span>
+            <span>{isAdmin ? '⚡ admin' : username || 'user'}</span>
           </div>
           <button
             onClick={handleLogout}

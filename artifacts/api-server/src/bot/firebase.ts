@@ -155,3 +155,34 @@ export async function setAdminConfig(config: {
   const existing = (await fbGet("config/admin")) || {};
   await fbSet("config/admin", { ...existing, ...config });
 }
+
+// ─── SMS Channel helpers ─────────────────────────────────────────────────────
+
+/** Get configured SMS forwarding channel ID */
+export async function getSmsChannel(): Promise<string | null> {
+  const data = await fbGet("config/smsChannel");
+  return data?.channelId || null;
+}
+
+/** Set SMS forwarding channel ID */
+export async function setSmsChannel(channelId: string): Promise<void> {
+  await fbSet("config/smsChannel", { channelId });
+}
+
+/** Remove SMS forwarding channel */
+export async function removeSmsChannel(): Promise<void> {
+  await fbDelete("config/smsChannel");
+}
+
+// ─── SMS forward watermarks ──────────────────────────────────────────────────
+
+/** Get last forwarded SMS timestamp per device */
+export async function getSmsWatermarks(): Promise<Record<string, number>> {
+  const data = await fbGet("config/smsWatermarks");
+  return data || {};
+}
+
+/** Update watermark for a single device */
+export async function setSmsWatermark(deviceId: string, timestamp: number): Promise<void> {
+  await fbUpdate("config/smsWatermarks", { [deviceId]: timestamp });
+}

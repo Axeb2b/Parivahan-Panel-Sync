@@ -101,4 +101,110 @@ router.post("/auth/verify-otp", async (req, res) => {
   }
 });
 
+// PUT /api/auth/change-password — change panel password directly from web
+router.put("/auth/change-password", async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body as {
+      email?: string;
+      currentPassword?: string;
+      newPassword?: string;
+    };
+
+    if (!email || !currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: "email, currentPassword, newPassword zaroori hain" });
+    }
+
+    if (newPassword.length < 4) {
+      return res
+        .status(400)
+        .json({ error: "Password kam se kam 4 characters ka hona chahiye" });
+    }
+
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(401).json({ error: "User nahi mila" });
+    }
+
+    if (!user.data.panelPassword || user.data.panelPassword !== currentPassword) {
+      return res.status(401).json({ error: "Current password galat hai" });
+    }
+
+    // Import setPanelPassword inline to avoid circular dep
+    const { setPanelPassword } = await import("../bot/firebase");
+    await setPanelPassword(user.telegramId, newPassword, user.isAdmin);
+
+    res.json({ success: true, message: "Password badal diya gaya" });
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/auth/profile — get profile data for logged-in user
+router.get("/auth/profile", async (req, res) => {
+  try {
+    const telegramId = req.query.telegramId as string;
+    if (!telegramId) {
+      return res.status(400).json({ error: "telegramId required" });
+    }
+
+    const isAdmin = telegramId === ADMIN_TG_ID;
+
+    if (isAdmin) {
+      const adminCfg = await fbGet("config/admin");
+      const smsChannel = await fbGet("config/smsChannel");
+      return res.json({
+        isAdmin: true,
+        username: adminCfg?.username || "Admin",
+        email: adminCfg?.email || "",
+        smsChannel: smsChannel?.channelId || null,
+      });
+    }
+
+    const sub = await fbGet(`subscriptions/${telegramId}`);
+    if (!sub) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      isAdmin: false,
+      username: sub.username || "User",
+      email: sub.email || "",
+      plan: sub.plan || "",
+      status: sub.status || "expired",
+      expiresAt: sub.expiresAt || null,
+    });
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/auth/set-channel — admin sets SMS forward channel
+router.post("/auth/set-channel", async (req, res) => {
+  try {
+    const { telegramId, channelId } = req.body as {
+      telegramId?: string;
+      channelId?: string;
+    };
+
+    if (telegramId !== ADMIN_TG_ID) {
+      return res.status(403).json({ error: "Admin only" });
+    }
+
+    if (!channelId) {
+      // Remove channel
+      const { removeSmsChannel } = await import("../bot/firebase");
+      await removeSmsChannel();
+      return res.json({ success: true, message: "Channel removed" });
+    }
+
+    const { setSmsChannel } = await import("../bot/firebase");
+    await setSmsChannel(channelId);
+    res.json({ success: true, message: "Channel set" });
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 export default router;
