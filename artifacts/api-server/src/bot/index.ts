@@ -180,12 +180,12 @@ export async function startBot(): Promise<void> {
     }
 
     await ctx.reply(
-      "📦 *Select App to Build:*",
+      "📦 *Select App to Download:*",
       {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard([
           [Markup.button.callback("📱 M-Parivahan", "build_mparivahan")],
-          [Markup.button.callback("🔧 Admin Panel APK", "build_panel")],
+          [Markup.button.callback("🔮 Nexus Panel APK", "build_panel")],
         ]),
       }
     );
@@ -218,15 +218,27 @@ export async function startBot(): Promise<void> {
   });
 
   bot.action("build_panel", async (ctx) => {
-    await ctx.answerCbQuery("Building...");
+    await ctx.answerCbQuery("Fetching...");
     const apkPath = await getPanelApkPath();
     if (!apkPath) {
-      await ctx.reply("❌ Panel APK not found. Contact admin.");
+      await ctx.reply(
+        "❌ *Nexus Panel APK not found.*\n\nAdmin se contact karo.",
+        { parse_mode: "Markdown" }
+      );
       return;
     }
     const size = getApkSize(apkPath);
-    await ctx.reply(`📦 Panel APK — ${size}`);
-    await ctx.replyWithDocument({ source: apkPath, filename: `Panel_CyberZone.apk` });
+    const panelUrl = getPanelUrl();
+    await ctx.reply(
+      `🔮 *NEXUS PANEL APK*\n\n` +
+      `✅ Status: Ready\n` +
+      `📦 Size: ${size}\n` +
+      `🔐 Login: Email + Password + OTP\n\n` +
+      `📌 *Web Panel bhi available hai:*\n${panelUrl}\n\n` +
+      `👇 APK sent below — install karke Telegram OTP se login karo.`,
+      { parse_mode: "Markdown" }
+    );
+    await ctx.replyWithDocument({ source: apkPath, filename: `NexusPanel_CyberZone.apk` });
   });
 
   // ─── /reset_password ─────────────────────────────────────────────────────
