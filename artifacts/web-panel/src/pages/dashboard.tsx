@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, remove } from 'firebase/database';
 import { Link } from 'wouter';
-import { Search, Smartphone, Battery, BatteryWarning, Wifi, WifiOff, Pin, PinOff, Activity } from 'lucide-react';
+import { Search, Smartphone, Battery, BatteryWarning, Wifi, Pin, PinOff, Activity, ChevronRight } from 'lucide-react';
 import { Layout } from '@/components/layout';
 import { useAuth } from '@/lib/auth';
 
@@ -26,7 +26,6 @@ export function Dashboard() {
   const [search, setSearch] = useState('');
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
 
-  // Load all devices
   useEffect(() => {
     const clientsRef = ref(db, 'clients');
     const unsubscribe = onValue(clientsRef, (snapshot) => {
@@ -45,7 +44,6 @@ export function Dashboard() {
     return () => unsubscribe();
   }, []);
 
-  // Load pinned devices for current user
   useEffect(() => {
     if (!userId) return;
     const pinsRef = ref(db, `config/pins/${userId}`);
@@ -72,7 +70,6 @@ export function Dashboard() {
     }
   };
 
-  // Filter: non-admin users only see their own devices
   const visibleDevices = useMemo(() => {
     if (isAdmin) return devices;
     return devices.filter(
@@ -93,12 +90,10 @@ export function Dashboard() {
         })
       : visibleDevices;
 
-    // Pinned first, then rest sorted by online status
     return [...base].sort((a, b) => {
       const aPinned = pinnedIds.has(a.id) ? 0 : 1;
       const bPinned = pinnedIds.has(b.id) ? 0 : 1;
       if (aPinned !== bPinned) return aPinned - bPinned;
-      // secondary: online first
       const aOnline = isOnline(a.ping) ? 0 : 1;
       const bOnline = isOnline(b.ping) ? 0 : 1;
       return aOnline - bOnline;
@@ -121,9 +116,9 @@ export function Dashboard() {
     <Layout>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-sans tracking-tight">Active Nodes</h1>
-          <p className="text-muted-foreground font-mono text-sm mt-1 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight text-[#2d1b4e]">Dashboard</h1>
+          <p className="text-[#6b5b7d] text-sm mt-1 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-[#7c3aed]" />
             <span>
               {filteredDevices.length} device{filteredDevices.length !== 1 ? 's' : ''}
               {pinnedIds.size > 0 && ` · ${pinnedIds.size} pinned`}
@@ -132,13 +127,13 @@ export function Dashboard() {
         </div>
 
         <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b5b7d]" />
           <input
             type="text"
-            placeholder="Search phone, model, UPI..."
+            placeholder="Search by phone, SIM or model..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-card border border-border rounded-md py-2 pl-9 pr-4 text-sm font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted-foreground"
+            className="w-full bg-white border border-[#d8c8f0] rounded-2xl py-2.5 pl-11 pr-4 text-sm text-[#2d1b4e] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all placeholder:text-[#9ca3af]"
           />
         </div>
       </div>
@@ -146,16 +141,16 @@ export function Dashboard() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-card border border-border rounded-lg h-40 animate-pulse" />
+            <div key={i} className="bg-[#ecdbfd] border border-[#d8c8f0] rounded-3xl h-44 animate-pulse" />
           ))}
         </div>
       ) : filteredDevices.length === 0 ? (
-        <div className="flex flex-col items-center justify-center bg-card border border-border border-dashed rounded-lg py-24 px-4 text-center">
-          <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
-            <Smartphone className="w-8 h-8 text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center bg-[#ecdbfd] border border-[#d8c8f0] border-dashed rounded-3xl py-24 px-4 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#f5efff] flex items-center justify-center mb-4">
+            <Smartphone className="w-8 h-8 text-[#6b5b7d]" />
           </div>
-          <h3 className="text-lg font-medium text-foreground mb-1">No devices found</h3>
-          <p className="text-sm text-muted-foreground max-w-sm">
+          <h3 className="text-lg font-medium text-[#2d1b4e] mb-1">No devices found</h3>
+          <p className="text-sm text-[#6b5b7d] max-w-sm">
             {search
               ? 'Adjust your search query to find active devices.'
               : isAdmin
@@ -174,85 +169,80 @@ export function Dashboard() {
               <Link
                 key={device.id}
                 href={`/device/${device.id}`}
-                className={`group bg-card border rounded-lg p-4 flex flex-col relative overflow-hidden transition-all hover:shadow-[0_0_15px_rgba(57,211,83,0.1)] block ${
+                className={`group bg-[#ecdbfd] border rounded-3xl p-4 flex flex-col relative overflow-hidden transition-all hover:shadow-lg hover:shadow-purple-100 block ${
                   isPinned
-                    ? 'border-primary/40 hover:border-primary/70'
-                    : 'border-border hover:border-primary/50'
+                    ? 'border-[#7c3aed]'
+                    : 'border-[#d8c8f0] hover:border-[#b8a0e0]'
                 }`}
                 style={{ animationDelay: `${i * 50}ms` }}
               >
-                {/* Pinned accent bar */}
-                <div className={`absolute top-0 left-0 w-1 h-full transition-colors ${isPinned ? 'bg-primary/60' : 'bg-transparent group-hover:bg-primary/30'}`} />
+                <div className={`absolute top-0 left-0 h-1 w-full transition-colors ${isPinned ? 'bg-[#7c3aed]' : 'bg-[#d8c8f0] group-hover:bg-[#b8a0e0]'}`} />
 
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-secondary rounded p-2 border border-border">
-                      <Smartphone className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                <div className="flex justify-between items-start mb-4 mt-1">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-[#f5efff] rounded-2xl p-2.5 border border-[#d8c8f0]">
+                      <Smartphone className="w-5 h-5 text-[#6b5b7d] group-hover:text-[#7c3aed] transition-colors" />
                     </div>
                     <div>
-                      <div className="text-xs font-mono text-muted-foreground">NODE_{i.toString().padStart(3, '0')}</div>
-                      <div className="font-semibold text-sm truncate w-28" title={device.model || 'Unknown Model'}>
+                      <div className="text-xs font-medium text-[#6b5b7d]">DEVICE {i.toString().padStart(3, '0')}</div>
+                      <div className="font-semibold text-sm text-[#2d1b4e] truncate w-28" title={device.model || 'Unknown Model'}>
                         {device.model || 'Unknown Model'}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1">
-                    {/* Pin button */}
                     <button
                       onClick={(e) => togglePin(device.id, e)}
                       title={isPinned ? 'Unpin' : 'Pin to top'}
-                      className={`p-1.5 rounded transition-all opacity-0 group-hover:opacity-100 ${
+                      className={`p-2 rounded-full transition-all ${
                         isPinned
-                          ? 'opacity-100 text-primary bg-primary/10 hover:bg-primary/20'
-                          : 'text-muted-foreground hover:text-primary hover:bg-secondary'
+                          ? 'bg-[#7c3aed]/10 text-[#7c3aed] opacity-100'
+                          : 'opacity-0 group-hover:opacity-100 text-[#6b5b7d] hover:text-[#7c3aed] hover:bg-[#f5efff]'
                       }`}
                     >
                       {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
                     </button>
 
-                    <div className="flex items-center gap-1.5 bg-background border border-border px-2 py-1 rounded-full text-xs font-mono">
-                      <span className="relative flex h-2 w-2">
-                        {online && (
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                        )}
-                        <span className={`relative inline-flex rounded-full h-2 w-2 ${online ? 'bg-primary' : 'bg-muted-foreground'}`} />
-                      </span>
-                      <span className={online ? 'text-primary' : 'text-muted-foreground'}>
-                        {online ? 'LIVE' : 'OFF'}
-                      </span>
-                    </div>
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      online
+                        ? 'bg-[#10b981]/10 text-[#10b981]'
+                        : 'bg-[#9ca3af]/20 text-[#6b5b7d]'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-[#10b981]' : 'bg-[#9ca3af]'}`} />
+                      {online ? 'Online' : 'Offline'}
+                    </span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm mt-auto">
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-muted-foreground uppercase font-mono tracking-wider">Phone</span>
-                    <span className="font-medium font-mono text-xs">{device.phone || 'N/A'}</span>
+                    <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">Phone</span>
+                    <span className="font-medium text-xs text-[#2d1b4e]">{device.phone || 'N/A'}</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-muted-foreground uppercase font-mono tracking-wider">UPI ID</span>
-                    <span className="font-medium font-mono text-xs text-primary/90">{device.upi || 'N/A'}</span>
+                    <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">UPI ID</span>
+                    <span className="font-medium text-xs text-[#7c3aed]">{device.upi || 'N/A'}</span>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+                <div className="mt-4 pt-3 border-t border-[#d8c8f0] flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                    <div className="flex items-center gap-1 text-xs text-[#6b5b7d] font-medium">
                       {batteryNum <= 20 ? (
-                        <BatteryWarning className="w-3.5 h-3.5 text-warning" />
+                        <BatteryWarning className="w-3.5 h-3.5 text-[#f59e0b]" />
                       ) : (
                         <Battery className="w-3.5 h-3.5" />
                       )}
-                      <span className={batteryNum <= 20 ? 'text-warning' : ''}>{device.battery || '0%'}</span>
+                      <span className={batteryNum <= 20 ? 'text-[#f59e0b]' : ''}>{device.battery || '0%'}</span>
                     </div>
                     {device.ownerTelegramId && isAdmin && (
-                      <span className="text-[10px] font-mono text-muted-foreground bg-secondary/50 px-1.5 py-0.5 rounded border border-border">
+                      <span className="text-[10px] font-medium text-[#6b5b7d] bg-[#f5efff] px-1.5 py-0.5 rounded-lg border border-[#d8c8f0]">
                         {device.ownerTelegramId.slice(0, 8)}…
                       </span>
                     )}
                   </div>
-                  <svg className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                  <ChevronRight className="w-4 h-4 text-[#6b5b7d] group-hover:text-[#7c3aed] transition-colors group-hover:translate-x-1" />
                 </div>
               </Link>
             );

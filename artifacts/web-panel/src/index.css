@@ -38,50 +38,63 @@
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
 
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+
+  --color-cyan: hsl(var(--cyan));
+  --color-amber: hsl(var(--amber));
+
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'Space Mono', monospace;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
 }
 
-:root, .dark {
-  --background: 216 28% 7%; /* #0d1117 */
-  --foreground: 210 38% 93%; /* #e6edf3 */
-  
-  --card: 215 22% 11%; /* #161b22 */
-  --card-foreground: 210 38% 93%;
-  --card-border: 212 12% 21%; /* #30363d */
-  
-  --popover: 215 22% 11%;
-  --popover-foreground: 210 38% 93%;
-  --popover-border: 212 12% 21%;
-  
-  --border: 212 12% 21%; /* #30363d */
-  --input: 212 12% 21%;
-  
-  --primary: 130 65% 53%; /* #39d353 */
-  --primary-foreground: 216 28% 7%;
-  
-  --secondary: 212 12% 21%;
-  --secondary-foreground: 210 38% 93%;
-  
-  --muted: 212 12% 21%;
-  --muted-foreground: 215 14% 60%;
-  
-  --accent: 212 12% 21%;
-  --accent-foreground: 210 38% 93%;
-  
-  --destructive: 0 100% 63%; /* #ff4444 */
-  --destructive-foreground: 210 38% 93%;
-  
-  --warning: 39 100% 50%; /* #ffa500 */
-  --warning-foreground: 216 28% 7%;
-  
-  --ring: 130 65% 53%;
-  --radius: 0.5rem;
+/* Nexus Panel — light purple theme */
+:root {
+  --background: 270 100% 98%; /* #f8f4ff */
+  --foreground: 270 40% 18%; /* #2d1b4e */
+
+  --card: 270 60% 95%; /* #f0e6ff */
+  --card-foreground: 270 40% 18%;
+  --card-border: 270 40% 82%; /* #c9b3f5 */
+
+  --popover: 270 60% 96%;
+  --popover-foreground: 270 40% 18%;
+  --popover-border: 270 40% 82%;
+
+  --border: 270 40% 82%;
+  --input: 270 40% 82%;
+  --ring: 262 83% 58%;
+
+  --primary: 262 83% 58%; /* #7c3aed */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 270 40% 92%; /* #e5d9ff */
+  --secondary-foreground: 270 40% 25%;
+
+  --muted: 270 40% 92%;
+  --muted-foreground: 270 20% 48%; /* #6b5b7d */
+
+  --accent: 187 94% 43%; /* #06b6d4 */
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%; /* #ef4444 */
+  --destructive-foreground: 0 0% 100%;
+
+  --warning: 38 92% 50%; /* #f59e0b */
+  --warning-foreground: 270 40% 18%;
+
+  --success: 160 84% 39%; /* #10b981 */
+  --success-foreground: 0 0% 100%;
+
+  --cyan: 187 94% 43%;
+  --amber: 38 92% 50%;
+
+  --radius: 1rem;
 }
 
 @layer base {
@@ -93,7 +106,7 @@
   }
 }
 
-/* Custom scrollbar for dense feeling */
+/* Soft scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -107,4 +120,26 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
+}
+
+/* Nexus pill button base */
+.btn-nexus {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all;
+}
+
+/* Card surface variants */
+.card-nexus-primary {
+  background: #ecdbfd;
+  border: 1px solid #b8a0e0;
+  color: #2d1b4e;
+}
+.card-nexus-secondary {
+  background: #ede4fa;
+  border: 1px solid #b8a0e0;
+  color: #4a3b5c;
+}
+.card-nexus-tertiary {
+  background: #f5efff;
+  border: 1px solid #d8c8f0;
+  color: #6b5b7d;
 }

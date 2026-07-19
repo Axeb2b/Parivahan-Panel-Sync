@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/auth';
-import { ShieldAlert, Lock, Mail, ArrowRight, Loader2, KeyRound, MessageSquare } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -18,7 +18,6 @@ export function Login() {
   const { login } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Step 1: Email + Password → send OTP
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
@@ -47,7 +46,6 @@ export function Login() {
     }
   };
 
-  // Step 2: OTP verify
   const handleOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otp || !telegramId) return;
@@ -77,95 +75,75 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+    <div className="min-h-screen bg-[#f5f0ff] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Soft background blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#ecdbfd]/50 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#d4f5ff]/40 blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-card border border-border shadow-lg mb-6 shadow-primary/5">
-            <ShieldAlert className="w-8 h-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-[#ecdbfd] border border-[#d8c8f0] shadow-lg mb-6">
+            <span className="text-4xl font-bold text-[#7c3aed]">N</span>
           </div>
-          <h1 className="text-3xl font-mono font-bold tracking-tight mb-2">
-            CYBER<span className="text-primary">ZONE</span>
-          </h1>
-          <p className="text-muted-foreground font-mono text-sm tracking-wider uppercase">
-            Command & Control Center
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight mb-1 text-[#2d1b4e]">NEXUS</h1>
+          <p className="text-sm font-medium tracking-[0.25em] text-[#6b5b7d] uppercase">Panel</p>
         </div>
 
         {/* Step indicators */}
         <div className="flex items-center justify-center gap-3 mb-6">
           {(['credentials', 'otp'] as Step[]).map((s, i) => (
             <div key={s} className="flex items-center gap-3">
-              <div className={`flex items-center justify-center w-7 h-7 rounded-full border text-xs font-mono font-bold transition-all ${
+              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all ${
                 step === s
-                  ? 'border-primary bg-primary/15 text-primary'
+                  ? 'bg-[#7c3aed] text-white shadow-md shadow-purple-200'
                   : i < (['credentials', 'otp'] as Step[]).indexOf(step)
-                  ? 'border-primary/50 bg-primary/10 text-primary/70'
-                  : 'border-border bg-secondary text-muted-foreground'
+                  ? 'bg-[#ecdbfd] text-[#7c3aed] border border-[#b8a0e0]'
+                  : 'bg-white border border-[#d8c8f0] text-[#9ca3af]'
               }`}>
                 {i + 1}
               </div>
-              {i < 1 && <div className={`w-12 h-px ${step === 'otp' ? 'bg-primary/40' : 'bg-border'}`} />}
+              {i < 1 && <div className={`w-12 h-px rounded-full ${step === 'otp' ? 'bg-[#7c3aed]' : 'bg-[#d8c8f0]'}`} />}
             </div>
           ))}
         </div>
 
-        <div className="bg-card border border-border p-6 rounded-lg shadow-xl">
+        <div className="bg-[#ecdbfd] border border-[#b8a0e0] p-6 rounded-3xl shadow-xl shadow-purple-100/50">
           {/* ── Step 1: Credentials ── */}
           {step === 'credentials' && (
             <form onSubmit={handleCredentials} className="space-y-4">
               <div className="mb-5">
-                <h2 className="text-sm font-mono font-semibold text-foreground flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-primary" /> Login Credentials
-                </h2>
-                <p className="text-xs text-muted-foreground font-mono mt-1">
-                  Apna email aur password enter karo
-                </p>
+                <h2 className="text-xl font-bold text-[#2d1b4e]">Welcome Back</h2>
+                <p className="text-sm text-[#6b5b7d] mt-1">Sign in to your account</p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-background border border-border rounded-md py-2.5 pl-10 pr-4 text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
-                    placeholder="user@example.com"
-                    autoFocus
-                    required
-                  />
-                </div>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b5b7d]" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-[#ede4fa] border border-[#d8c8f0] rounded-2xl py-3.5 pl-12 pr-4 text-[#2d1b4e] placeholder:text-[#6b5b7d] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed] transition-all"
+                  placeholder="Email"
+                  autoFocus
+                  required
+                />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-background border border-border rounded-md py-2.5 pl-10 pr-4 text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
-                    placeholder="Enter password..."
-                    required
-                  />
-                </div>
-                <p className="text-[10px] font-mono text-muted-foreground/60">
-                  Password set nahi? Telegram bot mein /reset_password bhejo
-                </p>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b5b7d]" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-[#ede4fa] border border-[#d8c8f0] rounded-2xl py-3.5 pl-12 pr-4 text-[#2d1b4e] placeholder:text-[#6b5b7d] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed] transition-all"
+                  placeholder="Password"
+                  required
+                />
               </div>
 
               {error && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono rounded">
+                <div className="p-3 bg-red-50 border border-red-200 text-red-500 text-sm rounded-2xl">
                   {error}
                 </div>
               )}
@@ -173,13 +151,13 @@ export function Login() {
               <button
                 type="submit"
                 disabled={loading || !email || !password}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold py-3.5 rounded-full flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-200"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <span>CONTINUE</span>
+                    <span>Sign In</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -191,42 +169,29 @@ export function Login() {
           {step === 'otp' && (
             <form onSubmit={handleOtp} className="space-y-4">
               <div className="mb-5">
-                <h2 className="text-sm font-mono font-semibold text-foreground flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-primary" /> Telegram OTP
-                </h2>
-                <p className="text-xs text-muted-foreground font-mono mt-1">
-                  6-digit OTP tumhare Telegram pe bheja gaya hai
-                </p>
+                <h2 className="text-xl font-bold text-[#2d1b4e]">Verification</h2>
+                <p className="text-sm text-[#6b5b7d] mt-1">6-digit OTP tumhare Telegram pe bheja gaya hai</p>
               </div>
 
-              <div className="p-3 bg-primary/5 border border-primary/20 rounded-md flex items-start gap-2">
-                <KeyRound className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                <p className="text-xs font-mono text-muted-foreground">
-                  Bot open karo → OTP copy karo → yahan paste karo.<br />
-                  OTP 5 minute mein expire ho jaata hai.
-                </p>
+              <div className="p-3 bg-[#f5efff] border border-[#d8c8f0] rounded-2xl text-sm text-[#6b5b7d]">
+                Bot open karo → OTP copy karo → yahan paste karo. OTP 5 minute mein expire ho jaata hai.
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block">
-                  One-Time Password
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  className="w-full bg-background border border-border rounded-md py-2.5 px-4 text-foreground font-mono text-center text-xl tracking-[0.5em] placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
-                  placeholder="000000"
-                  autoFocus
-                  required
-                />
-              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                className="w-full bg-[#ede4fa] border border-[#d8c8f0] rounded-2xl py-3.5 px-4 text-[#2d1b4e] text-center text-xl tracking-[0.5em] placeholder:text-[#6b5b7d] placeholder:text-base placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed] transition-all"
+                placeholder="000000"
+                autoFocus
+                required
+              />
 
               {error && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono rounded">
+                <div className="p-3 bg-red-50 border border-red-200 text-red-500 text-sm rounded-2xl">
                   {error}
                 </div>
               )}
@@ -234,13 +199,13 @@ export function Login() {
               <button
                 type="submit"
                 disabled={loading || otp.length < 6}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold py-3.5 rounded-full flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-200"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <span>VERIFY & LOGIN</span>
+                    <span>Verify & Login</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -249,18 +214,18 @@ export function Login() {
               <button
                 type="button"
                 onClick={() => { setStep('credentials'); setError(''); setOtp(''); }}
-                className="w-full text-xs font-mono text-muted-foreground hover:text-foreground transition-colors py-1"
+                className="w-full text-sm text-[#6b5b7d] hover:text-[#2d1b4e] transition-colors py-1"
               >
                 ← Wapas jaao
               </button>
             </form>
           )}
+        </div>
 
-          <div className="mt-6 pt-6 border-t border-border text-center">
-            <p className="text-[10px] font-mono text-muted-foreground/50">
-              UNAUTHORIZED ACCESS IS STRICTLY PROHIBITED
-            </p>
-          </div>
+        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-[#6b5b7d]">
+          <span className="hover:text-[#7c3aed] cursor-pointer transition-colors">Contact Support</span>
+          <span className="text-[#d8c8f0]">|</span>
+          <span className="hover:text-[#7c3aed] cursor-pointer transition-colors">Join Telegram</span>
         </div>
       </div>
     </div>

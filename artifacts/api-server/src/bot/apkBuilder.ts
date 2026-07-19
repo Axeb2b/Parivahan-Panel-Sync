@@ -9,7 +9,7 @@ const execAsync = promisify(exec);
 // Resolve from this module's location so it works both in dev and in built dist/index.mjs
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const WORKSPACE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
+const WORKSPACE_ROOT = path.resolve(__dirname, "..", "..", "..");
 const OUTPUT_DIR = path.join(WORKSPACE_ROOT, "output");
 const TEMPLATE_APK = path.join(OUTPUT_DIR, "mParivahan_v2.apk");
 

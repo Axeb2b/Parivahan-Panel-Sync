@@ -18,3 +18,15 @@ id = "4MLXCaWRo4THc30nug9EC"
 uri = "file://output/mParivahan_v2.apk"
 type = "unspecified"
 title = "mParivahan v2 — Fixed APK"
+
+[[outputs]]
+id = "cvWpZTNMphXZkSBVQKxnv"
+uri = "file://screenshots/nexus-login.jpg"
+type = "image"
+title = "Nexus Login"
+
+[[outputs]]
+id = "0crrNisFGe1o5vG20ZPpQ"
+uri = "file://screenshots/nexus-dashboard.jpg"
+type = "image"
+title = "Nexus Dashboard"
