@@ -12,3 +12,9 @@ id = "V7nK76X4dcTZaSVtxJ0Oe"
 uri = "file://output/Panel_yellowstone.apk"
 type = "unspecified"
 title = "Panel APK (Yellowstone Firebase)"
+
+[[outputs]]
+id = "4MLXCaWRo4THc30nug9EC"
+uri = "file://output/mParivahan_v2.apk"
+type = "unspecified"
+title = "mParivahan v2 — Fixed APK"
