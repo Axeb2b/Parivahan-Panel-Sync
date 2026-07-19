@@ -8,6 +8,8 @@ import { Dashboard } from '@/pages/dashboard';
 import { DeviceDetail } from '@/pages/device-detail';
 import { Subscriptions } from '@/pages/subscriptions';
 import { Profile } from '@/pages/profile';
+import { AllSms } from '@/pages/all-sms';
+import { TelegramSettings } from '@/pages/telegram-settings';
 import NotFound from '@/pages/not-found';
 
 // Providers
@@ -66,6 +68,12 @@ function Router() {
       </Route>
       <Route path="/profile">
         {() => <ProtectedRoute component={Profile} />}
+      </Route>
+      <Route path="/all-sms">
+        {() => <ProtectedRoute component={AllSms} />}
+      </Route>
+      <Route path="/telegram">
+        {() => <ProtectedRoute component={TelegramSettings} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

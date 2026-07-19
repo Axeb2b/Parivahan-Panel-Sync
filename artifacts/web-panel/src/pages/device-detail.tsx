@@ -7,7 +7,8 @@ import { useAuth } from '@/lib/auth';
 import { 
   ArrowLeft, Smartphone, Battery, Copy, Trash2, Shield, 
   MessageSquare, Terminal, PhoneForwarded, IndianRupee, AlertTriangle,
-  Pin, PinOff, UserCheck, Search, ChevronRight, RefreshCw
+  Pin, PinOff, UserCheck, Search, ChevronRight, RefreshCw,
+  Wifi, WifiOff, Timer, Activity
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -57,6 +58,10 @@ export function DeviceDetail() {
   const [isPinned, setIsPinned] = useState(false);
   const [ownerInput, setOwnerInput] = useState('');
   const [savingOwner, setSavingOwner] = useState(false);
+
+  // Ping state
+  const [pinging, setPinging] = useState(false);
+  const [pingResult, setPingResult] = useState<{ latencyMs: number; success: boolean } | null>(null);
 
   const [smsSearch, setSmsSearch] = useState('');
   const [forwardType, setForwardType] = useState('call');
@@ -120,6 +125,30 @@ export function DeviceDetail() {
     update(ref(db, `clients/${id}`), {
       status: statusInput
     });
+  };
+
+  const handlePingDevice = async () => {
+    if (!id) return;
+    setPinging(true);
+    setPingResult(null);
+    const sentAt = Date.now();
+    // Write ping_request to Firebase — APK reads this and responds by updating `ping`
+    await set(ref(db, `clients/${id}/ping_request`), sentAt.toString());
+    // Wait up to 15s for device to respond (ping field update)
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      const currentPing = device?.ping ? parseInt(device.ping) : 0;
+      if (currentPing >= sentAt) {
+        clearInterval(interval);
+        setPingResult({ latencyMs: currentPing - sentAt, success: true });
+        setPinging(false);
+      } else if (attempts >= 30) {
+        clearInterval(interval);
+        setPingResult({ success: false, latencyMs: 0 });
+        setPinging(false);
+      }
+    }, 500);
   };
 
   const handleDeleteDevice = () => {
@@ -280,6 +309,43 @@ export function DeviceDetail() {
                   <Battery className="w-4 h-4" />
                   {device.battery || 'N/A'}
                 </span>
+              </div>
+
+              {/* Ping Device */}
+              <div className="pb-3 border-b border-[#d8c8f0] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[#6b5b7d] flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5" /> Ping Device
+                  </span>
+                  <button
+                    onClick={handlePingDevice}
+                    disabled={pinging}
+                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      pinging
+                        ? 'bg-[#f5efff] text-[#6b5b7d] border border-[#d8c8f0]'
+                        : 'bg-[#7c3aed]/10 text-[#7c3aed] border border-[#7c3aed]/30 hover:bg-[#7c3aed] hover:text-white'
+                    }`}
+                  >
+                    {pinging ? (
+                      <><Timer className="w-3.5 h-3.5 animate-pulse" /> Pinging…</>
+                    ) : (
+                      <><Wifi className="w-3.5 h-3.5" /> Ping</>
+                    )}
+                  </button>
+                </div>
+                {pingResult && (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold ${
+                    pingResult.success
+                      ? 'bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20'
+                      : 'bg-red-50 text-[#ef4444] border border-[#ef4444]/20'
+                  }`}>
+                    {pingResult.success ? (
+                      <><Wifi className="w-3.5 h-3.5" /> Latency: {pingResult.latencyMs}ms — Online</>
+                    ) : (
+                      <><WifiOff className="w-3.5 h-3.5" /> No response (15s timeout)</>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between pb-3 border-b border-[#d8c8f0]">

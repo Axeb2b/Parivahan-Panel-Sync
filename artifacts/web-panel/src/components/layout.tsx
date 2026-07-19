@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { useLocation, Link } from 'wouter';
-import { LogOut, Smartphone, Crown, User, LayoutGrid, MessageSquare, Settings } from 'lucide-react';
+import { LogOut, Crown, User, LayoutGrid, MessageSquare, Settings, Send } from 'lucide-react';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAdmin, username } = useAuth();
@@ -14,7 +14,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navLinks = [
     { href: '/dashboard', label: 'Devices', icon: LayoutGrid, adminOnly: false },
+    { href: '/all-sms', label: 'SMS', icon: MessageSquare, adminOnly: false },
     { href: '/subscriptions', label: 'Users', icon: Crown, adminOnly: true },
+    { href: '/telegram', label: 'Telegram', icon: Send, adminOnly: false },
     { href: '/profile', label: 'Profile', icon: Settings, adminOnly: false },
   ];
 
