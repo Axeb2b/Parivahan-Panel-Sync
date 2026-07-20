@@ -29,16 +29,19 @@ async function findTool(
   envVar: string,
   nixPath: string
 ): Promise<string> {
-  // 1. Env var override (set on Render)
+  // 1. Env var override (set on Render dashboard)
   const fromEnv = process.env[envVar];
   if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
-  // 2. System PATH (Render / Ubuntu)
+  // 2. /tmp (downloaded by setup-render-tools.sh on Render)
+  const tmpPath = `/tmp/${name}`;
+  if (fs.existsSync(tmpPath)) return tmpPath;
+  // 3. System PATH
   try {
     const { stdout } = await execAsync(`which ${name} 2>/dev/null`);
     const p = stdout.trim();
     if (p) return p;
   } catch {}
-  // 3. Nix store fallback (Replit)
+  // 4. Nix store fallback (Replit)
   if (fs.existsSync(nixPath)) return nixPath;
   throw new Error(`${name} not found. Install it or set ${envVar} env var.`);
 }
