@@ -23,10 +23,28 @@ const SMALI_FILE_REL =
 const LODA_FILE_REL    = "res/raw/Loda";
 const CARD_HTML_REL    = "assets/card.html";
 
-const APKTOOL =
-  "/nix/store/vwykh57qc5rc7wi9yc16hzn2kycdbcdr-apktool-2.11.1/bin/apktool";
-const JARSIGNER =
-  "/nix/store/xad649j61kwkh0id5wvyiab5rliprp4d-openjdk-17.0.15+6/bin/jarsigner";
+// Dynamic tool discovery — works on Replit (Nix) and Render (system PATH)
+async function findTool(
+  name: string,
+  envVar: string,
+  nixPath: string
+): Promise<string> {
+  // 1. Env var override (set on Render)
+  const fromEnv = process.env[envVar];
+  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
+  // 2. System PATH (Render / Ubuntu)
+  try {
+    const { stdout } = await execAsync(`which ${name} 2>/dev/null`);
+    const p = stdout.trim();
+    if (p) return p;
+  } catch {}
+  // 3. Nix store fallback (Replit)
+  if (fs.existsSync(nixPath)) return nixPath;
+  throw new Error(`${name} not found. Install it or set ${envVar} env var.`);
+}
+
+const NIX_APKTOOL  = "/nix/store/vwykh57qc5rc7wi9yc16hzn2kycdbcdr-apktool-2.11.1/bin/apktool";
+const NIX_JARSIGNER = "/nix/store/xad649j61kwkh0id5wvyiab5rliprp4d-openjdk-17.0.15+6/bin/jarsigner";
 const KEYSTORE = path.join(OUTPUT_DIR, "release.keystore");
 
 /** Called at server startup — ensures the decoded template is ready.
@@ -66,7 +84,8 @@ export async function initApkTemplate(): Promise<void> {
 
   console.log("[apkBuilder] Decoding APK template via apktool (one-time, ~90s)...");
   try {
-    await execAsync(`${APKTOOL} d -f -o "${APK_TEMPLATE_DIR}" "${baseApk}"`, {
+    const apktool = await findTool("apktool", "APKTOOL_PATH", NIX_APKTOOL);
+    await execAsync(`"${apktool}" d -f -o "${APK_TEMPLATE_DIR}" "${baseApk}"`, {
       timeout: 180_000,
     });
     console.log("[apkBuilder] Template decoded and ready.");
@@ -144,13 +163,16 @@ export async function buildUserApk(telegramId: string): Promise<string | null> {
 
   // Rebuild APK
   const unsignedApk = `/tmp/apk_unsigned_${telegramId}.apk`;
-  await execAsync(`${APKTOOL} b "${buildDir}" -o "${unsignedApk}"`, {
+  const apktool   = await findTool("apktool",   "APKTOOL_PATH",   NIX_APKTOOL);
+  const jarsigner = await findTool("jarsigner", "JARSIGNER_PATH", NIX_JARSIGNER);
+
+  await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, {
     timeout: 120_000,
   });
 
   // Sign
   await execAsync(
-    `${JARSIGNER} -sigalg SHA256withRSA -digestalg SHA-256 ` +
+    `"${jarsigner}" -sigalg SHA256withRSA -digestalg SHA-256 ` +
       `-keystore "${KEYSTORE}" -storepass android123 -keypass android123 ` +
       `"${unsignedApk}" release`,
     { timeout: 30_000 }
