@@ -229,9 +229,18 @@ export async function startBot(): Promise<void> {
       );
 
       await ctx.replyWithDocument({ source: apkPath, filename: `mParivahan_AxeCodi.apk` });
-    } catch (err) {
+    } catch (err: any) {
       logger.error({ err }, "buildAndSendMparivahan error");
-      await ctx.reply("❌ Failed to send APK. Please try again.");
+      // Send actual error to admin so we can debug
+      const errMsg = err?.message || String(err);
+      try {
+        await bot.telegram.sendMessage(
+          ADMIN_ID,
+          `🔴 APK build error:\n\`${errMsg.slice(0, 500)}\``,
+          { parse_mode: "Markdown" }
+        );
+      } catch {}
+      await ctx.reply(`❌ APK build failed:\n\`${errMsg.slice(0, 300)}\``, { parse_mode: "Markdown" });
     }
   }
 
