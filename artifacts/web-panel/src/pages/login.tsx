@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/auth';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
 type Step = 'credentials' | 'otp';
 
