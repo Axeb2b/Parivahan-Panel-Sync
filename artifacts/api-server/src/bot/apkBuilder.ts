@@ -32,9 +32,9 @@ async function findTool(
   // 1. Env var override (set on Render dashboard)
   const fromEnv = process.env[envVar];
   if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
-  // 2. /tmp (downloaded by setup-render-tools.sh on Render)
-  const tmpPath = `/tmp/${name}`;
-  if (fs.existsSync(tmpPath)) return tmpPath;
+  // 2. output/ dir in project root (downloaded by setup-render-tools.sh, persists on Render)
+  const outputPath = path.join(WORKSPACE_ROOT, "output", name);
+  if (fs.existsSync(outputPath)) return outputPath;
   // 3. System PATH
   try {
     const { stdout } = await execAsync(`which ${name} 2>/dev/null`);

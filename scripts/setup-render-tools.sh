@@ -1,31 +1,43 @@
 #!/bin/bash
-# Install apktool + Java (jarsigner) for APK building on Render
-# Uses /tmp which is always writable
+# Install Java + download apktool into the project's output/ dir
+# output/ is part of the repo and persists from build to runtime on Render.
+set -e
 
-APKTOOL_JAR="/tmp/apktool.jar"
-APKTOOL_BIN="/tmp/apktool"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+OUTPUT_DIR="$PROJECT_DIR/output"
+APKTOOL_JAR="$OUTPUT_DIR/apktool.jar"
+APKTOOL_BIN="$OUTPUT_DIR/apktool"
 
-echo "[setup] Checking for Java / jarsigner..."
+mkdir -p "$OUTPUT_DIR"
+
+# ── Java / jarsigner ──────────────────────────────────────────────────────────
+echo "[setup] Checking Java..."
 if command -v jarsigner &>/dev/null; then
-  echo "[setup] jarsigner found: $(which jarsigner)"
+  echo "[setup] jarsigner OK: $(jarsigner -help 2>&1 | head -1 || true)"
 else
-  echo "[setup] jarsigner not found — Java may be missing. APK signing will fail at runtime."
+  echo "[setup] Installing default-jdk-headless..."
+  apt-get update -qq && apt-get install -y -q default-jdk-headless
 fi
 
-echo "[setup] Checking for apktool..."
-if [ -f "$APKTOOL_JAR" ]; then
-  echo "[setup] apktool.jar already at $APKTOOL_JAR"
+# ── apktool ───────────────────────────────────────────────────────────────────
+echo "[setup] Checking apktool..."
+if [ -f "$APKTOOL_JAR" ] && java -jar "$APKTOOL_JAR" --version &>/dev/null 2>&1; then
+  echo "[setup] apktool already OK at $APKTOOL_JAR"
 else
-  echo "[setup] Downloading apktool 2.11.1 to /tmp..."
+  echo "[setup] Downloading apktool 2.11.1 → $APKTOOL_JAR"
   wget -q "https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar" \
-    -O "$APKTOOL_JAR" && echo "[setup] apktool.jar downloaded." || echo "[setup] wget failed."
+    -O "$APKTOOL_JAR"
+  echo "[setup] apktool downloaded."
 fi
 
-# Write wrapper script to /tmp
-cat > "$APKTOOL_BIN" <<'EOF'
+# Wrapper script (executable)
+cat > "$APKTOOL_BIN" <<EOF
 #!/bin/bash
-exec java -jar /tmp/apktool.jar "$@"
+exec java -jar "$APKTOOL_JAR" "\$@"
 EOF
 chmod +x "$APKTOOL_BIN"
 
-echo "[setup] Done. apktool at $APKTOOL_BIN"
+echo "[setup] All tools ready."
+echo "[setup]  apktool  → $APKTOOL_BIN"
+echo "[setup]  jarsigner → $(command -v jarsigner 2>/dev/null || echo 'not found')"
