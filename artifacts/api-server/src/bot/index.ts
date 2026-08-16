@@ -467,6 +467,16 @@ export function createBot(): Telegraf {
         );
       } catch {}
       await ctx.reply(`❌ *APK build failed*\n\`${errMsg.slice(0, 300)}\`\n\nTry again or contact admin.`, { parse_mode: "Markdown" });
+      if (bot) {
+        try {
+          await bot.telegram.sendMessage(
+            ADMIN_ID,
+            `🔴 APK build error:\n\`${errMsg.slice(0, 500)}\``,
+            { parse_mode: "Markdown" }
+          );
+        } catch {}
+      }
+      await ctx.reply(`❌ APK build failed:\n\`${errMsg.slice(0, 300)}\``, { parse_mode: "Markdown" });
     }
   }
 
@@ -647,6 +657,9 @@ export function createBot(): Telegraf {
 
   bot.hears("📊 Stats", async (ctx) => {
     if (!(await isAdminAsync(ctx)) && !isAdmin(ctx)) return;
+    if (!isAdmin(ctx)) return;
+    (ctx as any).command = "stats";
+    // Re-trigger stats
     const [clients, subs] = await Promise.all([fbGet("clients"), getAllSubscriptions()]);
     const deviceCount = clients ? Object.keys(clients).length : 0;
     const subCount = Object.keys(subs).length;

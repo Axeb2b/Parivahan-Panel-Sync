@@ -116,6 +116,7 @@ router.post("/auth/verify-otp", async (req, res) => {
     }
 
     return res.json({ success: true, telegramId, isAdmin: adminFlag, username });
+    return res.json({ success: true, telegramId, isAdmin, username });
   } catch {
     return res.status(500).json({ error: "Server error." });
   }
