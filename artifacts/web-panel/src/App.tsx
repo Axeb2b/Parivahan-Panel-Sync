@@ -1,6 +1,6 @@
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 import { useAuth } from '@/lib/auth';
-import { useEffect } from 'react';
+import { Component, useEffect, type ReactNode } from 'react';
 
 // Pages
 import { Login } from '@/pages/login';
@@ -19,6 +19,34 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider } from '@/lib/auth';
 
 const queryClient = new QueryClient();
+
+// Error Boundary — shows the actual error instead of a white screen
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      const e = this.state.error;
+      return (
+        <div style={{ padding: 24, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+          <h2>⚠️ Something went wrong</h2>
+          <p><strong>Error name:</strong> {e.name || 'unknown'}</p>
+          <p><strong>Error message:</strong> <span style={{ color: 'red' }}>{e.message || '(empty message)'}</span></p>
+          <hr />
+          <p style={{ fontSize: 12 }}><strong>Stack trace:</strong></p>
+          <pre style={{ fontSize: 12, background: '#f5f5f5', padding: 12, borderRadius: 8, overflow: 'auto' }}>
+            {e.stack || String(e)}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Auth Guard — any logged-in user
 function ProtectedRoute({ component: Component, ...rest }: any) {
@@ -82,17 +110,19 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <WouterRouter base="">
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <WouterRouter base="">
 
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

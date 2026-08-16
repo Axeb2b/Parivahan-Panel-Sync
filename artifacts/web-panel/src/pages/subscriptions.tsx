@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Layout } from '@/components/layout';
 import { Plus, Trash2, Users, Crown, Clock, RefreshCw, CheckCircle, XCircle, Copy, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Reveal, Eyebrow, PageHeader, StatTile, GlassCard, PillButton } from '@/components/ui/bezel';
 
 interface Subscription {
   telegramId: string;
@@ -112,247 +113,231 @@ export function Subscriptions() {
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#2d1b4e] flex items-center gap-2">
-            <Crown className="w-6 h-6 text-[#7c3aed]" />
-            Users
-          </h1>
-          <p className="text-[#6b5b7d] text-sm mt-1">
-            {activeSubs.length} active / {subs.length} total
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={fetchSubs}
-            className="flex items-center gap-2 px-4 py-2 border border-[#d8c8f0] rounded-full text-sm text-[#6b5b7d] hover:text-[#2d1b4e] hover:border-[#b8a0e0] transition-all bg-white"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-5 py-2 bg-[#7c3aed] text-white rounded-full text-sm font-semibold hover:bg-[#6d28d9] transition-all shadow-md shadow-purple-200"
-          >
-            <Plus className="w-4 h-4" />
-            Add User
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Access Control"
+        title="Users"
+        description={`${activeSubs.length} active / ${subs.length} total subscriptions`}
+        actions={
+          <>
+            <PillButton
+              variant="ghost"
+              onClick={fetchSubs}
+              icon={loading ? <RefreshCw className="w-4 h-4 animate-spin" strokeWidth={1.8} /> : <RefreshCw className="w-4 h-4" strokeWidth={1.8} />}
+            >
+              Refresh
+            </PillButton>
+            <PillButton
+              onClick={() => setShowForm(!showForm)}
+              icon={<Plus className="w-4 h-4" strokeWidth={1.8} />}
+            >
+              Add User
+            </PillButton>
+          </>
+        }
+      />
 
       {showForm && (
-        <div className="mb-6 bg-[#ecdbfd] border border-[#d8c8f0] rounded-3xl p-5">
-          <h3 className="text-sm font-bold text-[#7c3aed] mb-4 uppercase tracking-widest">
-            New Subscription
-          </h3>
-          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block mb-1">
-                Telegram ID *
-              </label>
-              <input
-                type="text"
-                placeholder="123456789"
-                value={form.telegramId}
-                onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))}
-                required
-                className="w-full bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2.5 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block mb-1">
-                Username
-              </label>
-              <input
-                type="text"
-                placeholder="@username"
-                value={form.username}
-                onChange={e => setForm(f => ({ ...f, username: e.target.value.replace('@', '') }))}
-                className="w-full bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2.5 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block mb-1">
-                Days
-              </label>
-              <div className="relative">
-                <select
-                  value={form.days}
-                  onChange={e => {
-                    const d = e.target.value;
-                    const labels: Record<string, string> = { '7': '1 Week', '30': '1 Month', '90': '3 Months', '180': '6 Months', '365': '1 Year', '36500': 'Lifetime' };
-                    setForm(f => ({ ...f, days: d, plan: labels[d] || `${d} Days` }));
-                  }}
-                  className="w-full bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2.5 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all appearance-none"
-                >
-                  <option value="7">7 Days</option>
-                  <option value="30">1 Month (30 Days)</option>
-                  <option value="90">3 Months</option>
-                  <option value="180">6 Months</option>
-                  <option value="365">1 Year</option>
-                  <option value="36500">Lifetime</option>
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b5b7d] pointer-events-none" />
+        <Reveal className="mb-8">
+          <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] p-7">
+            <Eyebrow dot className="mb-6">New Subscription</Eyebrow>
+            <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Telegram ID *
+                </label>
+                <input type="text" placeholder="123456789" value={form.telegramId}
+                  onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))}
+                  required className="field" />
               </div>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block mb-1">
-                Panel Email <span className="text-[#7c3aed]">(login ke liye)</span>
-              </label>
-              <input
-                type="email"
-                placeholder="user@example.com"
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                className="w-full bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2.5 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-[#6b5b7d] uppercase tracking-wider block mb-1">
-                Panel Password <span className="text-[#9ca3af]">(optional)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="User /reset_password se bhi set kar sakta hai"
-                value={form.panelPassword}
-                onChange={e => setForm(f => ({ ...f, panelPassword: e.target.value }))}
-                className="w-full bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2.5 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all"
-              />
-            </div>
-            <div className="flex items-end gap-2">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex-1 py-2.5 bg-[#7c3aed] text-white rounded-full text-sm font-semibold hover:bg-[#6d28d9] disabled:opacity-50 transition-all shadow-md shadow-purple-200"
-              >
-                {submitting ? 'Adding...' : 'Activate'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="px-4 py-2.5 border border-[#d8c8f0] rounded-full text-sm text-[#6b5b7d] hover:text-[#2d1b4e] transition-all bg-white"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Username
+                </label>
+                <input type="text" placeholder="@username" value={form.username}
+                  onChange={e => setForm(f => ({ ...f, username: e.target.value.replace('@', '') }))}
+                  className="field" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Days
+                </label>
+                <div className="relative">
+                  <select
+                    value={form.days}
+                    onChange={e => {
+                      const d = e.target.value;
+                      const labels: Record<string, string> = { '7': '1 Week', '30': '1 Month', '90': '3 Months', '180': '6 Months', '365': '1 Year', '36500': 'Lifetime' };
+                      setForm(f => ({ ...f, days: d, plan: labels[d] || `${d} Days` }));
+                    }}
+                    className="field appearance-none pr-10"
+                  >
+                    <option value="7" className="bg-[#0b0b10]">7 Days</option>
+                    <option value="30" className="bg-[#0b0b10]">1 Month (30 Days)</option>
+                    <option value="90" className="bg-[#0b0b10]">3 Months</option>
+                    <option value="180" className="bg-[#0b0b10]">6 Months</option>
+                    <option value="365" className="bg-[#0b0b10]">1 Year</option>
+                    <option value="36500" className="bg-[#0b0b10]">Lifetime</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" strokeWidth={1.6} />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Panel Email <span className="text-[#a78bfa] normal-case tracking-normal">(login ke liye)</span>
+                </label>
+                <input type="email" placeholder="user@example.com" value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="field" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Panel Password <span className="text-muted-foreground/60 normal-case tracking-normal">(optional)</span>
+                </label>
+                <input type="text" placeholder="User /reset_password se bhi set kar sakta hai" value={form.panelPassword}
+                  onChange={e => setForm(f => ({ ...f, panelPassword: e.target.value }))}
+                  className="field" />
+              </div>
+              <div className="flex items-end gap-2">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn-island flex-1 bg-[#8b5cf6] text-white px-6 py-3 text-sm shadow-[0_10px_30px_-12px_rgba(139,92,246,0.7)] hover:bg-[#7c3aed] disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  {submitting ? 'Adding...' : 'Activate'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="btn-island px-5 py-3 text-sm bg-white/[0.04] border border-white/10 text-foreground hover:bg-white/[0.08]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </GlassCard>
+        </Reveal>
       )}
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'Total Users', value: subs.length, icon: Users, color: 'text-[#2d1b4e]' },
-          { label: 'Active', value: activeSubs.length, icon: CheckCircle, color: 'text-[#10b981]' },
-          { label: 'Expired', value: expiredSubs.length, icon: XCircle, color: 'text-[#ef4444]' },
-          { label: 'Expiring Soon', value: activeSubs.filter(s => s.daysLeft !== null && s.daysLeft <= 3).length, icon: Clock, color: 'text-[#f59e0b]' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-[#ecdbfd] border border-[#d8c8f0] rounded-3xl p-4 flex items-center gap-3">
-            <Icon className={`w-5 h-5 ${color}`} />
-            <div>
-              <div className={`text-2xl font-bold ${color}`}>{value}</div>
-              <div className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-semibold">{label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Bento stats */}
+      <Reveal className="mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Total Users', value: subs.length, icon: <Users className="w-5 h-5" strokeWidth={1.6} />, tone: 'default' },
+            { label: 'Active', value: activeSubs.length, icon: <CheckCircle className="w-5 h-5" strokeWidth={1.6} />, tone: 'accent' },
+            { label: 'Expired', value: expiredSubs.length, icon: <XCircle className="w-5 h-5" strokeWidth={1.6} />, tone: 'danger' },
+            { label: 'Expiring Soon', value: activeSubs.filter(s => s.daysLeft !== null && s.daysLeft <= 3).length, icon: <Clock className="w-5 h-5" strokeWidth={1.6} />, tone: 'warn' },
+          ].map((s) => (
+            <GlassCard key={s.label} className="rounded-3xl" innerClassName="rounded-3xl p-5">
+              <StatTile label={s.label} value={s.value} icon={s.icon} tone={s.tone as any} />
+            </GlassCard>
+          ))}
+        </div>
+      </Reveal>
 
       {loading ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-[#ecdbfd] border border-[#d8c8f0] rounded-3xl h-16 animate-pulse" />
+            <div key={i} className="h-16 rounded-3xl animate-pulse bg-white/[0.03] border border-white/[0.05]" />
           ))}
         </div>
       ) : subs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center bg-[#ecdbfd] border border-dashed border-[#d8c8f0] rounded-3xl py-20">
-          <Crown className="w-10 h-10 text-[#6b5b7d] mb-3" />
-          <p className="text-sm text-[#6b5b7d]">No subscriptions yet</p>
-          <p className="text-xs text-[#6b5b7d]/70 mt-1">Click "Add User" to grant access</p>
-        </div>
+        <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] py-20 text-center">
+          <div className="bezel mx-auto w-fit mb-5">
+            <div className="bezel-inner w-16 h-16 flex items-center justify-center">
+              <Crown className="w-7 h-7 text-muted-foreground" strokeWidth={1.5} />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">No subscriptions yet</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Click "Add User" to grant access</p>
+        </GlassCard>
       ) : (
-        <div className="bg-[#ecdbfd] border border-[#d8c8f0] rounded-3xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#d8c8f0] bg-[#f5efff]">
-                {['User', 'Telegram ID', 'Plan', 'Status', 'Expires', 'Days Left', 'Action'].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-[#6b5b7d] uppercase tracking-widest">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {subs.map((sub, i) => (
-                <tr
-                  key={sub.telegramId}
-                  className={`border-b border-[#d8c8f0]/50 hover:bg-[#f5efff]/60 transition-colors ${i % 2 === 0 ? '' : 'bg-white/40'}`}
-                >
-                  <td className="px-4 py-3 font-semibold text-[#2d1b4e]">
-                    @{sub.username || '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => copyId(sub.telegramId)}
-                      className="flex items-center gap-1 font-mono text-xs text-[#6b5b7d] hover:text-[#2d1b4e] transition-colors group"
+        <Reveal>
+          <GlassCard className="rounded-[1.75rem] overflow-hidden" innerClassName="rounded-[1.75rem] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.07] bg-white/[0.02]">
+                    {['User', 'Telegram ID', 'Plan', 'Status', 'Expires', 'Days Left', 'Action'].map(h => (
+                      <th key={h} className="text-left px-5 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {subs.map((sub, i) => (
+                    <tr
+                      key={sub.telegramId}
+                      className={`border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors duration-500 ${i % 2 === 1 ? 'bg-white/[0.015]' : ''}`}
                     >
-                      {sub.telegramId}
-                      <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#6b5b7d]">{sub.plan}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      sub.status === 'active'
-                        ? 'bg-[#10b981]/10 text-[#10b981]'
-                        : 'bg-[#ef4444]/10 text-[#ef4444]'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${sub.status === 'active' ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`} />
-                      {sub.status === 'active' ? 'Active' : 'Expired'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-[#6b5b7d]">
-                    {formatDate(sub.expiresAt)}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {sub.daysLeft === null ? (
-                      <span className="text-[#7c3aed]">∞</span>
-                    ) : sub.daysLeft <= 3 ? (
-                      <span className="text-[#f59e0b] font-semibold">{sub.daysLeft}d</span>
-                    ) : (
-                      <span className="text-[#6b5b7d]">{sub.daysLeft}d</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleDelete(sub.telegramId, sub.username)}
-                      disabled={deleting === sub.telegramId}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#ef4444] border border-[#ef4444]/30 rounded-full hover:bg-[#ef4444]/10 disabled:opacity-50 transition-all"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      {deleting === sub.telegramId ? '...' : 'Remove'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <td className="px-5 py-4 font-semibold text-foreground">@{sub.username || '—'}</td>
+                      <td className="px-5 py-4">
+                        <button
+                          onClick={() => copyId(sub.telegramId)}
+                          className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors duration-500 group"
+                        >
+                          {sub.telegramId}
+                          <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" strokeWidth={1.6} />
+                        </button>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-muted-foreground">{sub.plan}</td>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                          sub.status === 'active'
+                            ? 'bg-[#34d399]/12 text-[#34d399] border border-[#34d399]/20'
+                            : 'bg-[#ef4444]/12 text-[#f87171] border border-[#ef4444]/25'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sub.status === 'active' ? 'bg-[#34d399] shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-[#f87171]'}`} />
+                          {sub.status === 'active' ? 'Active' : 'Expired'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 font-mono text-xs text-muted-foreground">{formatDate(sub.expiresAt)}</td>
+                      <td className="px-5 py-4 text-sm">
+                        {sub.daysLeft === null ? (
+                          <span className="text-[#a78bfa]">∞</span>
+                        ) : sub.daysLeft <= 3 ? (
+                          <span className="text-[#fbbf24] font-semibold">{sub.daysLeft}d</span>
+                        ) : (
+                          <span className="text-muted-foreground">{sub.daysLeft}d</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <button
+                          onClick={() => handleDelete(sub.telegramId, sub.username)}
+                          disabled={deleting === sub.telegramId}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#f87171] border border-[#ef4444]/30 rounded-full hover:bg-[#ef4444]/10 disabled:opacity-50 transition-all duration-500 ease-spring"
+                        >
+                          <Trash2 className="w-3 h-3" strokeWidth={1.6} />
+                          {deleting === sub.telegramId ? '...' : 'Remove'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </GlassCard>
+        </Reveal>
       )}
 
-      <div className="mt-6 bg-[#ecdbfd] border border-[#d8c8f0] rounded-3xl p-4 flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full bg-[#f5efff] border border-[#d8c8f0] flex items-center justify-center flex-shrink-0 mt-0.5">
-          <span className="text-[#7c3aed] text-xs font-bold">TG</span>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-[#2d1b4e]">Telegram Bot Active</p>
-          <p className="text-xs text-[#6b5b7d] mt-0.5">
-            Users can interact via the bot. Commands: /start · /apk · /reset_password
-          </p>
-          <p className="text-xs text-[#6b5b7d]/70 mt-1">
-            Admin commands: /adduser {'{'}telegramId{'}'} {'{'}days{'}'} {'{'}username{'}'} · /removeuser · /listusers · /stats
-          </p>
-        </div>
-      </div>
+      <Reveal className="mt-8">
+        <GlassCard className="rounded-3xl" innerClassName="rounded-3xl p-5 flex items-start gap-4">
+          <div className="bezel shrink-0">
+            <div className="bezel-inner w-11 h-11 flex items-center justify-center">
+              <span className="text-[#a78bfa] text-xs font-bold tracking-tight">TG</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Telegram Bot Active</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Users can interact via the bot. Commands: /start · /apk · /reset_password
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1.5 font-mono">
+              Admin: /adduser {'{'}telegramId{'}'} {'{'}days{'}'} {'{'}username{'}'} · /removeuser · /listusers · /stats
+            </p>
+          </div>
+        </GlassCard>
+      </Reveal>
     </Layout>
   );
 }

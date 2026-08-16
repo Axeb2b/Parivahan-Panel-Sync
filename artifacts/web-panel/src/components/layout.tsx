@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useLocation, Link } from 'wouter';
-import { LogOut, Crown, User, LayoutGrid, MessageSquare, Settings, Send } from 'lucide-react';
+import { LogOut, LayoutGrid, MessageSquare, Crown, Send, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAdmin, username } = useAuth();
   const [location, setLocation] = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -17,96 +25,111 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: '/all-sms', label: 'SMS', icon: MessageSquare, adminOnly: false },
     { href: '/subscriptions', label: 'Users', icon: Crown, adminOnly: true },
     { href: '/telegram', label: 'Telegram', icon: Send, adminOnly: false },
-    { href: '/profile', label: 'Profile', icon: Settings, adminOnly: false },
+    { href: '/profile', label: 'Profile', icon: User, adminOnly: false },
   ];
 
-  const visibleLinks = navLinks.filter(l => !l.adminOnly || isAdmin);
+  const visibleLinks = navLinks.filter((l) => !l.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans pb-16 sm:pb-0">
-      {/* ── Top header ── */}
-      <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-[#e8d8ff] px-4 lg:px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-2xl bg-[#ecdbfd] border border-[#d8c8f0] flex items-center justify-center shadow-sm">
-              <span className="text-xl font-bold text-[#7c3aed]">A</span>
+    <div className="min-h-[100dvh] text-foreground flex flex-col font-sans pb-24 sm:pb-0 relative">
+      {/* Ambient noise — fixed, never scrolls */}
+      <div className="noise-overlay" aria-hidden />
+
+      {/* ── Floating glass nav ── */}
+      <header
+        className={cn(
+          'fixed top-0 left-0 right-0 z-30 px-4 lg:px-6 pt-4 transition-all duration-700 ease-spring'
+        )}
+      >
+        <div
+          className={cn(
+            'mx-auto max-w-6xl rounded-2xl flex items-center justify-between px-4 py-3 transition-all duration-700 ease-spring',
+            'backdrop-blur-2xl border',
+            scrolled
+              ? 'bg-[#0a0a0f]/80 border-white/10 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]'
+              : 'bg-[#0a0a0f]/50 border-white/[0.06]'
+          )}
+        >
+          <Link href="/dashboard" className="flex items-center gap-3 group shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#8b5cf6] flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(139,92,246,0.8)] group-hover:rotate-6 transition-transform duration-500 ease-spring">
+              <span className="text-base font-bold text-white leading-none">C</span>
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-[#2d1b4e] leading-tight">AxeCodi</span>
-              <span className="text-[10px] font-medium tracking-[0.25em] text-[#6b5b7d] uppercase leading-tight">Panel</span>
+            <div className="flex flex-col leading-none">
+              <span className="font-semibold tracking-tight text-[15px] text-foreground">
+                CyberCommand
+              </span>
+              <span className="text-[9px] font-medium tracking-[0.3em] text-muted-foreground uppercase mt-1">
+                Panel
+              </span>
             </div>
           </Link>
 
-          {/* Desktop nav — hidden on mobile */}
-          <nav className="hidden sm:flex items-center gap-1 bg-[#f5efff] border border-[#e8d8ff] rounded-full p-1">
+          {/* Desktop nav — floating island */}
+          <nav className="hidden sm:flex items-center gap-1 rounded-full bg-white/[0.04] border border-white/[0.07] p-1">
             {visibleLinks.map(({ href, label, icon: Icon }) => {
               const active = location === href || location.startsWith(href + '/');
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-500 ease-spring',
                     active
-                      ? 'bg-[#7c3aed] text-white shadow-md shadow-purple-200'
-                      : 'text-[#6b5b7d] hover:text-[#2d1b4e] hover:bg-white/60'
-                  }`}
+                      ? 'bg-[#8b5cf6] text-white shadow-[0_8px_24px_-8px_rgba(139,92,246,0.7)]'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.06]'
+                  )}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4" strokeWidth={1.6} />
                   {label}
                 </Link>
               );
             })}
           </nav>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ede4fa] border border-[#d8c8f0] text-xs font-medium text-[#4a3b5c]">
-            <User className="w-3 h-3" />
-            <span>{isAdmin ? 'Admin' : username || 'User'}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-medium text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#34d399] shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+              {isAdmin ? 'Admin' : username || 'User'}
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Logout"
+              className="flex items-center justify-center w-9 h-9 rounded-full text-muted-foreground border border-white/10 bg-white/[0.03] hover:text-[#f87171] hover:border-[#ef4444]/40 hover:bg-[#ef4444]/10 transition-all duration-500 ease-spring"
+            >
+              <LogOut className="w-4 h-4" strokeWidth={1.6} />
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center justify-center w-9 h-9 rounded-full text-[#6b5b7d] hover:text-[#ef4444] hover:bg-red-50 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
         </div>
       </header>
 
       {/* ── Page content ── */}
-      <main className="flex-1 overflow-x-hidden p-4 lg:p-6 container mx-auto max-w-7xl">
+      <main className="flex-1 overflow-x-hidden pt-28 lg:pt-32 px-4 lg:px-6 container mx-auto max-w-6xl">
         {children}
       </main>
 
-      {/* ── Mobile bottom nav — visible only on mobile ── */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-white/90 backdrop-blur-xl border-t border-[#e8d8ff] flex items-stretch">
+      {/* ── Mobile bottom nav — floating glass pill ── */}
+      <nav className="sm:hidden fixed bottom-4 left-4 right-4 z-30 rounded-2xl bg-[#0a0a0f]/85 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)] flex items-stretch px-1.5 py-1.5">
         {visibleLinks.map(({ href, label, icon: Icon }) => {
           const active = location === href || location.startsWith(href + '/');
           return (
             <Link
               key={href}
               href={href}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
-                active
-                  ? 'text-[#7c3aed]'
-                  : 'text-[#9ca3af]'
-              }`}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[9px] font-medium rounded-xl transition-all duration-500 ease-spring',
+                active ? 'text-white bg-[#8b5cf6]/25' : 'text-muted-foreground'
+              )}
             >
-              <div className={`p-1.5 rounded-xl transition-colors ${active ? 'bg-[#ecdbfd]' : ''}`}>
-                <Icon className="w-5 h-5" />
-              </div>
+              <Icon className="w-5 h-5" strokeWidth={1.6} />
               <span>{label}</span>
             </Link>
           );
         })}
-        {/* Logout at the end of mobile nav */}
         <button
           onClick={handleLogout}
-          className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 py-2 text-[10px] font-medium text-[#9ca3af] transition-colors"
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[9px] font-medium rounded-xl text-muted-foreground transition-all duration-500"
         >
-          <div className="p-1.5 rounded-xl">
-            <LogOut className="w-5 h-5" />
-          </div>
+          <LogOut className="w-5 h-5" strokeWidth={1.6} />
           <span>Logout</span>
         </button>
       </nav>

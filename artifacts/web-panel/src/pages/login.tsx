@@ -4,6 +4,9 @@ import { useAuth } from '@/lib/auth';
 import { Mail, Lock, ArrowRight, Loader2, User } from 'lucide-react';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
+import { ArrowRight, Mail, Lock, Loader2, Fingerprint } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Reveal, Eyebrow } from '@/components/ui/bezel';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 const IS_API_CONFIGURED = API_BASE.length > 0;
@@ -118,35 +121,54 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f0ff] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Soft background blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#ecdbfd]/50 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#d4f5ff]/40 blur-3xl pointer-events-none" />
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Ambient mesh — fixed orbs + noise, pointer-events-none */}
+      <div className="noise-overlay" aria-hidden />
+      <div className="absolute -top-40 -left-40 w-[42rem] h-[42rem] rounded-full bg-[#8b5cf6]/18 blur-[130px] pointer-events-none" />
+      <div className="absolute -bottom-48 -right-32 w-[38rem] h-[38rem] rounded-full bg-[#34d399]/10 blur-[130px] pointer-events-none" />
+      <div className="absolute top-1/3 right-1/4 w-72 h-72 rounded-full bg-[#22d3ee]/10 blur-[110px] pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-[#ecdbfd] border border-[#d8c8f0] shadow-lg mb-6">
-            <span className="text-4xl font-bold text-[#7c3aed]">A</span>
+        <Reveal className="text-center mb-10">
+          <div className="inline-flex flex-col items-center">
+            <div className="bezel mb-6">
+              <div className="bezel-inner w-20 h-20 flex items-center justify-center">
+                <div className="w-11 h-11 rounded-2xl bg-[#8b5cf6] flex items-center justify-center shadow-[0_14px_40px_-12px_rgba(139,92,246,0.9)]">
+                  <Fingerprint className="w-6 h-6 text-white" strokeWidth={1.5} />
+                </div>
+              </div>
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              CyberCommand
+            </h1>
+            <span className="eyebrow mt-4">Unified Command Surface</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-1 text-[#2d1b4e]">AxeCodi</h1>
-          <p className="text-sm font-medium tracking-[0.25em] text-[#6b5b7d] uppercase">Panel</p>
-        </div>
+        </Reveal>
 
-        {/* Step indicators */}
-        <div className="flex items-center justify-center gap-3 mb-6">
+        {/* Step indicator — hairlines + live node */}
+        <div className="flex items-center justify-center gap-3 mb-7">
           {(['credentials', 'otp'] as Step[]).map((s, i) => (
             <div key={s} className="flex items-center gap-3">
-              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all ${
-                step === s
-                  ? 'bg-[#7c3aed] text-white shadow-md shadow-purple-200'
-                  : i < (['credentials', 'otp'] as Step[]).indexOf(step)
-                  ? 'bg-[#ecdbfd] text-[#7c3aed] border border-[#b8a0e0]'
-                  : 'bg-white border border-[#d8c8f0] text-[#9ca3af]'
-              }`}>
+              <div
+                className={cn(
+                  'flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-all duration-700 ease-spring',
+                  step === s
+                    ? 'bg-[#8b5cf6] text-white shadow-[0_6px_20px_-6px_rgba(139,92,246,0.8)]'
+                    : i < (['credentials', 'otp'] as Step[]).indexOf(step)
+                      ? 'bg-[#34d399] text-black'
+                      : 'bg-white/[0.04] border border-white/10 text-muted-foreground'
+                )}
+              >
                 {i + 1}
               </div>
-              {i < 1 && <div className={`w-12 h-px rounded-full ${step === 'otp' ? 'bg-[#7c3aed]' : 'bg-[#d8c8f0]'}`} />}
+              {i < 1 && (
+                <div
+                  className={cn(
+                    'w-12 h-px rounded-full transition-colors duration-700 ease-smooth',
+                    step === 'otp' ? 'bg-[#34d399]' : 'bg-white/15'
+                  )}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -181,23 +203,74 @@ export function Login() {
                   required
                 />
               </div>
+        <Reveal delay={120}>
+          <div className="bezel">
+            <div className="bezel-inner p-8">
+              {step === 'credentials' && (
+                <form onSubmit={handleCredentials} className="space-y-4">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                      Welcome back
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1.5">
+                      Authenticate to enter the command surface
+                    </p>
+                  </div>
 
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b5b7d]" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#ede4fa] border border-[#d8c8f0] rounded-2xl py-3.5 pl-12 pr-4 text-[#2d1b4e] placeholder:text-[#6b5b7d] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed] transition-all"
-                  placeholder="Password"
-                  required
-                />
-              </div>
+                  <div className="relative group">
+                    <Mail
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-[#a78bfa] transition-colors duration-500 ease-smooth"
+                      strokeWidth={1.6}
+                    />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="field pl-12"
+                      placeholder="Email"
+                      autoFocus
+                      required
+                    />
+                  </div>
 
-              {error && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-500 text-sm rounded-2xl">
-                  {error}
-                </div>
+                  <div className="relative group">
+                    <Lock
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-[#a78bfa] transition-colors duration-500 ease-smooth"
+                      strokeWidth={1.6}
+                    />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="field pl-12"
+                      placeholder="Password"
+                      required
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="p-3 bg-[#ef4444]/10 border border-[#ef4444]/25 text-[#f87171] text-sm rounded-2xl">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading || !email || !password}
+                    className="btn-island w-full bg-[#8b5cf6] text-white px-6 py-3.5 text-sm shadow-[0_14px_40px_-14px_rgba(139,92,246,0.8),inset_0_1px_0_rgba(255,255,255,0.2)] hover:bg-[#7c3aed] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <span>Sign In</span>
+                        <span className="island w-8 h-8 rounded-full bg-black/20 flex items-center justify-center">
+                          <ArrowRight className="w-4 h-4" strokeWidth={1.8} />
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </form>
               )}
 
               <button
@@ -248,69 +321,85 @@ export function Login() {
               </p>
             </form>
           )}
+              {step === 'otp' && (
+                <form onSubmit={handleOtp} className="space-y-4">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                      Verification
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1.5">
+                      6-digit OTP tumhare Telegram pe bheja gaya hai
+                    </p>
+                  </div>
 
-          {/* ── Step 2: OTP ── */}
-          {step === 'otp' && (
-            <form onSubmit={handleOtp} className="space-y-4">
-              <div className="mb-5">
-                <h2 className="text-xl font-bold text-[#2d1b4e]">Verification</h2>
-                <p className="text-sm text-[#6b5b7d] mt-1">6-digit OTP tumhare Telegram pe bheja gaya hai</p>
-              </div>
+                  <div className="p-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl text-[13px] text-muted-foreground leading-relaxed">
+                    Bot open karo → OTP copy karo → yahan paste karo. OTP 5 minute mein expire
+                    ho jaata hai.
+                  </div>
 
-              <div className="p-3 bg-[#f5efff] border border-[#d8c8f0] rounded-2xl text-sm text-[#6b5b7d]">
-                Bot open karo → OTP copy karo → yahan paste karo. OTP 5 minute mein expire ho jaata hai.
-              </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    className="field text-center text-2xl tracking-[0.55em] placeholder:text-base placeholder:tracking-normal py-4"
+                    placeholder="000000"
+                    autoFocus
+                    required
+                  />
 
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                className="w-full bg-[#ede4fa] border border-[#d8c8f0] rounded-2xl py-3.5 px-4 text-[#2d1b4e] text-center text-xl tracking-[0.5em] placeholder:text-[#6b5b7d] placeholder:text-base placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/30 focus:border-[#7c3aed] transition-all"
-                placeholder="000000"
-                autoFocus
-                required
-              />
+                  {error && (
+                    <div className="p-3 bg-[#ef4444]/10 border border-[#ef4444]/25 text-[#f87171] text-sm rounded-2xl">
+                      {error}
+                    </div>
+                  )}
 
-              {error && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-500 text-sm rounded-2xl">
-                  {error}
-                </div>
+                  <button
+                    type="submit"
+                    disabled={loading || otp.length < 6}
+                    className="btn-island w-full bg-[#8b5cf6] text-white px-6 py-3.5 text-sm shadow-[0_14px_40px_-14px_rgba(139,92,246,0.8),inset_0_1px_0_rgba(255,255,255,0.2)] hover:bg-[#7c3aed] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <span>Verify & Login</span>
+                        <span className="island w-8 h-8 rounded-full bg-black/20 flex items-center justify-center">
+                          <ArrowRight className="w-4 h-4" strokeWidth={1.8} />
+                        </span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setStep('credentials'); setError(''); setOtp(''); }}
+                    className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors duration-500 ease-smooth py-1.5"
+                  >
+                    ← Wapas jaao
+                  </button>
+                </form>
               )}
+            </div>
+          </div>
+        </Reveal>
 
-              <button
-                type="submit"
-                disabled={loading || otp.length < 6}
-                className="w-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold py-3.5 rounded-full flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-200"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <span>Verify & Login</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setStep('credentials'); setError(''); setOtp(''); }}
-                className="w-full text-sm text-[#6b5b7d] hover:text-[#2d1b4e] transition-colors py-1"
-              >
-                ← Wapas jaao
-              </button>
-            </form>
-          )}
-        </div>
-
-        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-[#6b5b7d]">
-          <span className="hover:text-[#7c3aed] cursor-pointer transition-colors">Contact Support</span>
-          <span className="text-[#d8c8f0]">|</span>
-          <a href="https://t.me/axecodi" target="_blank" rel="noopener noreferrer" className="hover:text-[#7c3aed] transition-colors">Join Telegram</a>
-        </div>
+        <Reveal delay={200} className="mt-7 flex items-center justify-center gap-3 text-[13px] text-muted-foreground">
+          <span className="hover:text-foreground cursor-pointer transition-colors duration-500 ease-smooth">
+            Contact Support
+          </span>
+          <span className="w-1 h-1 rounded-full bg-white/20" />
+          <a
+            href="https://t.me/axecodi"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[#a78bfa] transition-colors duration-500 ease-smooth"
+          >
+            Join Telegram
+          </a>
+        </Reveal>
       </div>
     </div>
   );

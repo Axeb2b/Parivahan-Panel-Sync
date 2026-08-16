@@ -5,6 +5,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════════
+   CyberCommand — Ethereal Glass design system
+   Deepest OLED black · radial mesh orbs · vantablack glass cards ·
+   pure-white hairlines · Geist typography · spring-physics motion
+   ═══════════════════════════════════════════════════════════════ */
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -46,100 +52,223 @@
 
   --font-sans: 'Outfit', sans-serif;
   --font-mono: 'Space Mono', monospace;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
 
-  --radius-sm: calc(var(--radius) - 6px);
-  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 6px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 8px);
 }
 
-/* Nexus Panel — light purple theme */
-:root {
-  --background: 270 100% 98%; /* #f8f4ff */
-  --foreground: 270 40% 18%; /* #2d1b4e */
+/* ── CyberCommand tokens (dark-only, OLED-first) ── */
+:root,
+.dark {
+  --background: 240 14% 2%;        /* #050506 — deepest OLED black */
+  --foreground: 240 22% 96%;       /* #f3f3f8 — near-white */
 
-  --card: 270 60% 95%; /* #f0e6ff */
-  --card-foreground: 270 40% 18%;
-  --card-border: 270 40% 82%; /* #c9b3f5 */
+  --card: 240 12% 4%;              /* vantablack glass */
+  --card-foreground: 240 22% 96%;
+  --card-border: 240 12% 12%;      /* white/10 hairline */
 
-  --popover: 270 60% 96%;
-  --popover-foreground: 270 40% 18%;
-  --popover-border: 270 40% 82%;
+  --popover: 240 12% 5%;
+  --popover-foreground: 240 22% 96%;
+  --popover-border: 240 12% 12%;
 
-  --border: 270 40% 82%;
-  --input: 270 40% 82%;
-  --ring: 262 83% 58%;
+  --border: 240 12% 12%;
+  --input: 240 12% 14%;
+  --ring: 262 90% 66%;             /* electric violet */
 
-  --primary: 262 83% 58%; /* #7c3aed */
+  --primary: 262 90% 66%;          /* #8b5cf6 — electric violet */
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 270 40% 92%; /* #e5d9ff */
-  --secondary-foreground: 270 40% 25%;
+  --secondary: 240 12% 10%;
+  --secondary-foreground: 240 22% 92%;
 
-  --muted: 270 40% 92%;
-  --muted-foreground: 270 20% 48%; /* #6b5b7d */
+  --muted: 240 10% 9%;
+  --muted-foreground: 240 10% 58%; /* cool grey */
 
-  --accent: 187 94% 43%; /* #06b6d4 */
+  --accent: 158 90% 45%;           /* emerald — online / live */
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 84% 60%; /* #ef4444 */
+  --destructive: 0 72% 56%;
   --destructive-foreground: 0 0% 100%;
 
-  --warning: 38 92% 50%; /* #f59e0b */
-  --warning-foreground: 270 40% 18%;
+  --warning: 38 92% 55%;
+  --warning-foreground: 240 14% 2%;
 
-  --success: 160 84% 39%; /* #10b981 */
+  --success: 158 90% 45%;
   --success-foreground: 0 0% 100%;
 
-  --cyan: 187 94% 43%;
-  --amber: 38 92% 50%;
+  --cyan: 190 94% 50%;
+  --amber: 38 92% 55%;
 
-  --radius: 1rem;
+  --radius: 1.25rem;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+  html {
+    background: hsl(var(--background));
+    color-scheme: dark;
+  }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    background-image:
+      radial-gradient(1100px 600px at 12% -8%, rgba(139, 92, 246, 0.14), transparent 60%),
+      radial-gradient(900px 560px at 88% 4%, rgba(16, 185, 129, 0.09), transparent 55%),
+      radial-gradient(1000px 700px at 60% 110%, rgba(139, 92, 246, 0.10), transparent 60%);
+    background-attachment: fixed;
   }
 }
 
+/* ── Custom bezier — mass + spring feel ── */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ease-expo { transition-timing-function: var(--ease-out-expo) !important; }
+.ease-spring { transition-timing-function: var(--ease-spring) !important; }
+.ease-smooth { transition-timing-function: var(--ease-smooth) !important; }
+
+/* ═══ Double-Bezel (Doppelrand) — nested machined hardware ═══
+   Outer shell: hairline ring + tinted bg + padding + large squircle
+   Inner core:  solid surface + inset top highlight + concentric radius */
+.bezel {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: calc(var(--radius) + 0.5rem);
+  padding: 1px;
+  box-shadow:
+    0 24px 60px -28px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.bezel-inner {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012) 40%, rgba(0, 0, 0, 0.15));
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: calc(var(--radius) + 0.5rem - 2px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.10);
+}
+
+/* Vantablack card surface */
+.surface {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 20px 50px -30px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.surface-hover {
+  transition: transform 0.7s var(--ease-spring), border-color 0.7s var(--ease-spring),
+    box-shadow 0.7s var(--ease-spring), background-color 0.5s var(--ease-smooth);
+  will-change: transform;
+}
+.surface-hover:hover {
+  transform: translateY(-4px);
+  border-color: rgba(139, 92, 246, 0.45);
+  box-shadow:
+    0 32px 70px -34px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(139, 92, 246, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ═══ Button-in-Button — nested trailing icon island ═══ */
+.btn-island {
+  @apply inline-flex items-center justify-center gap-3 rounded-full font-semibold;
+  transition: background-color 0.5s var(--ease-smooth), transform 0.4s var(--ease-spring),
+    box-shadow 0.5s var(--ease-smooth), border-color 0.5s var(--ease-smooth), color 0.5s var(--ease-smooth);
+  will-change: transform;
+}
+.btn-island:active { transform: scale(0.97); }
+.btn-island .island {
+  @apply flex items-center justify-center shrink-0;
+  transition: transform 0.5s var(--ease-spring);
+}
+.btn-island:hover .island {
+  transform: translate(2px, -1px) scale(1.06);
+}
+
+/* Eyebrow pill tag */
+.eyebrow {
+  @apply inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.22em];
+  color: hsl(var(--muted-foreground));
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ═══ Motion — scroll reveal (entry choreography) ═══ */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  filter: blur(8px);
+  transition: opacity 0.9s var(--ease-spring), transform 0.9s var(--ease-spring), filter 0.9s var(--ease-spring);
+  will-change: opacity, transform, filter;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+/* ═══ Ambient noise overlay — fixed, pointer-events-none only ═══ */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* ═══ Hairline inputs ═══ */
+.field {
+  @apply w-full rounded-2xl px-4 py-3 text-sm transition-all;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: hsl(var(--foreground));
+  transition-property: border-color, background-color, box-shadow, transform;
+  transition-duration: 0.5s;
+  transition-timing-function: var(--ease-smooth);
+}
+.field::placeholder { color: hsl(var(--muted-foreground)); opacity: 0.7; }
+.field:focus {
+  outline: none;
+  border-color: rgba(139, 92, 246, 0.65);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.14);
+}
+
+/* ═══ Glass chips / tags ═══ */
+.chip {
+  @apply inline-flex items-center gap-1.5 rounded-full text-xs font-medium;
+  padding: 0.3rem 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: hsl(var(--muted-foreground));
+}
+
 /* Soft scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: hsl(var(--background));
-}
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
-}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); background-clip: padding-box; }
 
-/* Nexus pill button base */
-.btn-nexus {
-  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all;
-}
+::selection { background: rgba(139, 92, 246, 0.35); color: white; }
 
-/* Card surface variants */
-.card-nexus-primary {
-  background: #ecdbfd;
-  border: 1px solid #b8a0e0;
-  color: #2d1b4e;
-}
-.card-nexus-secondary {
-  background: #ede4fa;
-  border: 1px solid #b8a0e0;
-  color: #4a3b5c;
-}
-.card-nexus-tertiary {
-  background: #f5efff;
-  border: 1px solid #d8c8f0;
-  color: #6b5b7d;
-}
+/* Hide scrollbar utility */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

@@ -1,6 +1,5 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -15,8 +14,4 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-// Optional: request profile + email scopes (default)
-googleProvider.setCustomParameters({ prompt: "select_account" });
 export const storage = getStorage(app);

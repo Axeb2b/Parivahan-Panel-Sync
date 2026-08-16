@@ -1,21 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin Web Panel</title>
     <meta name="description" content="Admin Web Panel — built on Replit. Update this description to reflect the app." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>CyberCommand — Panel</title>
+    <meta name="description" content="CyberCommand Panel — unified command surface for device telemetry, message relay, and subscription control." />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="Admin Web Panel" />
-    <meta property="og:description" content="Admin Web Panel — built on Replit. Update this description to reflect the app." />
+    <meta property="og:title" content="CyberCommand — Panel" />
+    <meta property="og:description" content="Unified command surface for device telemetry, message relay, and subscription control." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Admin Web Panel" />
-    <meta name="twitter:description" content="Admin Web Panel — built on Replit. Update this description to reflect the app." />
+    <meta name="twitter:title" content="CyberCommand — Panel" />
+    <meta name="twitter:description" content="Unified command surface for device telemetry, message relay, and subscription control." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+      /* First-paint: prevent white flash before React mounts */
+      html { background-color: #050505; }
+      html.dark body { background-color: #050505; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
