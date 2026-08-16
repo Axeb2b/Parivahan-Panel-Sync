@@ -2,7 +2,7 @@
  * Firebase Realtime Database REST API helpers (no SDK needed)
  */
 
-const DB_URL = process.env["FIREBASE_DB_URL"] || "https://yellowstone-7a62e-default-rtdb.firebaseio.com";
+const DB_URL = process.env["FIREBASE_DB_URL"] || "https://axexodiweb-default-rtdb.firebaseio.com";
 
 export async function fbGet(path: string): Promise<any> {
   const res = await fetch(`${DB_URL}/${path}.json`);

