@@ -4,6 +4,10 @@ import subscriptionsRouter from "./subscriptions";
 import authRouter from "./auth";
 import hookRouter from "./hook";
 import apkRouter from "./apk";
+import osintRouter from "./osint";
+import firebasesRouter from "./firebases";
+import configRouter from "./config";
+import telegramRouter from "./telegram";
 
 const router: IRouter = Router();
 
@@ -12,5 +16,9 @@ router.use(authRouter);
 router.use(subscriptionsRouter);
 router.use(hookRouter);
 router.use(apkRouter);
+router.use(osintRouter);
+router.use(firebasesRouter);
+router.use(configRouter);
+router.use(telegramRouter);
 
 export default router;

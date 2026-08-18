@@ -1,17 +1,119 @@
 /**
- * Firebase Realtime Database REST API helpers (no SDK needed)
+ * Firebase Realtime Database REST access.
+ *
+ * AUTHENTICATED MODE (recommended, pairs with firebase-rules.draft.json):
+ * Provide a service-account JSON for the database project via either
+ *   - FIREBASE_SERVICE_ACCOUNT            (the JSON document as a string), or
+ *   - GOOGLE_APPLICATION_CREDENTIALS      (path to the JSON file)
+ * When present, every RTDB call carries a Google OAuth2 access token
+ * (signed locally with the service-account key, auto-refreshed), so requests
+ * are authenticated and RTDB security rules are enforced.
+ *
+ * Without credentials the legacy unauthenticated REST path is used, which
+ * requires open rules (the current state until creds are configured).
  */
+import * as crypto from "node:crypto";
+import * as fs from "node:fs";
 
 const DB_URL = process.env["FIREBASE_DB_URL"] || "https://axexodiweb-default-rtdb.firebaseio.com";
 
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
+const SCOPES =
+  "https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email";
+
+let saCache: { clientEmail: string; privateKey: string } | null | undefined;
+let tokenCache: { token: string; expiresAt: number } | null = null;
+let tokenFailAt = 0; // backoff after a failed token exchange
+
+function base64url(buf: Buffer | string): string {
+  return Buffer.from(buf)
+    .toString("base64")
+    .replace(/=+$/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function loadServiceAccount(): { clientEmail: string; privateKey: string } | null {
+  if (saCache !== undefined) return saCache;
+  try {
+    const inline = process.env["FIREBASE_SERVICE_ACCOUNT"];
+    const jsonStr = inline ??
+      (process.env["GOOGLE_APPLICATION_CREDENTIALS"]
+        ? fs.readFileSync(process.env["GOOGLE_APPLICATION_CREDENTIALS"], "utf-8")
+        : "");
+    if (!jsonStr) {
+      saCache = null;
+      return null;
+    }
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed.client_email || !parsed.private_key) {
+      console.error("[firebase] Service account missing client_email/private_key");
+      saCache = null;
+      return null;
+    }
+    saCache = { clientEmail: parsed.client_email, privateKey: parsed.private_key };
+    console.log("[firebase] Authenticated mode active (service account)");
+    return saCache;
+  } catch (err) {
+    console.error("[firebase] Failed to load service account, using unauthenticated REST:", err);
+    saCache = null;
+    return null;
+  }
+}
+
+async function fetchAccessToken(): Promise<string | null> {
+  const sa = loadServiceAccount();
+  if (!sa) return null;
+  if (tokenCache && tokenCache.expiresAt > Date.now() + 60_000) return tokenCache.token;
+  if (Date.now() < tokenFailAt) return null; // don't hammer the token endpoint after a failure
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+    const claims = base64url(
+      JSON.stringify({ iss: sa.clientEmail, scope: SCOPES, aud: TOKEN_URL, iat: now, exp: now + 3600 }),
+    );
+    const signingInput = `${header}.${claims}`;
+    const signature = base64url(crypto.sign("RSA-SHA256", Buffer.from(signingInput), sa.privateKey));
+    const assertion = `${signingInput}.${signature}`;
+    const res = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion,
+      }),
+    });
+    if (!res.ok) {
+      console.error(`[firebase] Token exchange failed: ${res.status}`);
+      tokenFailAt = Date.now() + 60_000;
+      return null;
+    }
+    const data = (await res.json()) as { access_token?: string; expires_in?: number };
+    if (!data.access_token) return null;
+    tokenCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in || 3600) * 1000 };
+    return data.access_token;
+  } catch (err) {
+    console.error("[firebase] Token fetch error:", err);
+    tokenFailAt = Date.now() + 60_000;
+    return null;
+  }
+}
+
+async function authedUrl(path: string): Promise<string> {
+  const token = await fetchAccessToken();
+  return token
+    ? `${DB_URL}/${path}.json?access_token=${encodeURIComponent(token)}`
+    : `${DB_URL}/${path}.json`;
+}
+
 export async function fbGet(path: string): Promise<any> {
-  const res = await fetch(`${DB_URL}/${path}.json`);
+  const res = await fetch(await authedUrl(path));
   if (!res.ok) throw new Error(`Firebase GET failed: ${res.status}`);
   return res.json();
 }
 
 export async function fbSet(path: string, data: any): Promise<void> {
-  const res = await fetch(`${DB_URL}/${path}.json`, {
+  const res = await fetch(await authedUrl(path), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -20,7 +122,7 @@ export async function fbSet(path: string, data: any): Promise<void> {
 }
 
 export async function fbUpdate(path: string, data: any): Promise<void> {
-  const res = await fetch(`${DB_URL}/${path}.json`, {
+  const res = await fetch(await authedUrl(path), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -29,7 +131,7 @@ export async function fbUpdate(path: string, data: any): Promise<void> {
 }
 
 export async function fbDelete(path: string): Promise<void> {
-  const res = await fetch(`${DB_URL}/${path}.json`, { method: "DELETE" });
+  const res = await fetch(await authedUrl(path), { method: "DELETE" });
   if (!res.ok) throw new Error(`Firebase DELETE failed: ${res.status}`);
 }
 

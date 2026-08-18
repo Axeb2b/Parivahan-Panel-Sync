@@ -5,10 +5,11 @@ interface AuthState {
   userId: string | null;
   isAdmin: boolean;
   username: string;
+  sessionId: string | null;
 }
 
 interface AuthContextValue extends AuthState {
-  login: (data: { telegramId: string; isAdmin: boolean; username: string }) => void;
+  login: (data: { telegramId: string; isAdmin: boolean; username: string; sessionId?: string }) => void;
   logout: () => void;
 }
 
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: null,
     isAdmin: false,
     username: '',
+    sessionId: null,
   });
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isAuthenticated: true,
           userId: parsed.telegramId || null,
           isAdmin: parsed.isAdmin || false,
+          sessionId: parsed.sessionId || null,
           username: parsed.username || '',
         });
       } catch {
@@ -42,19 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (data: { telegramId: string; isAdmin: boolean; username: string }) => {
+  const login = (data: { telegramId: string; isAdmin: boolean; username: string; sessionId?: string }) => {
     localStorage.setItem(AUTH_KEY, JSON.stringify(data));
     setState({
       isAuthenticated: true,
       userId: data.telegramId,
       isAdmin: data.isAdmin,
       username: data.username,
+      sessionId: data.sessionId || null,
     });
   };
 
   const logout = () => {
     localStorage.removeItem(AUTH_KEY);
-    setState({ isAuthenticated: false, userId: null, isAdmin: false, username: '' });
+    setState({ isAuthenticated: false, userId: null, isAdmin: false, username: '', sessionId: null });
   };
 
   return (

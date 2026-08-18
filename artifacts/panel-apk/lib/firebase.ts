@@ -1,5 +1,5 @@
 // Firebase REST API — no SDK needed, works in React Native without native modules
-const DB = 'https://yellowstone-7a62e-default-rtdb.firebaseio.com';
+const DB = 'https://axexodiweb-default-rtdb.firebaseio.com';
 
 export async function fetchAllDevices(): Promise<Record<string, any>> {
   const res = await fetch(`${DB}/clients.json`);

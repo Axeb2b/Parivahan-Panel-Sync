@@ -1,5 +1,5 @@
 // API calls to the panel backend (axecodi.ai)
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://www.axecodi.ai';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://panel.kimiaxe.com';
 
 export async function apiLogin(email: string, password: string): Promise<{ telegramId: string }> {
   const res = await fetch(`${API_BASE}/api/auth/login`, {

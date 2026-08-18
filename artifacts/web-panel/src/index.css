@@ -1,15 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
-
-/* ═══════════════════════════════════════════════════════════════
-   CyberCommand — Ethereal Glass design system
-   Deepest OLED black · radial mesh orbs · vantablack glass cards ·
-   pure-white hairlines · Geist typography · spring-physics motion
-   ═══════════════════════════════════════════════════════════════ */
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -53,57 +48,97 @@
   --font-sans: 'Outfit', sans-serif;
   --font-mono: 'Space Mono', monospace;
   --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', ui-sans-serif, sans-serif;
   --font-mono: 'Space Mono', ui-monospace, monospace;
 
-  --radius-sm: calc(var(--radius) - 8px);
-  --radius-md: calc(var(--radius) - 6px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 8px);
+  --radius-xl: calc(var(--radius) + 6px);
 }
 
-/* ── CyberCommand tokens (dark-only, OLED-first) ── */
-:root,
-.dark {
-  --background: 240 14% 2%;        /* #050506 — deepest OLED black */
-  --foreground: 240 22% 96%;       /* #f3f3f8 — near-white */
+/* ── Fleet telemetry theme (mobile-first) ─────────────────────────────── */
+:root {
+  /* Canvas + ink */
+  --background: 210 20% 98%; /* #F6F8FB */
+  --foreground: 222 47% 11%; /* #0F172A */
 
-  --card: 240 12% 4%;              /* vantablack glass */
-  --card-foreground: 240 22% 96%;
-  --card-border: 240 12% 12%;      /* white/10 hairline */
+  /* Surfaces */
+  --card: 0 0% 100%;          /* #FFFFFF */
+  --card-foreground: 222 47% 11%;
+  --card-border: 214 32% 91%; /* #E2E8F0 */
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 214 32% 91%;
 
-  --popover: 240 12% 5%;
-  --popover-foreground: 240 22% 96%;
-  --popover-border: 240 12% 12%;
+  --border: 214 32% 91%;
+  --input: 214 28% 88%;
+  --ring: 239 84% 67%;
 
-  --border: 240 12% 12%;
-  --input: 240 12% 14%;
-  --ring: 262 90% 66%;             /* electric violet */
-
-  --primary: 262 90% 66%;          /* #8b5cf6 — electric violet */
+  /* Brand */
+  --primary: 239 84% 60%;        /* #4F46E5 indigo */
   --primary-foreground: 0 0% 100%;
+  --secondary: 214 22% 94%;
+  --secondary-foreground: 222 47% 20%;
 
-  --secondary: 240 12% 10%;
-  --secondary-foreground: 240 22% 92%;
+  --muted: 214 22% 94%;
+  --muted-foreground: 215 16% 47%; /* #64748B slate */
 
-  --muted: 240 10% 9%;
-  --muted-foreground: 240 10% 58%; /* cool grey */
-
-  --accent: 158 90% 45%;           /* emerald — online / live */
+  --accent: 199 89% 48%;        /* #0EA5E9 teal — used sparingly */
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 72% 56%;
+  /* Signal colors */
+  --destructive: 0 72% 51%;      /* #DC2626 */
   --destructive-foreground: 0 0% 100%;
-
-  --warning: 38 92% 55%;
-  --warning-foreground: 240 14% 2%;
-
-  --success: 158 90% 45%;
+  --warning: 38 92% 50%;         /* #F59E0B */
+  --warning-foreground: 222 47% 11%;
+  --success: 142 71% 45%;        /* #16A34A */
   --success-foreground: 0 0% 100%;
 
-  --cyan: 190 94% 50%;
-  --amber: 38 92% 55%;
+  --cyan: 199 89% 48%;
+  --amber: 38 92% 50%;
 
-  --radius: 1.25rem;
+  --radius: 0.75rem;
+}
+
+/* ── Dark theme (default) ─────────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+  --background: 228 32% 5%;     /* #070A12 deep navy-black */
+  --foreground: 220 24% 93%;    /* #E9EDF5 */
+
+  --card: 228 26% 8%;           /* #0C101B */
+  --card-foreground: 220 24% 93%;
+  --card-border: 228 20% 15%;   /* #1B2133 */
+  --popover: 228 26% 8%;
+  --popover-foreground: 220 24% 93%;
+  --popover-border: 228 20% 15%;
+
+  --border: 228 20% 15%;
+  --input: 228 18% 20%;
+  --ring: 245 90% 72%;
+
+  --primary: 244 88% 66%;       /* #6D63FF brighter indigo */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 228 20% 14%;
+  --secondary-foreground: 220 24% 90%;
+
+  --muted: 228 20% 13%;
+  --muted-foreground: 221 12% 62%; /* #95A0B8 */
+
+  --accent: 192 92% 56%;        /* #16C7F2 neon teal */
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 74% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --warning: 39 96% 56%;
+  --warning-foreground: 228 32% 5%;
+  --success: 148 70% 50%;
+  --success-foreground: 0 0% 100%;
+
+  --cyan: 192 92% 56%;
+  --amber: 39 96% 56%;
 }
 
 @layer base {
@@ -111,164 +146,109 @@
     @apply border-border;
   }
   html {
-    background: hsl(var(--background));
-    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    background-image:
-      radial-gradient(1100px 600px at 12% -8%, rgba(139, 92, 246, 0.14), transparent 60%),
-      radial-gradient(900px 560px at 88% 4%, rgba(16, 185, 129, 0.09), transparent 55%),
-      radial-gradient(1000px 700px at 60% 110%, rgba(139, 92, 246, 0.10), transparent 60%);
-    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+  /* Comfortable mobile tap targets */
+  button, a, [role="button"] {
+    @apply select-none;
+  }
+  input, select, textarea {
+    font-size: 16px; /* prevent iOS zoom on focus */
   }
 }
 
-/* ── Custom bezier — mass + spring feel ── */
-:root {
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
-}
-.ease-expo { transition-timing-function: var(--ease-out-expo) !important; }
-.ease-spring { transition-timing-function: var(--ease-spring) !important; }
-.ease-smooth { transition-timing-function: var(--ease-smooth) !important; }
-
-/* ═══ Double-Bezel (Doppelrand) — nested machined hardware ═══
-   Outer shell: hairline ring + tinted bg + padding + large squircle
-   Inner core:  solid surface + inset top highlight + concentric radius */
-.bezel {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: calc(var(--radius) + 0.5rem);
-  padding: 1px;
-  box-shadow:
-    0 24px 60px -28px rgba(0, 0, 0, 0.85),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-.bezel-inner {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012) 40%, rgba(0, 0, 0, 0.15));
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: calc(var(--radius) + 0.5rem - 2px);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.10);
-}
-
-/* Vantablack card surface */
-.surface {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--card-border));
-  border-radius: var(--radius-lg);
-  box-shadow:
-    0 20px 50px -30px rgba(0, 0, 0, 0.9),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-.surface-hover {
-  transition: transform 0.7s var(--ease-spring), border-color 0.7s var(--ease-spring),
-    box-shadow 0.7s var(--ease-spring), background-color 0.5s var(--ease-smooth);
-  will-change: transform;
-}
-.surface-hover:hover {
-  transform: translateY(-4px);
-  border-color: rgba(139, 92, 246, 0.45);
-  box-shadow:
-    0 32px 70px -34px rgba(0, 0, 0, 0.95),
-    0 0 0 1px rgba(139, 92, 246, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-/* ═══ Button-in-Button — nested trailing icon island ═══ */
-.btn-island {
-  @apply inline-flex items-center justify-center gap-3 rounded-full font-semibold;
-  transition: background-color 0.5s var(--ease-smooth), transform 0.4s var(--ease-spring),
-    box-shadow 0.5s var(--ease-smooth), border-color 0.5s var(--ease-smooth), color 0.5s var(--ease-smooth);
-  will-change: transform;
-}
-.btn-island:active { transform: scale(0.97); }
-.btn-island .island {
-  @apply flex items-center justify-center shrink-0;
-  transition: transform 0.5s var(--ease-spring);
-}
-.btn-island:hover .island {
-  transform: translate(2px, -1px) scale(1.06);
-}
-
-/* Eyebrow pill tag */
-.eyebrow {
-  @apply inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.22em];
-  color: hsl(var(--muted-foreground));
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-/* ═══ Motion — scroll reveal (entry choreography) ═══ */
-.reveal {
-  opacity: 0;
-  transform: translateY(32px);
-  filter: blur(8px);
-  transition: opacity 0.9s var(--ease-spring), transform 0.9s var(--ease-spring), filter 0.9s var(--ease-spring);
-  will-change: opacity, transform, filter;
-}
-.reveal.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-  filter: blur(0);
-}
-
-/* ═══ Ambient noise overlay — fixed, pointer-events-none only ═══ */
-.noise-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  pointer-events: none;
-  opacity: 0.022;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-}
-
-/* ═══ Hairline inputs ═══ */
-.field {
-  @apply w-full rounded-2xl px-4 py-3 text-sm transition-all;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  color: hsl(var(--foreground));
-  transition-property: border-color, background-color, box-shadow, transform;
-  transition-duration: 0.5s;
-  transition-timing-function: var(--ease-smooth);
-}
-.field::placeholder { color: hsl(var(--muted-foreground)); opacity: 0.7; }
-.field:focus {
-  outline: none;
-  border-color: rgba(139, 92, 246, 0.65);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.14);
-}
-
-/* ═══ Glass chips / tags ═══ */
-.chip {
-  @apply inline-flex items-center gap-1.5 rounded-full text-xs font-medium;
-  padding: 0.3rem 0.7rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: hsl(var(--muted-foreground));
-}
-
 /* Soft scrollbar */
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.10);
-  border-radius: 8px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); background-clip: padding-box; }
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
 
-::selection { background: rgba(139, 92, 246, 0.35); color: white; }
+/* ── Fleet telemetry component classes ─────────────────────────────────── */
 
-/* Hide scrollbar utility */
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* Page heading */
+.page-eyebrow {
+  @apply font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground;
+}
+.page-title {
+  @apply font-display text-2xl font-bold tracking-tight text-foreground;
+}
+
+/* Surface card */
+.stat-card {
+  @apply bg-card border border-card-border rounded-2xl;
+}
+
+/* Signal status dots (telemetry) */
+.sig-dot {
+  @apply inline-block w-2 h-2 rounded-full;
+}
+.sig-dot.online { background: hsl(var(--success)); box-shadow: 0 0 0 4px hsl(var(--success) / 0.15); }
+.sig-dot.offline { background: hsl(var(--muted-foreground)); }
+.sig-dot.low { background: hsl(var(--warning)); box-shadow: 0 0 0 4px hsl(var(--warning) / 0.18); }
+.sig-dot.danger { background: hsl(var(--destructive)); box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.15); }
+
+/* Brand gradient text / mark */
+.text-gradient {
+  background: linear-gradient(100deg, hsl(var(--primary)), hsl(var(--accent)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.brand-mark {
+  @apply flex items-center justify-center bg-gradient-to-br from-primary to-accent text-white;
+}
+
+/* Nav chip (sidebar + bottom nav share this language) */
+.nav-chip {
+  @apply flex items-center gap-2.5 rounded-xl text-sm font-medium transition-colors;
+}
+.nav-chip-active {
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+.nav-chip-idle {
+  color: var(--muted-foreground);
+}
+
+/* Legacy aliases kept for compatibility during the restyle pass */
+.glass-card {
+  @apply bg-card border-b border-card-border;
+}
+.btn-glow {
+  box-shadow: 0 8px 24px -12px hsl(var(--primary) / 0.6);
+}
+
+/* ── Device card creative touches ─────────────────────────────────────── */
+@keyframes card-scan {
+  0%   { transform: translateY(-110%); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(420%); opacity: 0; }
+}
+.card-scan {
+  position: absolute; left: 0; right: 0; top: 0; height: 45%;
+  background: linear-gradient(to bottom, transparent, hsl(var(--success) / 0.07), transparent);
+  animation: card-scan 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.card-scan-slow { animation-duration: 7s; }
+
+@keyframes ring-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px hsl(var(--success) / 0.5)); }
+  50%      { filter: drop-shadow(0 0 8px hsl(var(--success) / 0.9)); }
+}
+.ring-live { animation: ring-glow 2.4s ease-in-out infinite; }

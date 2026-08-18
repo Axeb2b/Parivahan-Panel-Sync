@@ -5,7 +5,8 @@ import {
   setSubscription,
   deleteSubscription,
 } from "../bot/firebase";
-import { getBot } from "../bot/index";
+import { sendSubscriptionNotification } from "../bot/index";
+import { getPlan, planFeatureLabel } from "../lib/plans";
 
 const router = Router();
 
@@ -39,17 +40,18 @@ router.get("/subscriptions", async (_req, res) => {
       expiresAt: s.expiresAt || null,
       createdAt: s.createdAt || null,
       daysLeft: s.expiresAt ? Math.max(0, Math.floor((s.expiresAt - now) / (1000 * 60 * 60 * 24))) : null,
+      planMeta: (() => { const pl = getPlan(s.plan); return { id: pl.id, name: pl.name, features: pl.features, featureLabels: planFeatureLabel(pl.features) }; })(),
     }));
-    res.json({ subscriptions: result });
+    return res.json({ subscriptions: result });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch subscriptions" });
+    return res.status(500).json({ error: "Failed to fetch subscriptions" });
   }
 });
 
 // POST /api/subscriptions — add/extend
 router.post("/subscriptions", async (req, res) => {
   try {
-    const { telegramId, username, days, plan, email, panelPassword } = req.body;
+    const { telegramId, username, days, plan, email, panelPassword } = req.body ?? {};
 
     if (!telegramId || !days) {
       return res.status(400).json({ error: "telegramId and days are required" });
@@ -80,23 +82,14 @@ router.post("/subscriptions", async (req, res) => {
       ...(panelPassword ? { panelPassword } : {}),
     } as any);
 
-    // Send Telegram notification to user
-    const bot = getBot();
-    if (bot) {
-      try {
-        await bot.telegram.sendMessage(
-          parseInt(telegramId),
-          `🎉 *Subscription Activated!*\n\n` +
-          `Plan: ${plan || daysNum + " Days"}\n` +
-          `Expires: ${formatDate(expiresAt)}\n\n` +
-          `📱 /apk — APK download karo\n` +
-          `🔑 /reset\\_password — Web panel password set karo`,
-          { parse_mode: "Markdown" }
-        );
-      } catch {
-        // User hasn't started the bot yet
-      }
-    }
+    // Send Telegram notification to user (queues if user hasn't started bot)
+    await sendSubscriptionNotification(telegramId, {
+      username: username || "unknown",
+      plan: plan || `${daysNum} Days`,
+      status: "active",
+      expiresAt,
+      email: email?.toLowerCase(),
+    });
 
     return res.json({ success: true, telegramId, expiresAt });
   } catch (err) {

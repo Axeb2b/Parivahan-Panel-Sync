@@ -32,6 +32,18 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+
+// Telegram bot webhook endpoint (used by nginx /bot-webhook proxy)
+app.post("/bot-webhook", (req, res) => {
+  const { getWebhookHandler } = require("./bot/index");
+  const handler = getWebhookHandler();
+  if (handler) {
+    handler(req, res);
+  } else {
+    res.sendStatus(200);
+  }
+});
+
 // ── Serve the built web panel (production static hosting) ──────────────
 const webPanelDist = process.env["WEB_PANEL_DIST"] ?? path.resolve(import.meta.dirname, "../../web-panel/dist/public");
 

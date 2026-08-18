@@ -7,6 +7,7 @@ import {
   isSubscriptionActive,
   fbGet,
   verifyGoogleIdToken,
+  fbSet,
 } from "../bot/firebase";
 import { getBot } from "../bot/index";
 
@@ -37,6 +38,9 @@ router.post("/auth/login", async (req, res) => {
     const loginId = (identifier || email || "").trim();
     if (!loginId || !password) {
       return res.status(400).json({ error: "Email/Username and password are required." });
+    const { email, password } = (req.body ?? {}) as { email?: string; password?: string };
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
     }
 
     const user = await findUserByIdentifier(loginId);
@@ -72,7 +76,7 @@ router.post("/auth/login", async (req, res) => {
     try {
       await bot.telegram.sendMessage(
         parseInt(telegramId),
-        `🔐 *AxeCodi Panel — Login OTP*\n\nYour one-time verification code:\n\n\`${otp}\`\n\n⏱ Valid for *5 minutes*.\n\n⚠️ *Do not share this code with anyone.*`,
+        `🔐 *HARRYAXE Panel — Login OTP*\n\nYour one-time verification code:\n\n\`${otp}\`\n\n⏱ Valid for *5 minutes*.\n\n⚠️ *Do not share this code with anyone.*`,
         { parse_mode: "Markdown" }
       );
     } catch {
@@ -94,7 +98,7 @@ router.post("/auth/login", async (req, res) => {
 // POST /api/auth/verify-otp  — step 2: OTP check → grant session
 router.post("/auth/verify-otp", async (req, res) => {
   try {
-    const { telegramId, otp } = req.body as { telegramId?: string; otp?: string };
+    const { telegramId, otp } = (req.body ?? {}) as { telegramId?: string; otp?: string };
     if (!telegramId || !otp) {
       return res.status(400).json({ error: "telegramId and otp are required." });
     }
@@ -117,15 +121,66 @@ router.post("/auth/verify-otp", async (req, res) => {
 
     return res.json({ success: true, telegramId, isAdmin: adminFlag, username });
     return res.json({ success: true, telegramId, isAdmin, username });
+    // Register session (device is logged in)
+    const { sessionId = "", device = "unknown" } = req.body ?? {};
+    const sessionToken = sessionId || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+    try {
+      const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
+      sessions[sessionToken] = {
+        device: device || "Unknown browser",
+        ip: req.ip || "",
+        loggedInAt: new Date().toISOString(),
+        lastSeen: new Date().toISOString(),
+      };
+      await fbSet(`config/sessions/${telegramId}`, sessions);
+    } catch {}
+
+    return res.json({ success: true, telegramId, isAdmin, username, sessionId: sessionToken });
   } catch {
     return res.status(500).json({ error: "Server error." });
   }
+});
+
+// GET /api/auth/sessions — list all login sessions for a user
+router.get("/auth/sessions", async (req, res) => {
+  try {
+    const telegramId = req.query.telegramId as string;
+    if (!telegramId) return res.status(400).json({ error: "telegramId required" });
+    const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
+    return res.json({ sessions });
+  } catch { return res.status(500).json({ error: "Server error." }); }
+});
+
+// DELETE /api/auth/sessions/:sessionId — logout a specific session
+router.delete("/auth/sessions/:sessionId", async (req, res) => {
+  try {
+    const telegramId = req.query.telegramId as string;
+    const sessionId = req.params.sessionId;
+    if (!telegramId || !sessionId) return res.status(400).json({ error: "Missing params" });
+    const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
+    delete sessions[sessionId];
+    await fbSet(`config/sessions/${telegramId}`, sessions);
+    return res.json({ success: true, message: "Session logged out." });
+  } catch { return res.status(500).json({ error: "Server error." }); }
+});
+
+// POST /api/auth/logout — remove current session (for this device)
+router.post("/auth/logout", async (req, res) => {
+  try {
+    const { telegramId, sessionId } = req.body ?? {};
+    if (!telegramId || !sessionId) return res.status(400).json({ error: "Missing params" });
+    const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
+    delete sessions[sessionId];
+    await fbSet(`config/sessions/${telegramId}`, sessions);
+    return res.json({ success: true });
+  } catch { return res.status(500).json({ error: "Server error." }); }
 });
 
 // PUT /api/auth/change-password — change panel password directly from web
 router.put("/auth/change-password", async (req, res) => {
   try {
     const { email, identifier, currentPassword, newPassword } = req.body as {
+    const { email, currentPassword, newPassword } = (req.body ?? {}) as {
       email?: string;
       identifier?: string;
       currentPassword?: string;
@@ -255,7 +310,7 @@ router.post("/auth/google", async (req, res) => {
 // POST /api/auth/set-channel — admin sets global SMS forward channel
 router.post("/auth/set-channel", async (req, res) => {
   try {
-    const { telegramId, channelId } = req.body as {
+    const { telegramId, channelId } = (req.body ?? {}) as {
       telegramId?: string;
       channelId?: string;
     };

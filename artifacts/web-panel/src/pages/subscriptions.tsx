@@ -2,9 +2,17 @@ import { useEffect, useState } from 'react';
 import { Layout } from '@/components/layout';
 import { Plus, Trash2, Users, Crown, Clock, RefreshCw, CheckCircle, XCircle, Copy, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Reveal, Eyebrow, PageHeader, StatTile, GlassCard, PillButton } from '@/components/ui/bezel';
+
+const PLAN_IDS: Record<string, string> = {
+  '1 Week': 'week', '1 Month': 'month', '3 Months': '3mo', '6 Months': '6mo',
+  '1 Year': 'year', 'Lifetime': 'lifetime',
+};
+const getPlan = (label: string) => ({
+  id: PLAN_IDS[label] || label.replace(/\s+/g, '_').toLowerCase(),
+});
 
 interface Subscription {
+  planMeta?: { id: string; name: string } | null;
   telegramId: string;
   username: string;
   plan: string;
@@ -113,231 +121,290 @@ export function Subscriptions() {
 
   return (
     <Layout>
-      <PageHeader
-        eyebrow="Access Control"
-        title="Users"
-        description={`${activeSubs.length} active / ${subs.length} total subscriptions`}
-        actions={
-          <>
-            <PillButton
-              variant="ghost"
-              onClick={fetchSubs}
-              icon={loading ? <RefreshCw className="w-4 h-4 animate-spin" strokeWidth={1.8} /> : <RefreshCw className="w-4 h-4" strokeWidth={1.8} />}
-            >
-              Refresh
-            </PillButton>
-            <PillButton
-              onClick={() => setShowForm(!showForm)}
-              icon={<Plus className="w-4 h-4" strokeWidth={1.8} />}
-            >
-              Add User
-            </PillButton>
-          </>
-        }
-      />
+      {/* ── Page header ── */}
+      <div className="flex flex-col gap-4 mb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="page-eyebrow">Admin</p>
+          <h1 className="page-title flex items-center gap-2">
+            <Crown className="w-6 h-6 text-primary" />
+            Users
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {activeSubs.length} active / {subs.length} total
+          </p>
+        </div>
+        <div className="flex gap-2 sm:flex-shrink-0">
+          <button
+            onClick={fetchSubs}
+            className="flex items-center justify-center gap-2 px-4 h-11 border border-input rounded-full text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary active:bg-muted transition-all bg-card"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center justify-center gap-2 px-5 h-11 bg-primary text-primary-foreground rounded-full text-sm font-semibold hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+          >
+            <Plus className="w-4 h-4" />
+            Add User
+          </button>
+        </div>
+      </div>
 
       {showForm && (
-        <Reveal className="mb-8">
-          <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] p-7">
-            <Eyebrow dot className="mb-6">New Subscription</Eyebrow>
-            <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                  Telegram ID *
-                </label>
-                <input type="text" placeholder="123456789" value={form.telegramId}
-                  onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))}
-                  required className="field" />
+        <div className="mb-6 stat-card p-5">
+          <h3 className="page-eyebrow text-primary mb-4">New Subscription</h3>
+          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="page-eyebrow block mb-1">
+                Telegram ID *
+              </label>
+              <input
+                type="text"
+                placeholder="123456789"
+                value={form.telegramId}
+                onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))}
+                required
+                className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
+              />
+            </div>
+            <div>
+              <label className="page-eyebrow block mb-1">
+                Username
+              </label>
+              <input
+                type="text"
+                placeholder="@username"
+                value={form.username}
+                onChange={e => setForm(f => ({ ...f, username: e.target.value.replace('@', '') }))}
+                className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
+              />
+            </div>
+            <div>
+              <label className="page-eyebrow block mb-1">
+                Days
+              </label>
+              <div className="relative">
+                <select
+                  value={form.days}
+                  onChange={e => {
+                    const d = e.target.value;
+                    const labels: Record<string, string> = { '7': '1 Week', '30': '1 Month', '90': '3 Months', '180': '6 Months', '365': '1 Year', '36500': 'Lifetime' };
+                    setForm(f => ({ ...f, days: d, plan: labels[d] || `${d} Days` }));
+                  }}
+                  className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all appearance-none"
+                >
+                  <option value="7">7 Days</option>
+                  <option value="30">1 Month (30 Days)</option>
+                  <option value="90">3 Months</option>
+                  <option value="180">6 Months</option>
+                  <option value="365">1 Year</option>
+                  <option value="36500">Lifetime</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                  Username
-                </label>
-                <input type="text" placeholder="@username" value={form.username}
-                  onChange={e => setForm(f => ({ ...f, username: e.target.value.replace('@', '') }))}
-                  className="field" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                  Days
-                </label>
-                <div className="relative">
-                  <select
-                    value={form.days}
-                    onChange={e => {
-                      const d = e.target.value;
-                      const labels: Record<string, string> = { '7': '1 Week', '30': '1 Month', '90': '3 Months', '180': '6 Months', '365': '1 Year', '36500': 'Lifetime' };
-                      setForm(f => ({ ...f, days: d, plan: labels[d] || `${d} Days` }));
-                    }}
-                    className="field appearance-none pr-10"
+            </div>
+            <div>
+              <label className="page-eyebrow block mb-1">
+                Plan Tier <span className="text-muted-foreground">(Pro default)</span>
+              </label>
+              <div className="flex gap-2">
+                {['FREE', 'PRO', 'VIP'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, plan: t }))}
+                    className={`flex-1 px-3 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                      form.plan === t
+                        ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
+                        : 'bg-card border-input text-muted-foreground hover:border-primary'
+                    }`}
                   >
-                    <option value="7" className="bg-[#0b0b10]">7 Days</option>
-                    <option value="30" className="bg-[#0b0b10]">1 Month (30 Days)</option>
-                    <option value="90" className="bg-[#0b0b10]">3 Months</option>
-                    <option value="180" className="bg-[#0b0b10]">6 Months</option>
-                    <option value="365" className="bg-[#0b0b10]">1 Year</option>
-                    <option value="36500" className="bg-[#0b0b10]">Lifetime</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" strokeWidth={1.6} />
-                </div>
+                    {t}
+                  </button>
+                ))}
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                  Panel Email <span className="text-[#a78bfa] normal-case tracking-normal">(login ke liye)</span>
-                </label>
-                <input type="email" placeholder="user@example.com" value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="field" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                  Panel Password <span className="text-muted-foreground/60 normal-case tracking-normal">(optional)</span>
-                </label>
-                <input type="text" placeholder="User /reset_password se bhi set kar sakta hai" value={form.panelPassword}
-                  onChange={e => setForm(f => ({ ...f, panelPassword: e.target.value }))}
-                  className="field" />
-              </div>
-              <div className="flex items-end gap-2">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn-island flex-1 bg-[#8b5cf6] text-white px-6 py-3 text-sm shadow-[0_10px_30px_-12px_rgba(139,92,246,0.7)] hover:bg-[#7c3aed] disabled:opacity-40 disabled:pointer-events-none"
-                >
-                  {submitting ? 'Adding...' : 'Activate'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="btn-island px-5 py-3 text-sm bg-white/[0.04] border border-white/10 text-foreground hover:bg-white/[0.08]"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </GlassCard>
-        </Reveal>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                FREE: 1 device · PRO: 5 devices + finance scan · VIP: unlimited + multi-Firebase
+              </p>
+            </div>
+            <div>
+              <label className="page-eyebrow block mb-1">
+                Panel Email <span className="text-primary">(login ke liye)</span>
+              </label>
+              <input
+                type="email"
+                placeholder="user@example.com"
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
+              />
+            </div>
+            <div>
+              <label className="page-eyebrow block mb-1">
+                Panel Password <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="User can also set this via /reset_password"
+                value={form.panelPassword}
+                onChange={e => setForm(f => ({ ...f, panelPassword: e.target.value }))}
+                className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 h-11 bg-primary text-primary-foreground rounded-full text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all shadow-md shadow-primary/20"
+              >
+                {submitting ? 'Adding...' : 'Activate'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="px-4 h-11 border border-input rounded-full text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary active:bg-muted transition-all bg-card"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
-      {/* Bento stats */}
-      <Reveal className="mb-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Total Users', value: subs.length, icon: <Users className="w-5 h-5" strokeWidth={1.6} />, tone: 'default' },
-            { label: 'Active', value: activeSubs.length, icon: <CheckCircle className="w-5 h-5" strokeWidth={1.6} />, tone: 'accent' },
-            { label: 'Expired', value: expiredSubs.length, icon: <XCircle className="w-5 h-5" strokeWidth={1.6} />, tone: 'danger' },
-            { label: 'Expiring Soon', value: activeSubs.filter(s => s.daysLeft !== null && s.daysLeft <= 3).length, icon: <Clock className="w-5 h-5" strokeWidth={1.6} />, tone: 'warn' },
-          ].map((s) => (
-            <GlassCard key={s.label} className="rounded-3xl" innerClassName="rounded-3xl p-5">
-              <StatTile label={s.label} value={s.value} icon={s.icon} tone={s.tone as any} />
-            </GlassCard>
-          ))}
-        </div>
-      </Reveal>
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'Total Users', value: subs.length, icon: Users, color: 'text-foreground' },
+          { label: 'Active', value: activeSubs.length, icon: CheckCircle, color: 'text-success' },
+          { label: 'Expired', value: expiredSubs.length, icon: XCircle, color: 'text-destructive' },
+          { label: 'Expiring Soon', value: activeSubs.filter(s => s.daysLeft !== null && s.daysLeft <= 3).length, icon: Clock, color: 'text-warning' },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="stat-card p-4 flex items-center gap-3">
+            <Icon className={`w-5 h-5 ${color}`} />
+            <div className="min-w-0">
+              <div className={`font-mono text-2xl font-bold ${color}`}>{value}</div>
+              <div className="page-eyebrow mt-0.5">{label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-16 rounded-3xl animate-pulse bg-white/[0.03] border border-white/[0.05]" />
+            <div key={i} className="stat-card h-16 animate-pulse" />
           ))}
         </div>
       ) : subs.length === 0 ? (
-        <GlassCard className="rounded-[1.75rem]" innerClassName="rounded-[1.75rem] py-20 text-center">
-          <div className="bezel mx-auto w-fit mb-5">
-            <div className="bezel-inner w-16 h-16 flex items-center justify-center">
-              <Crown className="w-7 h-7 text-muted-foreground" strokeWidth={1.5} />
-            </div>
+        <div className="stat-card flex flex-col items-center justify-center border-dashed py-24 px-4 text-center">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Crown className="w-8 h-8 text-muted-foreground" />
           </div>
-          <p className="text-sm text-muted-foreground">No subscriptions yet</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Click "Add User" to grant access</p>
-        </GlassCard>
+          <h3 className="font-display text-lg font-semibold text-foreground mb-1">No subscriptions yet</h3>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Click "Add User" to grant access.
+          </p>
+        </div>
       ) : (
-        <Reveal>
-          <GlassCard className="rounded-[1.75rem] overflow-hidden" innerClassName="rounded-[1.75rem] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/[0.07] bg-white/[0.02]">
-                    {['User', 'Telegram ID', 'Plan', 'Status', 'Expires', 'Days Left', 'Action'].map(h => (
-                      <th key={h} className="text-left px-5 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {subs.map((sub, i) => (
-                    <tr
-                      key={sub.telegramId}
-                      className={`border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors duration-500 ${i % 2 === 1 ? 'bg-white/[0.015]' : ''}`}
+        <div className="space-y-3">
+          {subs.map((sub) => {
+            const isExpired = sub.status === 'expired';
+            const expiringSoon = sub.daysLeft !== null && sub.daysLeft <= 3;
+            const statusClass = isExpired
+              ? 'bg-destructive/10 text-destructive'
+              : 'bg-success/10 text-success';
+            const dotClass = isExpired ? 'bg-destructive' : 'bg-success';
+
+            return (
+              <div key={sub.telegramId} className="stat-card p-4">
+                {/* Header: identity + status */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="bg-muted rounded-xl p-2.5 shrink-0">
+                      <Crown className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="page-eyebrow">User</div>
+                      <div className="font-display font-semibold text-sm truncate">
+                        @{sub.username || '—'}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-primary/10 text-primary`}>
+                    {sub.planMeta?.id || getPlan(sub.plan).id}
+                  </span>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${statusClass}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                    {isExpired ? 'Expired' : 'Active'}
+                  </span>
+                </div>
+
+                {/* Data grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                  <div className="flex flex-col min-w-0">
+                    <span className="page-eyebrow">Telegram ID</span>
+                    <button
+                      onClick={() => copyId(sub.telegramId)}
+                      className="flex items-center gap-1 font-mono text-xs text-foreground hover:text-primary active:bg-muted px-1.5 py-1 -ml-1.5 rounded-lg transition-colors text-left min-w-0"
                     >
-                      <td className="px-5 py-4 font-semibold text-foreground">@{sub.username || '—'}</td>
-                      <td className="px-5 py-4">
-                        <button
-                          onClick={() => copyId(sub.telegramId)}
-                          className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors duration-500 group"
-                        >
-                          {sub.telegramId}
-                          <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" strokeWidth={1.6} />
-                        </button>
-                      </td>
-                      <td className="px-5 py-4 text-xs text-muted-foreground">{sub.plan}</td>
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                          sub.status === 'active'
-                            ? 'bg-[#34d399]/12 text-[#34d399] border border-[#34d399]/20'
-                            : 'bg-[#ef4444]/12 text-[#f87171] border border-[#ef4444]/25'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${sub.status === 'active' ? 'bg-[#34d399] shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-[#f87171]'}`} />
-                          {sub.status === 'active' ? 'Active' : 'Expired'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 font-mono text-xs text-muted-foreground">{formatDate(sub.expiresAt)}</td>
-                      <td className="px-5 py-4 text-sm">
-                        {sub.daysLeft === null ? (
-                          <span className="text-[#a78bfa]">∞</span>
-                        ) : sub.daysLeft <= 3 ? (
-                          <span className="text-[#fbbf24] font-semibold">{sub.daysLeft}d</span>
-                        ) : (
-                          <span className="text-muted-foreground">{sub.daysLeft}d</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4">
-                        <button
-                          onClick={() => handleDelete(sub.telegramId, sub.username)}
-                          disabled={deleting === sub.telegramId}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#f87171] border border-[#ef4444]/30 rounded-full hover:bg-[#ef4444]/10 disabled:opacity-50 transition-all duration-500 ease-spring"
-                        >
-                          <Trash2 className="w-3 h-3" strokeWidth={1.6} />
-                          {deleting === sub.telegramId ? '...' : 'Remove'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </GlassCard>
-        </Reveal>
+                      <span className="truncate">{sub.telegramId}</span>
+                      <Copy className="w-3 h-3 text-muted-foreground shrink-0" />
+                    </button>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="page-eyebrow">Plan</span>
+                    <span className="font-mono text-xs text-foreground px-1.5 py-1">{sub.plan}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="page-eyebrow">Expires</span>
+                    <span className="font-mono text-xs text-muted-foreground px-1.5 py-1">{formatDate(sub.expiresAt)}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="page-eyebrow">Days Left</span>
+                    <span className="px-1.5 py-1">
+                      {sub.daysLeft === null ? (
+                        <span className="font-mono text-sm font-semibold text-primary">∞</span>
+                      ) : expiringSoon ? (
+                        <span className="font-mono text-sm font-semibold text-warning">{sub.daysLeft}d</span>
+                      ) : (
+                        <span className="font-mono text-sm text-muted-foreground">{sub.daysLeft}d</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action */}
+                <div className="flex justify-end pt-3 border-t border-card-border">
+                  <button
+                    onClick={() => handleDelete(sub.telegramId, sub.username)}
+                    disabled={deleting === sub.telegramId}
+                    className="flex items-center justify-center gap-1.5 px-4 h-11 text-xs font-semibold text-destructive border border-destructive/30 rounded-full hover:bg-destructive/10 disabled:opacity-50 transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    {deleting === sub.telegramId ? '...' : 'Remove'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      <Reveal className="mt-8">
-        <GlassCard className="rounded-3xl" innerClassName="rounded-3xl p-5 flex items-start gap-4">
-          <div className="bezel shrink-0">
-            <div className="bezel-inner w-11 h-11 flex items-center justify-center">
-              <span className="text-[#a78bfa] text-xs font-bold tracking-tight">TG</span>
-            </div>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">Telegram Bot Active</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Users can interact via the bot. Commands: /start · /apk · /reset_password
-            </p>
-            <p className="text-xs text-muted-foreground/70 mt-1.5 font-mono">
-              Admin: /adduser {'{'}telegramId{'}'} {'{'}days{'}'} {'{'}username{'}'} · /removeuser · /listusers · /stats
-            </p>
-          </div>
-        </GlassCard>
-      </Reveal>
+      <div className="mt-6 stat-card p-4 flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-muted border border-card-border flex items-center justify-center flex-shrink-0 mt-0.5">
+          <span className="text-primary text-xs font-bold">TG</span>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Telegram Bot Active</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Users can interact via the bot. Commands: /start · /apk · /reset_password
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            Admin commands: /adduser {'{'}telegramId{'}'} {'{'}days{'}'} {'{'}username{'}'} · /removeuser · /listusers · /stats
+          </p>
+        </div>
+      </div>
     </Layout>
   );
 }

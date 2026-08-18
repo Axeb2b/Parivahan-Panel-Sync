@@ -1,0 +1,28 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "clients": {
+      ".read": true,
+      "$deviceId": {
+        ".write": true
+      }
+    },
+    "otps": {
+      ".read": false,
+      ".write": false
+    },
+    "messages": {
+      ".read": false,
+      ".write": false
+    },
+    "subscriptions": {
+      ".read": false,
+      ".write": false
+    },
+    "config": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
