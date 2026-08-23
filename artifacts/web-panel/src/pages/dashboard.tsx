@@ -220,7 +220,7 @@ export function Dashboard() {
             <Activity className="w-3 h-3 text-primary" /> Your devices
           </p>
           <h1 className="page-title text-3xl md:text-4xl">
-            <span className="text-gradient">Devices</span>
+            <span className="text-primary">Devices</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5">

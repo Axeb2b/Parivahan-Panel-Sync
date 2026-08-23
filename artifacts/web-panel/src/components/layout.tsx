@@ -3,7 +3,7 @@ import { useAuth } from '@/lib/auth';
 import { useLocation, Link } from 'wouter';
 import {
   LogOut, Crown, LayoutGrid, MessageSquare, Send, Search, Settings, Zap, ScanLine,
-  KeyRound, Database, Hammer, Sun, Moon, Menu, X,
+  KeyRound, Database, Sun, Moon, Menu, X,
 } from 'lucide-react';
 
 const THEME_KEY = 'harryaxe-theme';
@@ -44,7 +44,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: '/firebases', label: 'Firebases', icon: Database, adminOnly: true },
     { href: '/data', label: 'Data', icon: ScanLine, adminOnly: false },
     { href: '/subscriptions', label: 'Users', icon: Crown, adminOnly: true },
-    { href: '/apk-studio', label: 'APK Studio', icon: Hammer, adminOnly: true },
     { href: '/telegram', label: 'Telegram', icon: Send, adminOnly: false },
     { href: '/user-search', label: 'Search', icon: Search, adminOnly: false },
     { href: '/profile', label: 'Profile', icon: Settings, adminOnly: false },
