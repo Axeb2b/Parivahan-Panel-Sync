@@ -32,7 +32,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-white leading-tight text-gradient">HARRYAXE</span>
+              <span className="font-bold tracking-tight text-lg text-white leading-tight brand-gradient">HARRYAXE</span>
               <span className="text-[10px] font-medium tracking-[0.25em] text-[#7e86a3] uppercase leading-tight">Panel Pro</span>
             </div>
           </Link>

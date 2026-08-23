@@ -92,7 +92,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Zap className="w-5 h-5" />
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="font-display font-bold text-lg tracking-tight text-gradient">HARRYAXE</span>
+            <span className="font-display font-bold text-lg tracking-tight brand-gradient">HARRYAXE</span>
             <span className="page-eyebrow">Control Panel</span>
           </span>
         </Link>
@@ -128,7 +128,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Zap className="w-4 h-4" />
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="font-display font-bold text-base tracking-tight text-gradient">HARRYAXE</span>
+            <span className="font-display font-bold text-base tracking-tight brand-gradient">HARRYAXE</span>
             <span className="page-eyebrow" style={{ fontSize: 9 }}>Control Panel</span>
           </span>
         </Link>
@@ -150,7 +150,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
           <div className="absolute right-0 top-0 bottom-0 w-72 max-w-[85vw] bg-card border-l border-card-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
             <div className="flex items-center justify-between px-4 h-14 border-b border-card-border">
-              <span className="font-display font-bold tracking-tight text-gradient">HARRYAXE</span>
+              <span className="font-display font-bold tracking-tight brand-gradient">HARRYAXE</span>
               <button
                 onClick={() => setDrawerOpen(false)}
                 aria-label="Close menu"
