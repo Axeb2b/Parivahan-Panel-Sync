@@ -1,0 +1,10 @@
+:root {
+  --bg-oled: #050505;
+  --card-vantablack: #050505;
+  --hairline-white: rgba(255,255,255,0.1);
+  --hairline-white-05: rgba(255,255,255,0.05);
+  --macro-whitespace: 6rem;
+  --radius-shell: 2rem;
+  --radius-inner: calc(2rem - 0.375rem);
+  --ease-elite: cubic-bezier(0.32,0.72,0,1);
+}
