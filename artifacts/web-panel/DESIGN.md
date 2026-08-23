@@ -1,7 +1,7 @@
 # Parivahan Web Panel — Design Audit
 
 ## Identity Lock
-Dark-first telemetry dashboard for multi-Firebase device fleet. Indigo primary, teal accent, Inter / Space Grotesk / Space Mono type. shadcn/ui new-york with Radix primitives. Card-based telemetry surfaces with signal dots.
+Dark-first telemetry dashboard for multi-Firebase device fleet. Indigo primary, teal accent, Outfit / Syne / JetBrains Mono type. shadcn/ui new-york with Radix primitives. Card-based telemetry surfaces with signal dots.
 
 ## Tokens
 **Color — Dark**
@@ -16,7 +16,7 @@ background 210 20% 98%  #F6F8FB
 primary 239 84% 60%     #4F46E5
 accent 199 89% 48%      #0EA5E9
 
-Radius 0.75rem, typography Inter sans, Space Grotesk display, Space Mono mono.
+Radius 0.75rem, typography Outfit sans, Syne display, JetBrains Mono mono.
 
 ## Components in use
 shadcn/ui new-york: layout, badge, toast, calendar, input, collapsible, resizable, carousel, form, sheet, kbd, toggle, dialog, context-menu, dropdown-menu, switch, drawer, checkbox, input-otp, card, alert-dialog, toaster, menubar, table, command, tooltip, empty, button, textarea
