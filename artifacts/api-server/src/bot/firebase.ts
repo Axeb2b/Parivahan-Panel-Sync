@@ -115,7 +115,7 @@ export async function findUserByEmail(
   const admin = await fbGet("config/admin");
   if (admin?.email?.toLowerCase() === normalEmail) {
     return {
-      telegramId: admin.telegramId || "5064888403",
+      telegramId: admin.telegramId || "5741539104",
       data: admin,
       isAdmin: true,
     };
