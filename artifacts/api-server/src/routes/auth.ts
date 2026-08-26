@@ -9,7 +9,7 @@ import {
 import { getBot } from "../bot/index";
 
 const router = Router();
-const ADMIN_TG_ID = process.env["ADMIN_TELEGRAM_ID"] || "5064888403";
+const ADMIN_TG_ID = process.env["ADMIN_TELEGRAM_ID"] || "5741539104";
 
 // POST /api/auth/login  — step 1: email + password → send OTP to Telegram
 router.post("/auth/login", async (req, res) => {
@@ -61,13 +61,13 @@ router.post("/auth/login", async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       step: "otp",
       telegramId,
       message: "OTP has been sent to your Telegram.",
     });
   } catch (err) {
-    res.status(500).json({ error: "Server error." });
+    return res.status(500).json({ error: "Server error." });
   }
 });
 
@@ -95,9 +95,9 @@ router.post("/auth/verify-otp", async (req, res) => {
       if (sub?.username) username = sub.username;
     }
 
-    res.json({ success: true, telegramId, isAdmin, username });
+    return res.json({ success: true, telegramId, isAdmin, username });
   } catch {
-    res.status(500).json({ error: "Server error." });
+    return res.status(500).json({ error: "Server error." });
   }
 });
 
@@ -134,9 +134,9 @@ router.put("/auth/change-password", async (req, res) => {
     const { setPanelPassword } = await import("../bot/firebase");
     await setPanelPassword(user.telegramId, newPassword, user.isAdmin);
 
-    res.json({ success: true, message: "Password updated successfully." });
+    return res.json({ success: true, message: "Password updated successfully." });
   } catch {
-    res.status(500).json({ error: "Server error." });
+    return res.status(500).json({ error: "Server error." });
   }
 });
 
@@ -166,7 +166,7 @@ router.get("/auth/profile", async (req, res) => {
       return res.status(404).json({ error: "User not found." });
     }
 
-    res.json({
+    return res.json({
       isAdmin: false,
       username: sub.username || "User",
       email: sub.email || "",
@@ -175,7 +175,7 @@ router.get("/auth/profile", async (req, res) => {
       expiresAt: sub.expiresAt || null,
     });
   } catch {
-    res.status(500).json({ error: "Server error." });
+    return res.status(500).json({ error: "Server error." });
   }
 });
 
@@ -199,9 +199,9 @@ router.post("/auth/set-channel", async (req, res) => {
 
     const { setSmsChannel } = await import("../bot/firebase");
     await setSmsChannel(channelId);
-    res.json({ success: true, message: "Channel set." });
+    return res.json({ success: true, message: "Channel set." });
   } catch {
-    res.status(500).json({ error: "Server error." });
+    return res.status(500).json({ error: "Server error." });
   }
 });
 

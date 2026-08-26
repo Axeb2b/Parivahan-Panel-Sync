@@ -1,0 +1,14 @@
+# Netlify build config for the static web panel (site: axecodi)
+[build]
+  command = "pnpm --filter @workspace/web-panel run build"
+  publish = "artifacts/web-panel/dist/public"
+
+[build.environment]
+  NODE_VERSION = "22"
+  BASE_PATH = "/"
+
+# SPA fallback for client-side (wouter) routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
