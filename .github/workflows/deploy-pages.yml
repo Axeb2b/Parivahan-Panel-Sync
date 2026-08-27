@@ -62,7 +62,7 @@ jobs:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           # Custom domain => base path stays "/". For a project page without a
           # custom domain, set repo variable BASE_PATH to "/<repo-name>/".
-          BASE_PATH: ${{ vars.BASE_PATH || '/' }}
+          BASE_PATH: ${{ vars.BASE_PATH || '/Parivahan-Panel-Sync/' }}
         run: pnpm --filter @workspace/web-panel run build
 
       - name: Add CNAME for custom domain
