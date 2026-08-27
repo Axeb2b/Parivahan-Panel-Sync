@@ -662,6 +662,11 @@ export function Dashboard() {
                         </button>
                       )}
                     </span>
+
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="page-eyebrow">Vehicle</span>
+                    <span className="font-mono font-medium text-xs truncate flex items-center gap-1">{device.vehicleNumber ? <span className="text-amber-600 dark:text-amber-400 font-semibold">{device.vehicleNumber}</span> : <span className="text-muted-foreground">—</span>}{device.vehicleNumber && <button onClick={(e) => quickCopy(device.vehicleNumber, e)} className="opacity-0 group-hover:opacity-100 transition-opacity"><Copy className="w-3 h-3 text-muted-foreground" /></button>}</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="page-eyebrow">Network</span>

