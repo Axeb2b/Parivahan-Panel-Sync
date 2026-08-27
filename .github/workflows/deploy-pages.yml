@@ -52,18 +52,38 @@ jobs:
           enablement: true
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          echo "pnpm $(pnpm --version) node $(node --version)"
+          pnpm install --frozen-lockfile
+          echo "Install ok"
+          pnpm ls --depth 0 2>&1 | head -n 20
+
+      - name: Resolve BASE_PATH (auto-detect CNAME)
+        id: base_path
+        run: |
+          if [ -f CNAME ]; then
+            echo "CNAME found -> BASE_PATH=/ for custom domain $(cat CNAME)"
+            echo "value=/" >> $GITHUB_OUTPUT
+          elif [ -n "${{ vars.BASE_PATH }}" ]; then
+            echo "Using vars.BASE_PATH=${{ vars.BASE_PATH }}"
+            echo "value=${{ vars.BASE_PATH }}" >> $GITHUB_OUTPUT
+          else
+            echo "Using default /Parivahan-Panel-Sync/"
+            echo "value=/Parivahan-Panel-Sync/" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build web panel
         env:
-          # API base URL the panel talks to. Set repo variable VITE_API_URL
-          # (Settings > Secrets and variables > Actions > Variables) to your
-          # hosted API server, e.g. https://parivahan-api.onrender.com
           VITE_API_URL: ${{ vars.VITE_API_URL }}
-          # Custom domain => base path stays "/". For a project page without a
-          # custom domain, set repo variable BASE_PATH to "/<repo-name>/".
-          BASE_PATH: ${{ vars.BASE_PATH || '/Parivahan-Panel-Sync/' }}
-        run: pnpm --filter @workspace/web-panel run build
+          BASE_PATH: ${{ steps.base_path.outputs.value }}
+        run: |
+          echo "Building with VITE_API_URL=$VITE_API_URL BASE_PATH=$BASE_PATH"
+          if [ -z "$VITE_API_URL" ]; then
+            echo "::warning::VITE_API_URL not set - panel will try same-origin /api (fails on GH Pages)"
+          fi
+          pnpm --filter @workspace/web-panel run build
+          echo "Build output:"
+          ls -lh artifacts/web-panel/dist/public/ | head -n 20
 
       - name: Add CNAME for custom domain
         run: |
@@ -71,14 +91,22 @@ jobs:
             cp CNAME artifacts/web-panel/dist/public/CNAME
             echo "CNAME added: $(cat CNAME)"
           else
-            echo "No root CNAME file found; skipping (configure custom domain in Pages settings)."
+            echo "No CNAME - set custom domain in Pages settings if needed"
           fi
 
       - name: Add .nojekyll
         run: touch artifacts/web-panel/dist/public/.nojekyll
 
       - name: SPA fallback (404 -> index.html)
-        run: cp artifacts/web-panel/dist/public/index.html artifacts/web-panel/dist/public/404.html
+        run: |
+          cp artifacts/web-panel/dist/public/index.html artifacts/web-panel/dist/public/404.html
+          echo "SPA fallback created"
+
+      - name: Verify build artifact
+        run: |
+          test -f artifacts/web-panel/dist/public/index.html || (echo "ERROR index.html missing" && exit 1)
+          test -f artifacts/web-panel/dist/public/404.html || (echo "ERROR 404.html missing" && exit 1)
+          du -sh artifacts/web-panel/dist/public/
 
       - uses: actions/upload-pages-artifact@v3
         with:
