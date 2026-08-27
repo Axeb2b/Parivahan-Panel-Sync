@@ -199,6 +199,12 @@ export function Dashboard() {
                     <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">Phone</span>
                     <span className="font-medium text-xs text-[#2d1b4e]">{device.phone || 'N/A'}</span>
                   </div>
+                  {device.vehicleNumber && (
+                    <div className="flex flex-col col-span-2">
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wider font-medium">Vehicle</span>
+                      <span className="font-mono font-semibold text-xs text-amber-700 dark:text-amber-300 truncate">{device.vehicleNumber}</span>
+                    </div>
+                  )}
                   <div className="flex flex-col">
                     {device.upi ? (
                       <>
