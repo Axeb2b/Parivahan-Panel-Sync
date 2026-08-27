@@ -298,6 +298,11 @@ export async function startBot(): Promise<void> {
     );
   });
 
+  // ─── /ping ───────────────────────────────────────────────────────────────
+  bot.command("ping", async (ctx) => {
+    await ctx.reply(`pong — ${new Date().toISOString()} — bot alive`);
+  });
+
   // ─── /stats ──────────────────────────────────────────────────────────────
   bot.command("stats", async (ctx) => {
     if (!isAdmin(ctx)) return;
