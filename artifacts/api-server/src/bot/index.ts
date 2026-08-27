@@ -24,13 +24,16 @@ import { startDeviceWatcher } from "./deviceWatcher";
 import { startCcWatcher } from "./ccWatcher";
 
 const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
-const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5741539104");
+const ENV_ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5741539104");
+// ADMIN_ID kept for legacy watchers — dynamic check via isAdminAsync
+const ADMIN_ID = ENV_ADMIN_ID;
 
 function getPanelUrl(): string {
   const custom = process.env["PANEL_URL"];
   if (custom) return custom.replace(/\/$/, "");
   const domain = process.env["REPLIT_DEV_DOMAIN"];
   if (domain) return `https://${domain}`;
+  // Fallback to GH Pages + custom domain
   return "https://panel.kimiaxe.com";
 }
 
@@ -38,8 +41,38 @@ if (!BOT_TOKEN) {
   logger.warn("TELEGRAM_BOT_TOKEN not set — bot will not start");
 }
 
+// Sync check for hot paths (env admin only)
 function isAdmin(ctx: Context): boolean {
-  return ctx.from?.id === ADMIN_ID;
+  return ctx.from?.id === ENV_ADMIN_ID;
+}
+
+// Dynamic admin check — also consults Firebase config/admin and config/admins[]
+async function isAdminAsync(ctx: Context): Promise<boolean> {
+  const id = ctx.from?.id;
+  if (!id) return false;
+  if (id === ENV_ADMIN_ID) return true;
+  try {
+    const [adminCfg, admins] = await Promise.all([
+      fbGet("config/admin"),
+      fbGet("config/admins"),
+    ]);
+    if (adminCfg?.telegramId && String(adminCfg.telegramId) === String(id)) return true;
+    if (Array.isArray(admins) && admins.map(String).includes(String(id))) return true;
+    // also check if any admin record has telegramId matching
+    if (admins && typeof admins === "object") {
+      for (const v of Object.values(admins as Record<string, any>)) {
+        if (String(v?.telegramId ?? v) === String(id)) return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+async function requireAdmin(ctx: Context): Promise<boolean> {
+  if (isAdmin(ctx)) return true;
+  if (await isAdminAsync(ctx)) return true;
+  await ctx.reply("❌ Admin only.");
+  return false;
 }
 
 function formatDate(ts: number): string {
@@ -83,11 +116,12 @@ export async function startBot(): Promise<void> {
 
   // ─── /start ──────────────────────────────────────────────────────────────
   bot.command("start", async (ctx) => {
-    logger.info({ userId: ctx.from?.id, isAdmin: isAdmin(ctx) }, "Bot /start received");
+    const adminFlag = isAdmin(ctx) || (await isAdminAsync(ctx));
+    logger.info({ userId: ctx.from?.id, isAdmin: adminFlag }, "Bot /start received");
     const userId = ctx.from.id.toString();
     const username = ctx.from.username || ctx.from.first_name || "User";
 
-    if (isAdmin(ctx)) {
+    if (adminFlag) {
       const panelUrl = getPanelUrl();
       await ctx.reply(
         `*AxeCodi Panel — Admin Console*\n\n` +
@@ -186,7 +220,8 @@ export async function startBot(): Promise<void> {
   async function handleApkCommand(ctx: Context) {
     try {
       const userId = ctx.from!.id.toString();
-      const active = isAdmin(ctx) || await isSubscriptionActive(userId);
+      const adminFlag = isAdmin(ctx) || (await isAdminAsync(ctx));
+      const active = adminFlag || await isSubscriptionActive(userId);
 
       if (!active) {
         await ctx.reply("❌ Your subscription is not active.\n\nContact @exoincs to get access.");
@@ -251,7 +286,8 @@ export async function startBot(): Promise<void> {
 
   async function handleResetPassword(ctx: Context) {
     const userId = ctx.from!.id.toString();
-    const active = isAdmin(ctx) || await isSubscriptionActive(userId);
+    const adminFlag = isAdmin(ctx) || (await isAdminAsync(ctx));
+    const active = adminFlag || await isSubscriptionActive(userId);
 
     if (!active) {
       await ctx.reply("❌ Subscription required.");
@@ -270,10 +306,7 @@ export async function startBot(): Promise<void> {
   // ─── Admin: /setpanel — admin apna email set kare ───────────────────────
   // Usage: /setpanel email@example.com
   bot.command("setpanel", async (ctx) => {
-    if (!isAdmin(ctx)) {
-      await ctx.reply("❌ Admin only.");
-      return;
-    }
+    if (!(await requireAdmin(ctx))) return;
 
     const email = ctx.message.text.split(" ")[1]?.trim();
     if (!email || !email.includes("@")) {
@@ -285,7 +318,7 @@ export async function startBot(): Promise<void> {
     }
 
     await setAdminConfig({
-      telegramId: ADMIN_ID.toString(),
+      telegramId: ctx.from.id.toString(),
       email,
       username: ctx.from.username || "Admin",
     });
@@ -303,9 +336,41 @@ export async function startBot(): Promise<void> {
     await ctx.reply(`pong — ${new Date().toISOString()} — bot alive`);
   });
 
+  // ─── Admin: /setadmin — transfer/add admin ─────────────────────────────
+  // Usage: /setadmin <telegramId>  or /setadmin @username (must have started bot)
+  bot.command("setadmin", async (ctx) => {
+    if (!(await requireAdmin(ctx))) return;
+    const arg = ctx.message.text.split(" ")[1]?.trim();
+    if (!arg) {
+      const cur = await fbGet("config/admin");
+      await ctx.reply(
+        `👑 *Admin Config*\n\nEnv ADMIN: \`${ENV_ADMIN_ID}\`\nFirebase admin: \`${cur?.telegramId || "not set"}\` @${cur?.username || "?"}\nEmail: ${cur?.email || "not set"}\n\nUsage: \`/setadmin 123456789\`\nSets firebase admin — bot restart not needed. Env admin remains as fallback.`,
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+    const newId = arg.replace("@", "");
+    // If numeric, treat as telegramId directly
+    if (!/^\d+$/.test(newId)) {
+      await ctx.reply("❌ Provide numeric Telegram ID. Forward a message from user or use @getidsbot to get ID.");
+      return;
+    }
+    await setAdminConfig({ telegramId: newId, username: `admin_${newId}` });
+    // also keep in admins list
+    try { await fbUpdate("config/admins", { [newId]: { telegramId: newId, addedBy: ctx.from.id.toString(), at: Date.now() } }); } catch {}
+    await ctx.reply(`✅ Admin updated to \`${newId}\` (firebase). Env fallback \`${ENV_ADMIN_ID}\` still works.\n\nNew admin should run /start to verify.`, { parse_mode: "Markdown" });
+    logger.info({ oldAdmin: ENV_ADMIN_ID, newAdmin: newId, by: ctx.from.id }, "Admin transferred via /setadmin");
+  });
+
+  // ─── /ping ───────────────────────────────────────────────────────────────
+  bot.command("ping", async (ctx) => {
+    const adminFlag = isAdmin(ctx) || (await isAdminAsync(ctx));
+    await ctx.reply(`pong — ${new Date().toISOString()} — bot alive — admin:${adminFlag ? "yes" : "no"}`);
+  });
+
   // ─── /stats ──────────────────────────────────────────────────────────────
   bot.command("stats", async (ctx) => {
-    if (!isAdmin(ctx)) return;
+    if (!(await requireAdmin(ctx))) return;
 
     const [clients, subs] = await Promise.all([fbGet("clients"), getAllSubscriptions()]);
     const deviceCount = clients ? Object.keys(clients).length : 0;
@@ -324,7 +389,7 @@ export async function startBot(): Promise<void> {
   });
 
   bot.hears("📊 Stats", async (ctx) => {
-    if (!isAdmin(ctx)) return;
+    if (!(await isAdminAsync(ctx)) && !isAdmin(ctx)) return;
     const [clients, subs] = await Promise.all([fbGet("clients"), getAllSubscriptions()]);
     const deviceCount = clients ? Object.keys(clients).length : 0;
     const subCount = Object.keys(subs).length;
@@ -340,10 +405,7 @@ export async function startBot(): Promise<void> {
   // ─── Admin: /adduser ─────────────────────────────────────────────────────
   // Usage: /adduser 123456789 30 username email@example.com
   bot.command("adduser", async (ctx) => {
-    if (!isAdmin(ctx)) {
-      await ctx.reply("❌ Admin only.");
-      return;
-    }
+    if (!(await requireAdmin(ctx))) return;
 
     const parts = ctx.message.text.split(" ").slice(1);
     if (parts.length < 2) {
@@ -412,10 +474,7 @@ export async function startBot(): Promise<void> {
 
   // ─── Admin: /removeuser ──────────────────────────────────────────────────
   bot.command("removeuser", async (ctx) => {
-    if (!isAdmin(ctx)) {
-      await ctx.reply("❌ Admin only.");
-      return;
-    }
+    if (!(await requireAdmin(ctx))) return;
 
     const telegramId = ctx.message.text.split(" ")[1];
     if (!telegramId) {
@@ -440,7 +499,7 @@ export async function startBot(): Promise<void> {
   bot.hears("👥 Users List", handleListUsers);
 
   async function handleListUsers(ctx: Context) {
-    if (!isAdmin(ctx)) return;
+    if (!(await requireAdmin(ctx))) return;
 
     const subs = await getAllSubscriptions();
     const entries = Object.entries(subs);
@@ -477,7 +536,8 @@ export async function startBot(): Promise<void> {
         return;
       }
 
-      await setPanelPassword(userId, newPass, isAdmin(ctx));
+      const adminFlag = isAdmin(ctx) || (await isAdminAsync(ctx));
+      await setPanelPassword(userId, newPass, adminFlag);
 
       await ctx.reply(
         `✅ *Password Successfully Changed!*\n\nYour new panel password:\n\`${newPass}\`\n\n_Only your account has been updated._`,
@@ -498,10 +558,7 @@ export async function startBot(): Promise<void> {
   // ─── Admin: /setchannel ──────────────────────────────────────────────────
   // Usage: /setchannel -100xxxxxxxxxx  OR  /setchannel @channelname
   bot.command("setchannel", async (ctx) => {
-    if (!isAdmin(ctx)) {
-      await ctx.reply("❌ Admin only.");
-      return;
-    }
+    if (!(await requireAdmin(ctx))) return;
 
     const channelId = ctx.message.text.split(" ")[1]?.trim();
     if (!channelId) {
@@ -529,10 +586,7 @@ export async function startBot(): Promise<void> {
 
   // ─── Admin: /removechannel ───────────────────────────────────────────────
   bot.command("removechannel", async (ctx) => {
-    if (!isAdmin(ctx)) {
-      await ctx.reply("❌ Admin only.");
-      return;
-    }
+    if (!(await requireAdmin(ctx))) return;
     await removeSmsChannel();
     await ctx.reply("✅ SMS forwarding channel has been removed.");
   });

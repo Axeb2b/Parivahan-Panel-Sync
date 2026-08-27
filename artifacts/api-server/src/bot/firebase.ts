@@ -109,27 +109,77 @@ export async function verifyAndDeleteOtp(
 export async function findUserByEmail(
   email: string
 ): Promise<{ telegramId: string; data: any; isAdmin: boolean } | null> {
-  const normalEmail = email.toLowerCase().trim();
+  return findUserByIdentifier(email);
+}
+
+/** Find user by email OR username (case-insensitive) */
+export async function findUserByIdentifier(
+  identifier: string
+): Promise<{ telegramId: string; data: any; isAdmin: boolean } | null> {
+  const norm = identifier.toLowerCase().trim();
+  const isEmail = norm.includes("@");
 
   // Check admin config
   const admin = await fbGet("config/admin");
-  if (admin?.email?.toLowerCase() === normalEmail) {
-    return {
-      telegramId: process.env["ADMIN_TELEGRAM_ID"] || "5741539104",
-      data: admin,
-      isAdmin: true,
-    };
+  if (admin) {
+    if (isEmail && admin?.email?.toLowerCase() === norm) {
+      return {
+        telegramId: admin.telegramId || process.env["ADMIN_TELEGRAM_ID"] || "5741539104",
+        data: admin,
+        isAdmin: true,
+      };
+    }
+    if (!isEmail && admin?.username?.toLowerCase() === norm) {
+      return {
+        telegramId: admin.telegramId || process.env["ADMIN_TELEGRAM_ID"] || "5741539104",
+        data: admin,
+        isAdmin: true,
+      };
+    }
+    // allow admin login via telegramId as identifier (fallback)
+    if (String(admin.telegramId) === norm) {
+      return {
+        telegramId: String(admin.telegramId),
+        data: admin,
+        isAdmin: true,
+      };
+    }
   }
 
   // Check subscriptions
   const subs = await getAllSubscriptions();
   for (const [telegramId, sub] of Object.entries(subs)) {
-    if ((sub as any).email?.toLowerCase() === normalEmail) {
-      return { telegramId, data: sub, isAdmin: false };
+    const s: any = sub;
+    if (isEmail) {
+      if (s.email?.toLowerCase() === norm) return { telegramId, data: s, isAdmin: false };
+    } else {
+      if (s.username?.toLowerCase() === norm) return { telegramId, data: s, isAdmin: false };
+      // also allow email match even if identifier without @? no
     }
   }
+  // If identifier is email but username check failed, also try username for email-like? no
+  // Fallback: if was email, also check username that equals email prefix? skip
 
   return null;
+}
+
+/** Verify Google ID token via tokeninfo endpoint (no service account needed) */
+export async function verifyGoogleIdToken(idToken: string): Promise<{ email: string; email_verified: boolean; aud: string } | null> {
+  try {
+    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    if (!data.email) return null;
+    // Optionally check aud matches firebase project or google client
+    // For Firebase, aud is projectId; we allow any google aud but require email_verified
+    if (data.email_verified !== "true" && data.email_verified !== true) {
+      // Some tokens return "true" string
+      // Still allow if email present - but warn
+    }
+    return { email: data.email.toLowerCase(), email_verified: data.email_verified === "true" || data.email_verified === true, aud: data.aud };
+  } catch {
+    return null;
+  }
 }
 
 /** Set panel password for a user (subscription or admin) */

@@ -3,10 +3,17 @@ services:
     name: parivahan-api
     env: node
     plan: free
+    # Node version pinned via packageManager field in pnpm
     rootDir: artifacts/api-server
-    buildCommand: pnpm install && pnpm run build
-    startCommand: pnpm run dev
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    startCommand: node --enable-source-maps ./dist/index.mjs
+    healthCheckPath: /api/healthz
+    autoDeploy: false
     envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: ADMIN_TELEGRAM_ID
@@ -14,10 +21,12 @@ services:
       - key: SESSION_SECRET
         sync: false
       - key: PANEL_URL
-        sync: false
+        value: https://panel.kimiaxe.com
       - key: FIREBASE_API_KEY
         sync: false
       - key: FIREBASE_DB_URL
         sync: false
       - key: VITE_API_URL
         sync: false
+      - key: LOG_LEVEL
+        value: info

@@ -1,25 +1,45 @@
 import { Router } from "express";
 import {
   findUserByEmail,
+  findUserByIdentifier,
   setOtp,
   verifyAndDeleteOtp,
   isSubscriptionActive,
   fbGet,
+  verifyGoogleIdToken,
 } from "../bot/firebase";
 import { getBot } from "../bot/index";
 
 const router = Router();
 const ADMIN_TG_ID = process.env["ADMIN_TELEGRAM_ID"] || "5741539104";
 
-// POST /api/auth/login  — step 1: email + password → send OTP to Telegram
+// Helper to resolve dynamic admin ID (firebase overrides env)
+async function isAdminId(telegramId: string): Promise<boolean> {
+  if (telegramId === ADMIN_TG_ID) return true;
+  try {
+    const admin = await fbGet("config/admin");
+    if (String(admin?.telegramId) === String(telegramId)) return true;
+    const admins = await fbGet("config/admins");
+    if (admins) {
+      const vals = Array.isArray(admins) ? admins : Object.values(admins as any);
+      for (const v of vals) {
+        if (String((v as any)?.telegramId ?? v) === String(telegramId)) return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+// POST /api/auth/login  — step 1: identifier (email or username) + password → send OTP to Telegram
 router.post("/auth/login", async (req, res) => {
   try {
-    const { email, password } = req.body as { email?: string; password?: string };
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required." });
+    const { email, identifier, password } = req.body as { email?: string; identifier?: string; password?: string };
+    const loginId = (identifier || email || "").trim();
+    if (!loginId || !password) {
+      return res.status(400).json({ error: "Email/Username and password are required." });
     }
 
-    const user = await findUserByEmail(email);
+    const user = await findUserByIdentifier(loginId);
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials." });
     }
@@ -84,10 +104,10 @@ router.post("/auth/verify-otp", async (req, res) => {
       return res.status(401).json({ error: "Invalid or expired OTP." });
     }
 
-    const isAdmin = telegramId === ADMIN_TG_ID;
-    let username = isAdmin ? "Admin" : "User";
+    const adminFlag = await isAdminId(telegramId);
+    let username = adminFlag ? "Admin" : "User";
 
-    if (isAdmin) {
+    if (adminFlag) {
       const adminCfg = await fbGet("config/admin");
       if (adminCfg?.username) username = adminCfg.username;
     } else {
@@ -95,7 +115,7 @@ router.post("/auth/verify-otp", async (req, res) => {
       if (sub?.username) username = sub.username;
     }
 
-    return res.json({ success: true, telegramId, isAdmin, username });
+    return res.json({ success: true, telegramId, isAdmin: adminFlag, username });
   } catch {
     return res.status(500).json({ error: "Server error." });
   }
@@ -104,16 +124,18 @@ router.post("/auth/verify-otp", async (req, res) => {
 // PUT /api/auth/change-password — change panel password directly from web
 router.put("/auth/change-password", async (req, res) => {
   try {
-    const { email, currentPassword, newPassword } = req.body as {
+    const { email, identifier, currentPassword, newPassword } = req.body as {
       email?: string;
+      identifier?: string;
       currentPassword?: string;
       newPassword?: string;
     };
+    const loginId = (identifier || email || "").trim();
 
-    if (!email || !currentPassword || !newPassword) {
+    if (!loginId || !currentPassword || !newPassword) {
       return res
         .status(400)
-        .json({ error: "email, currentPassword and newPassword are required." });
+        .json({ error: "identifier/email, currentPassword and newPassword are required." });
     }
 
     if (newPassword.length < 4) {
@@ -122,7 +144,7 @@ router.put("/auth/change-password", async (req, res) => {
         .json({ error: "Password must be at least 4 characters." });
     }
 
-    const user = await findUserByEmail(email);
+    const user = await findUserByIdentifier(loginId);
     if (!user) {
       return res.status(401).json({ error: "User not found." });
     }
@@ -148,9 +170,9 @@ router.get("/auth/profile", async (req, res) => {
       return res.status(400).json({ error: "telegramId required." });
     }
 
-    const isAdmin = telegramId === ADMIN_TG_ID;
+    const adminFlag = await isAdminId(telegramId);
 
-    if (isAdmin) {
+    if (adminFlag) {
       const adminCfg = await fbGet("config/admin");
       const smsChannel = await fbGet("config/smsChannel");
       return res.json({
@@ -179,6 +201,63 @@ router.get("/auth/profile", async (req, res) => {
   }
 });
 
+// POST /api/auth/google — Google Sign-In (verify ID token, no OTP)
+router.post("/auth/google", async (req, res) => {
+  try {
+    const { idToken, email: rawEmail } = req.body as { idToken?: string; email?: string };
+    if (!idToken && !rawEmail) {
+      return res.status(400).json({ error: "idToken or email required." });
+    }
+
+    let email = rawEmail?.toLowerCase().trim() || "";
+
+    // If idToken provided, verify it via Google tokeninfo
+    if (idToken) {
+      const verified = await verifyGoogleIdToken(idToken);
+      if (!verified) {
+        return res.status(401).json({ error: "Invalid Google ID token." });
+      }
+      email = verified.email;
+      // optional: check aud if needed, but allow any google aud for now
+    }
+
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "Could not extract email from Google token." });
+    }
+
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ error: "No panel account linked to this Google email. Contact admin to link email first." });
+    }
+
+    const { telegramId, data, isAdmin } = user;
+
+    // Check subscription active (skip for admin)
+    if (!isAdmin) {
+      const active = await isSubscriptionActive(telegramId);
+      if (!active) {
+        return res.status(403).json({ error: "Subscription expired. Contact admin." });
+      }
+    }
+
+    const adminFlag = await isAdminId(telegramId) || isAdmin;
+    let username = adminFlag ? "Admin" : "User";
+    if (adminFlag) {
+      const adminCfg = await fbGet("config/admin");
+      if (adminCfg?.username) username = adminCfg.username;
+    } else {
+      if (data?.username) username = data.username;
+    }
+
+    // Optionally update last Google login timestamp
+    // await fbUpdate(isAdmin ? "config/admin" : `subscriptions/${telegramId}`, { lastGoogleLogin: Date.now() });
+
+    return res.json({ success: true, telegramId, isAdmin: adminFlag, username, email });
+  } catch (err) {
+    return res.status(500).json({ error: "Google auth failed." });
+  }
+});
+
 // POST /api/auth/set-channel — admin sets global SMS forward channel
 router.post("/auth/set-channel", async (req, res) => {
   try {
@@ -187,7 +266,8 @@ router.post("/auth/set-channel", async (req, res) => {
       channelId?: string;
     };
 
-    if (telegramId !== ADMIN_TG_ID) {
+    const adminFlag = await isAdminId(telegramId || "");
+    if (!adminFlag) {
       return res.status(403).json({ error: "Admin only." });
     }
 
