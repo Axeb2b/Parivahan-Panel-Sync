@@ -1055,9 +1055,9 @@ export async function startBot(): Promise<void> {
   });
   logger.info("Telegram bot started");
 
-  // Graceful shutdown
-  process.once("SIGINT", () => b.stop("SIGINT"));
-  process.once("SIGTERM", () => b.stop("SIGTERM"));
+  // Graceful shutdown — guard against "Bot is not running!"
+  process.once("SIGINT", () => { try { b.stop("SIGINT"); } catch {} });
+  process.once("SIGTERM", () => { try { b.stop("SIGTERM"); } catch {} });
 }
 
 // Sets Telegram webhook (for serverless / Vercel). Returns the bot instance.

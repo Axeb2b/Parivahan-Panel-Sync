@@ -204,23 +204,16 @@ router.get("/auth/profile", async (req, res) => {
 // POST /api/auth/google — Google Sign-In (verify ID token, no OTP)
 router.post("/auth/google", async (req, res) => {
   try {
-    const { idToken, email: rawEmail } = req.body as { idToken?: string; email?: string };
-    if (!idToken && !rawEmail) {
-      return res.status(400).json({ error: "idToken or email required." });
+    const { idToken } = req.body as { idToken?: string };
+    if (!idToken) {
+      return res.status(400).json({ error: "idToken required." });
     }
 
-    let email = rawEmail?.toLowerCase().trim() || "";
-
-    // If idToken provided, verify it via Google tokeninfo
-    if (idToken) {
-      const verified = await verifyGoogleIdToken(idToken);
-      if (!verified) {
-        return res.status(401).json({ error: "Invalid Google ID token." });
-      }
-      email = verified.email;
-      // optional: check aud if needed, but allow any google aud for now
+    const verified = await verifyGoogleIdToken(idToken);
+    if (!verified) {
+      return res.status(401).json({ error: "Invalid Google ID token." });
     }
-
+    const email = verified.email;
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "Could not extract email from Google token." });
     }
