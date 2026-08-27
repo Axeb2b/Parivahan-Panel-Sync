@@ -31,7 +31,7 @@ function getPanelUrl(): string {
   if (custom) return custom.replace(/\/$/, "");
   const domain = process.env["REPLIT_DEV_DOMAIN"];
   if (domain) return `https://${domain}`;
-  return "https://cyberzone.replit.app";
+  return "https://panel.kimiaxe.com";
 }
 
 if (!BOT_TOKEN) {
