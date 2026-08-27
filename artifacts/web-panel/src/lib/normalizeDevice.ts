@@ -14,8 +14,8 @@ export interface NormalizedDevice {
   sim1: string;
   sim2: string;
   isOnline: boolean;
-  ping?: string;
-  status?: boolean | string;
+  ping?: string;            // raw timestamp (old APK)
+  status?: boolean | string; // boolean or string (new APK)
   ownerTelegramId?: string;
   // extra fields from new APK
   androidV?: string;
