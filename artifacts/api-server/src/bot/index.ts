@@ -83,6 +83,7 @@ export async function startBot(): Promise<void> {
 
   // ─── /start ──────────────────────────────────────────────────────────────
   bot.command("start", async (ctx) => {
+    logger.info({ userId: ctx.from?.id, isAdmin: isAdmin(ctx) }, "Bot /start received");
     const userId = ctx.from.id.toString();
     const username = ctx.from.username || ctx.from.first_name || "User";
 
