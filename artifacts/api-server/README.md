@@ -11,7 +11,7 @@ Express + Telegram bot backend for the CyberZone Panel.
 | `PORT` | ✅ Yes | Port the HTTP server listens on (set by Replit automatically) |
 | `TELEGRAM_BOT_TOKEN` | ✅ Yes | Telegram bot token from @BotFather |
 | `SESSION_SECRET` | ✅ Yes | Secret for signing sessions |
-| `ADMIN_TELEGRAM_ID` | Recommended | Telegram user ID of the admin (default: `5064888403`) |
+| `ADMIN_TELEGRAM_ID` | Recommended | Telegram user ID of the admin (default: `5741539104`) |
 | `PANEL_URL` | ⚠️ Production | Production URL of the web panel (see below) |
 
 ---
