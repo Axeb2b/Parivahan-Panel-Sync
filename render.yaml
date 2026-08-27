@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: parivahan-api
+    env: node
+    plan: free
+    rootDir: artifacts/api-server
+    buildCommand: pnpm install && pnpm run build
+    startCommand: pnpm run dev
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ADMIN_TELEGRAM_ID
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: PANEL_URL
+        sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: FIREBASE_DB_URL
+        sync: false
+      - key: VITE_API_URL
+        sync: false
