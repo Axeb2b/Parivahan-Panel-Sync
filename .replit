@@ -25,7 +25,7 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-ADMIN_TELEGRAM_ID = "5064888403"
+ADMIN_TELEGRAM_ID = "5741539104"
 FIREBASE_API_KEY = "AIzaSyCfshhdQYfhB1nGB74Yaqresr7yGQ57ZcQ"
 FIREBASE_DB_URL = "https://yellowstone-7a62e-default-rtdb.firebaseio.com"
 PANEL_URL = "https://www.axecodi.ai"
