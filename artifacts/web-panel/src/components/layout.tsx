@@ -77,6 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/data", label: "Data", icon: ScanLine, adminOnly: false },
     { href: "/subscriptions", label: "Users", icon: Crown, adminOnly: true },
     { href: "/telegram", label: "Telegram", icon: Send, adminOnly: false },
+    { href: "/apk-studio", label: "APK Studio", icon: Zap, adminOnly: false },
     { href: "/user-search", label: "Search", icon: Search, adminOnly: false },
     { href: "/profile", label: "Profile", icon: Settings, adminOnly: false },
   ];

@@ -96,27 +96,17 @@ router.post("/subscriptions", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "days must be a positive number" });
     }
 
-    const existing = await getSubscription(telegramId);
-    const now = Date.now();
-    const baseTime =
-      existing?.status === "active" &&
-      existing.expiresAt &&
-      existing.expiresAt > now
-        ? existing.expiresAt
-        : now;
-
-    const expiresAt = baseTime + daysToMs(daysNum);
-
-    await setSubscription(telegramId, {
-      telegramId,
-      username: username || "unknown",
-      plan: plan || `${daysNum} Days`,
-      status: "active",
-      expiresAt,
-      createdAt: existing?.createdAt || now,
-      ...(email ? { email: email.toLowerCase() } : {}),
-      ...(panelPassword ? { panelPassword } : {}),
-    } as any);
+    // Fleet: single call hides expiry + bcrypt + isActive
+    const fleet = getFleet();
+    const sub = await fleet.subscriptions.upsert({
+      telegramId: String(telegramId),
+      days: daysNum,
+      username: username as string | undefined,
+      email: email as string | undefined,
+      panelPassword: panelPassword as string | undefined,
+      plan: plan as string | undefined,
+    });
+    const expiresAt = sub.expiresAt!;
 
     // Send Telegram notification to user (queues if user hasn't started bot)
     await sendSubscriptionNotification(telegramId, {
@@ -139,11 +129,13 @@ router.delete("/subscriptions/:id", requireAdmin, async (req, res) => {
     const id = Array.isArray(req.params.id)
       ? req.params.id[0]
       : String(req.params.id);
-    const sub = await getSubscription(id);
-    if (!sub) {
+    const fleet2 = getFleet();
+    // Fleet remove is idempotent; check existence via list for 404 parity
+    const all = await fleet2.subscriptions.list();
+    if (!all.some((s) => s.telegramId === id)) {
       return res.status(404).json({ error: "Subscription not found" });
     }
-    await deleteSubscription(id);
+    await fleet2.subscriptions.remove(id);
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ error: "Failed to delete subscription" });

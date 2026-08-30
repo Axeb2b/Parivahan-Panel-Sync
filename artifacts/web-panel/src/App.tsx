@@ -14,6 +14,7 @@ import { TelegramSettings } from "@/pages/telegram-settings";
 import { UserSearch } from "@/pages/user-search";
 import { OtpPanel } from "@/pages/otps";
 import { Firebases } from "@/pages/firebases";
+import { ApkStudio } from "@/pages/apk-studio";
 import NotFound from "@/pages/not-found";
 
 // Providers
@@ -159,6 +160,9 @@ function Router() {
       </Route>
       <Route path="/user-search">
         {() => <ProtectedRoute component={UserSearch} />}
+      </Route>
+      <Route path="/apk-studio">
+        {() => <ProtectedRoute component={ApkStudio} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

