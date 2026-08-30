@@ -1,14 +1,30 @@
-import { useEffect, useState } from 'react';
-import { Layout } from '@/components/layout';
-import { Plus, Trash2, Users, Crown, Clock, RefreshCw, CheckCircle, XCircle, Copy, ChevronDown } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { Layout } from "@/components/layout";
+import {
+  Plus,
+  Trash2,
+  Users,
+  Crown,
+  Clock,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Copy,
+  ChevronDown,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { authHeaders } from "@/lib/apiFetch";
 
 const PLAN_IDS: Record<string, string> = {
-  '1 Week': 'week', '1 Month': 'month', '3 Months': '3mo', '6 Months': '6mo',
-  '1 Year': 'year', 'Lifetime': 'lifetime',
+  "1 Week": "week",
+  "1 Month": "month",
+  "3 Months": "3mo",
+  "6 Months": "6mo",
+  "1 Year": "year",
+  Lifetime: "lifetime",
 };
 const getPlan = (label: string) => ({
-  id: PLAN_IDS[label] || label.replace(/\s+/g, '_').toLowerCase(),
+  id: PLAN_IDS[label] || label.replace(/\s+/g, "_").toLowerCase(),
 });
 
 interface Subscription {
@@ -16,30 +32,35 @@ interface Subscription {
   telegramId: string;
   username: string;
   plan: string;
-  status: 'active' | 'expired';
+  status: "active" | "expired";
   expiresAt: number | null;
   createdAt: number | null;
   daysLeft: number | null;
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 async function apiFetch(path: string, opts?: RequestInit) {
-  const res = await fetch(`${API_BASE}/api${path}`, opts);
+  const res = await fetch(`${API_BASE}/api${path}`, {
+    ...opts,
+    headers: authHeaders(opts?.headers as Record<string, string> | undefined),
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 function formatDate(ts: number | null): string {
-  if (!ts) return '—';
-  return new Date(ts).toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }) + ' IST';
+  if (!ts) return "—";
+  return (
+    new Date(ts).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }) + " IST"
+  );
 }
 
 export function Subscriptions() {
@@ -51,21 +72,25 @@ export function Subscriptions() {
   const { toast } = useToast();
 
   const [form, setForm] = useState({
-    telegramId: '',
-    username: '',
-    email: '',
-    panelPassword: '',
-    days: '30',
-    plan: '1 Month',
+    telegramId: "",
+    username: "",
+    email: "",
+    panelPassword: "",
+    days: "30",
+    plan: "1 Month",
   });
 
   const fetchSubs = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch('/subscriptions');
+      const data = await apiFetch("/subscriptions");
       setSubs(data.subscriptions || []);
     } catch {
-      toast({ title: 'Error', description: 'Failed to load subscriptions', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to load subscriptions",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -81,17 +106,31 @@ export function Subscriptions() {
 
     setSubmitting(true);
     try {
-      await apiFetch('/subscriptions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await apiFetch("/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      toast({ title: 'Success', description: `Subscription added for ${form.username || form.telegramId}` });
+      toast({
+        title: "Success",
+        description: `Subscription added for ${form.username || form.telegramId}`,
+      });
       setShowForm(false);
-      setForm({ telegramId: '', username: '', email: '', panelPassword: '', days: '30', plan: '1 Month' });
+      setForm({
+        telegramId: "",
+        username: "",
+        email: "",
+        panelPassword: "",
+        days: "30",
+        plan: "1 Month",
+      });
       fetchSubs();
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -101,11 +140,18 @@ export function Subscriptions() {
     if (!confirm(`Remove subscription for ${username || id}?`)) return;
     setDeleting(id);
     try {
-      await apiFetch(`/subscriptions/${id}`, { method: 'DELETE' });
-      toast({ title: 'Removed', description: `Subscription for ${username || id} removed` });
-      setSubs(prev => prev.filter(s => s.telegramId !== id));
+      await apiFetch(`/subscriptions/${id}`, { method: "DELETE" });
+      toast({
+        title: "Removed",
+        description: `Subscription for ${username || id} removed`,
+      });
+      setSubs((prev) => prev.filter((s) => s.telegramId !== id));
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setDeleting(null);
     }
@@ -113,11 +159,11 @@ export function Subscriptions() {
 
   const copyId = (id: string) => {
     navigator.clipboard.writeText(id);
-    toast({ title: 'Copied', description: 'Telegram ID copied' });
+    toast({ title: "Copied", description: "Telegram ID copied" });
   };
 
-  const activeSubs = subs.filter(s => s.status === 'active');
-  const expiredSubs = subs.filter(s => s.status === 'expired');
+  const activeSubs = subs.filter((s) => s.status === "active");
+  const expiredSubs = subs.filter((s) => s.status === "expired");
 
   return (
     <Layout>
@@ -138,7 +184,7 @@ export function Subscriptions() {
             onClick={fetchSubs}
             className="flex items-center justify-center gap-2 px-4 h-11 border border-input rounded-full text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary active:bg-muted transition-all bg-card"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
           <button
@@ -154,43 +200,58 @@ export function Subscriptions() {
       {showForm && (
         <div className="mb-6 stat-card p-5">
           <h3 className="page-eyebrow text-primary mb-4">New Subscription</h3>
-          <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <form
+            onSubmit={handleAdd}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          >
             <div>
-              <label className="page-eyebrow block mb-1">
-                Telegram ID *
-              </label>
+              <label className="page-eyebrow block mb-1">Telegram ID *</label>
               <input
                 type="text"
                 placeholder="123456789"
                 value={form.telegramId}
-                onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, telegramId: e.target.value }))
+                }
                 required
                 className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
               />
             </div>
             <div>
-              <label className="page-eyebrow block mb-1">
-                Username
-              </label>
+              <label className="page-eyebrow block mb-1">Username</label>
               <input
                 type="text"
                 placeholder="@username"
                 value={form.username}
-                onChange={e => setForm(f => ({ ...f, username: e.target.value.replace('@', '') }))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    username: e.target.value.replace("@", ""),
+                  }))
+                }
                 className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
               />
             </div>
             <div>
-              <label className="page-eyebrow block mb-1">
-                Days
-              </label>
+              <label className="page-eyebrow block mb-1">Days</label>
               <div className="relative">
                 <select
                   value={form.days}
-                  onChange={e => {
+                  onChange={(e) => {
                     const d = e.target.value;
-                    const labels: Record<string, string> = { '7': '1 Week', '30': '1 Month', '90': '3 Months', '180': '6 Months', '365': '1 Year', '36500': 'Lifetime' };
-                    setForm(f => ({ ...f, days: d, plan: labels[d] || `${d} Days` }));
+                    const labels: Record<string, string> = {
+                      "7": "1 Week",
+                      "30": "1 Month",
+                      "90": "3 Months",
+                      "180": "6 Months",
+                      "365": "1 Year",
+                      "36500": "Lifetime",
+                    };
+                    setForm((f) => ({
+                      ...f,
+                      days: d,
+                      plan: labels[d] || `${d} Days`,
+                    }));
                   }}
                   className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all appearance-none"
                 >
@@ -206,18 +267,19 @@ export function Subscriptions() {
             </div>
             <div>
               <label className="page-eyebrow block mb-1">
-                Plan Tier <span className="text-muted-foreground">(Pro default)</span>
+                Plan Tier{" "}
+                <span className="text-muted-foreground">(Pro default)</span>
               </label>
               <div className="flex gap-2">
-                {['FREE', 'PRO', 'VIP'].map((t) => (
+                {["FREE", "PRO", "VIP"].map((t) => (
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setForm(f => ({ ...f, plan: t }))}
+                    onClick={() => setForm((f) => ({ ...f, plan: t }))}
                     className={`flex-1 px-3 py-3 rounded-xl border text-sm font-semibold transition-all ${
                       form.plan === t
-                        ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
-                        : 'bg-card border-input text-muted-foreground hover:border-primary'
+                        ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
+                        : "bg-card border-input text-muted-foreground hover:border-primary"
                     }`}
                   >
                     {t}
@@ -225,30 +287,37 @@ export function Subscriptions() {
                 ))}
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">
-                FREE: 1 device · PRO: 5 devices + finance scan · VIP: unlimited + multi-Firebase
+                FREE: 1 device · PRO: 5 devices + finance scan · VIP: unlimited
+                + multi-Firebase
               </p>
             </div>
             <div>
               <label className="page-eyebrow block mb-1">
-                Panel Email <span className="text-primary">(login ke liye)</span>
+                Panel Email{" "}
+                <span className="text-primary">(login ke liye)</span>
               </label>
               <input
                 type="email"
                 placeholder="user@example.com"
                 value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, email: e.target.value }))
+                }
                 className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
               />
             </div>
             <div>
               <label className="page-eyebrow block mb-1">
-                Panel Password <span className="text-muted-foreground">(optional)</span>
+                Panel Password{" "}
+                <span className="text-muted-foreground">(optional)</span>
               </label>
               <input
                 type="text"
                 placeholder="User can also set this via /reset_password"
                 value={form.panelPassword}
-                onChange={e => setForm(f => ({ ...f, panelPassword: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, panelPassword: e.target.value }))
+                }
                 className="w-full bg-card border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
               />
             </div>
@@ -258,7 +327,7 @@ export function Subscriptions() {
                 disabled={submitting}
                 className="flex-1 h-11 bg-primary text-primary-foreground rounded-full text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all shadow-md shadow-primary/20"
               >
-                {submitting ? 'Adding...' : 'Activate'}
+                {submitting ? "Adding..." : "Activate"}
               </button>
               <button
                 type="button"
@@ -275,15 +344,39 @@ export function Subscriptions() {
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Total Users', value: subs.length, icon: Users, color: 'text-foreground' },
-          { label: 'Active', value: activeSubs.length, icon: CheckCircle, color: 'text-success' },
-          { label: 'Expired', value: expiredSubs.length, icon: XCircle, color: 'text-destructive' },
-          { label: 'Expiring Soon', value: activeSubs.filter(s => s.daysLeft !== null && s.daysLeft <= 3).length, icon: Clock, color: 'text-warning' },
+          {
+            label: "Total Users",
+            value: subs.length,
+            icon: Users,
+            color: "text-foreground",
+          },
+          {
+            label: "Active",
+            value: activeSubs.length,
+            icon: CheckCircle,
+            color: "text-success",
+          },
+          {
+            label: "Expired",
+            value: expiredSubs.length,
+            icon: XCircle,
+            color: "text-destructive",
+          },
+          {
+            label: "Expiring Soon",
+            value: activeSubs.filter(
+              (s) => s.daysLeft !== null && s.daysLeft <= 3
+            ).length,
+            icon: Clock,
+            color: "text-warning",
+          },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="stat-card p-4 flex items-center gap-3">
             <Icon className={`w-5 h-5 ${color}`} />
             <div className="min-w-0">
-              <div className={`font-mono text-2xl font-bold ${color}`}>{value}</div>
+              <div className={`font-mono text-2xl font-bold ${color}`}>
+                {value}
+              </div>
               <div className="page-eyebrow mt-0.5">{label}</div>
             </div>
           </div>
@@ -292,7 +385,7 @@ export function Subscriptions() {
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="stat-card h-16 animate-pulse" />
           ))}
         </div>
@@ -301,7 +394,9 @@ export function Subscriptions() {
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
             <Crown className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h3 className="font-display text-lg font-semibold text-foreground mb-1">No subscriptions yet</h3>
+          <h3 className="font-display text-lg font-semibold text-foreground mb-1">
+            No subscriptions yet
+          </h3>
           <p className="text-sm text-muted-foreground max-w-sm">
             Click "Add User" to grant access.
           </p>
@@ -309,12 +404,12 @@ export function Subscriptions() {
       ) : (
         <div className="space-y-3">
           {subs.map((sub) => {
-            const isExpired = sub.status === 'expired';
+            const isExpired = sub.status === "expired";
             const expiringSoon = sub.daysLeft !== null && sub.daysLeft <= 3;
             const statusClass = isExpired
-              ? 'bg-destructive/10 text-destructive'
-              : 'bg-success/10 text-success';
-            const dotClass = isExpired ? 'bg-destructive' : 'bg-success';
+              ? "bg-destructive/10 text-destructive"
+              : "bg-success/10 text-success";
+            const dotClass = isExpired ? "bg-destructive" : "bg-success";
 
             return (
               <div key={sub.telegramId} className="stat-card p-4">
@@ -327,16 +422,20 @@ export function Subscriptions() {
                     <div className="min-w-0">
                       <div className="page-eyebrow">User</div>
                       <div className="font-display font-semibold text-sm truncate">
-                        @{sub.username || '—'}
+                        @{sub.username || "—"}
                       </div>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-primary/10 text-primary`}>
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-primary/10 text-primary`}
+                  >
                     {sub.planMeta?.id || getPlan(sub.plan).id}
                   </span>
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${statusClass}`}>
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${statusClass}`}
+                  >
                     <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
-                    {isExpired ? 'Expired' : 'Active'}
+                    {isExpired ? "Expired" : "Active"}
                   </span>
                 </div>
 
@@ -354,21 +453,31 @@ export function Subscriptions() {
                   </div>
                   <div className="flex flex-col">
                     <span className="page-eyebrow">Plan</span>
-                    <span className="font-mono text-xs text-foreground px-1.5 py-1">{sub.plan}</span>
+                    <span className="font-mono text-xs text-foreground px-1.5 py-1">
+                      {sub.plan}
+                    </span>
                   </div>
                   <div className="flex flex-col">
                     <span className="page-eyebrow">Expires</span>
-                    <span className="font-mono text-xs text-muted-foreground px-1.5 py-1">{formatDate(sub.expiresAt)}</span>
+                    <span className="font-mono text-xs text-muted-foreground px-1.5 py-1">
+                      {formatDate(sub.expiresAt)}
+                    </span>
                   </div>
                   <div className="flex flex-col">
                     <span className="page-eyebrow">Days Left</span>
                     <span className="px-1.5 py-1">
                       {sub.daysLeft === null ? (
-                        <span className="font-mono text-sm font-semibold text-primary">∞</span>
+                        <span className="font-mono text-sm font-semibold text-primary">
+                          ∞
+                        </span>
                       ) : expiringSoon ? (
-                        <span className="font-mono text-sm font-semibold text-warning">{sub.daysLeft}d</span>
+                        <span className="font-mono text-sm font-semibold text-warning">
+                          {sub.daysLeft}d
+                        </span>
                       ) : (
-                        <span className="font-mono text-sm text-muted-foreground">{sub.daysLeft}d</span>
+                        <span className="font-mono text-sm text-muted-foreground">
+                          {sub.daysLeft}d
+                        </span>
                       )}
                     </span>
                   </div>
@@ -382,7 +491,7 @@ export function Subscriptions() {
                     className="flex items-center justify-center gap-1.5 px-4 h-11 text-xs font-semibold text-destructive border border-destructive/30 rounded-full hover:bg-destructive/10 disabled:opacity-50 transition-all"
                   >
                     <Trash2 className="w-3 h-3" />
-                    {deleting === sub.telegramId ? '...' : 'Remove'}
+                    {deleting === sub.telegramId ? "..." : "Remove"}
                   </button>
                 </div>
               </div>
@@ -396,12 +505,16 @@ export function Subscriptions() {
           <span className="text-primary text-xs font-bold">TG</span>
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">Telegram Bot Active</p>
+          <p className="text-sm font-semibold text-foreground">
+            Telegram Bot Active
+          </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Users can interact via the bot. Commands: /start · /apk · /reset_password
+            Users can interact via the bot. Commands: /start · /apk ·
+            /reset_password
           </p>
           <p className="text-xs text-muted-foreground/70 mt-1">
-            Admin commands: /adduser {'{'}telegramId{'}'} {'{'}days{'}'} {'{'}username{'}'} · /removeuser · /listusers · /stats
+            Admin commands: /adduser {"{"}telegramId{"}"} {"{"}days{"}"} {"{"}
+            username{"}"} · /removeuser · /listusers · /stats
           </p>
         </div>
       </div>

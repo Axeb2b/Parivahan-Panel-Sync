@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { fbGet, fbSet } from "../bot/firebase";
+import { requireAdmin } from "../middlewares/auth";
 
 /**
  * Global forward defaults.
@@ -14,7 +15,7 @@ const router = Router();
 const DEFAULTS_PATH = "config/forwardDefaults";
 
 // GET /api/forward-defaults — current global defaults
-router.get("/forward-defaults", async (_req, res) => {
+router.get("/forward-defaults", requireAdmin, async (_req, res) => {
   try {
     const d = (await fbGet(DEFAULTS_PATH)) || {};
     res.json({
@@ -29,7 +30,7 @@ router.get("/forward-defaults", async (_req, res) => {
 });
 
 // POST /api/forward-defaults — set global forward target(s)
-router.post("/forward-defaults", async (req, res) => {
+router.post("/forward-defaults", requireAdmin, async (req, res) => {
   try {
     const { callNumber, smsNumber } = req.body ?? {};
     const clean = (v: unknown): string =>

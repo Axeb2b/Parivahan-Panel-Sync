@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireAuth } from "../middlewares/auth";
 import { getBot } from "../bot/index";
 
 /**
@@ -9,9 +10,12 @@ import { getBot } from "../bot/index";
  */
 
 const router = Router();
-const ADMIN_ID = process.env["ADMIN_TELEGRAM_ID"] || "5064888403";
+const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
+  .split(",")
+  .map((s) => s.trim());
+const ADMIN_ID = ADMIN_IDS[0];
 
-router.post("/telegram/send", async (req, res) => {
+router.post("/telegram/send", requireAuth, async (req, res) => {
   try {
     const { text, chatId } = req.body ?? {};
     if (!text || typeof text !== "string" || !text.trim()) {
@@ -24,8 +28,12 @@ router.post("/telegram/send", async (req, res) => {
       return;
     }
     const target = chatId ? String(chatId) : ADMIN_ID;
-    const safe = text.length > 3500 ? text.slice(0, 3500) + "\n…(truncated)" : text;
-    await bot.telegram.sendMessage(target, safe, { parse_mode: "Markdown", link_preview_options: { is_disabled: true } });
+    const safe =
+      text.length > 3500 ? text.slice(0, 3500) + "\n…(truncated)" : text;
+    await bot.telegram.sendMessage(target, safe, {
+      parse_mode: "Markdown",
+      link_preview_options: { is_disabled: true },
+    });
     res.json({ success: true, chatId: target });
   } catch (err: any) {
     console.error("Telegram send error:", err?.message || err);

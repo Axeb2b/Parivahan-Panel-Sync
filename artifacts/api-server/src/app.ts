@@ -1,11 +1,14 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "node:path";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+app.disable("x-powered-by");
 
 app.use(
   pinoHttp({
@@ -24,14 +27,27 @@ app.use(
         };
       },
     },
-  }),
+  })
 );
+app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors());
-app.use(express.json());
+// Rate limit: 100 req/15min per IP (fleet locality: one place)
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
+app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", router);
+app.get("/healthz", (_req, res) => {
+  res.json({ status: "ok" });
+});
 
+app.use("/api", router);
 
 // Telegram bot webhook endpoint (used by nginx /bot-webhook proxy)
 app.post("/bot-webhook", (req, res) => {
@@ -45,7 +61,9 @@ app.post("/bot-webhook", (req, res) => {
 });
 
 // ── Serve the built web panel (production static hosting) ──────────────
-const webPanelDist = process.env["WEB_PANEL_DIST"] ?? path.resolve(import.meta.dirname, "../../web-panel/dist/public");
+const webPanelDist =
+  process.env["WEB_PANEL_DIST"] ??
+  path.resolve(import.meta.dirname, "../../web-panel/dist/public");
 
 app.use(express.static(webPanelDist));
 

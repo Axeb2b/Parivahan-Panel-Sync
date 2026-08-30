@@ -1,30 +1,49 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth';
-import { useLocation, Link } from 'wouter';
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { useLocation, Link } from "wouter";
 import {
-  LogOut, Crown, LayoutGrid, MessageSquare, Send, Search, Settings, Zap, ScanLine,
-  KeyRound, Database, Sun, Moon, Menu, X,
-} from 'lucide-react';
+  LogOut,
+  Crown,
+  LayoutGrid,
+  MessageSquare,
+  Send,
+  Search,
+  Settings,
+  Zap,
+  ScanLine,
+  KeyRound,
+  Database,
+  Sun,
+  Moon,
+  Menu,
+  X,
+} from "lucide-react";
 
-const THEME_KEY = 'harryaxe-theme';
+const THEME_KEY = "harryaxe-theme";
 
-function getInitialTheme(): 'dark' | 'light' {
+function getInitialTheme(): "dark" | "light" {
   try {
     const saved = localStorage.getItem(THEME_KEY);
-    if (saved === 'light' || saved === 'dark') return saved;
-  } catch { /* ignore */ }
-  return 'dark'; // dark tech is the default look
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {
+    /* ignore */
+  }
+  return "dark"; // dark tech is the default look
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAdmin, username } = useAuth();
   const [location, setLocation] = useLocation();
-  const [theme, setTheme] = useState<'dark' | 'light'>(getInitialTheme);
+  const [theme, setTheme] = useState<"dark" | "light">(getInitialTheme);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      /* ignore */
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -32,35 +51,53 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setDrawerOpen(false);
   }, [location]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const handleLogout = () => {
     logout();
-    setLocation('/');
+    setLocation("/");
   };
 
   const navLinks = [
-    { href: '/dashboard', label: 'Devices', icon: LayoutGrid, adminOnly: false },
-    { href: '/all-sms', label: 'SMS', icon: MessageSquare, adminOnly: false },
-    { href: '/otps', label: 'OTP', icon: KeyRound, adminOnly: false },
-    { href: '/firebases', label: 'Firebases', icon: Database, adminOnly: true },
-    { href: '/data', label: 'Data', icon: ScanLine, adminOnly: false },
-    { href: '/subscriptions', label: 'Users', icon: Crown, adminOnly: true },
-    { href: '/telegram', label: 'Telegram', icon: Send, adminOnly: false },
-    { href: '/user-search', label: 'Search', icon: Search, adminOnly: false },
-    { href: '/profile', label: 'Profile', icon: Settings, adminOnly: false },
+    {
+      href: "/dashboard",
+      label: "Devices",
+      icon: LayoutGrid,
+      adminOnly: false,
+    },
+    { href: "/all-sms", label: "SMS", icon: MessageSquare, adminOnly: false },
+    { href: "/otps", label: "OTP", icon: KeyRound, adminOnly: false },
+    { href: "/firebases", label: "Firebases", icon: Database, adminOnly: true },
+    { href: "/data", label: "Data", icon: ScanLine, adminOnly: false },
+    { href: "/subscriptions", label: "Users", icon: Crown, adminOnly: true },
+    { href: "/telegram", label: "Telegram", icon: Send, adminOnly: false },
+    { href: "/user-search", label: "Search", icon: Search, adminOnly: false },
+    { href: "/profile", label: "Profile", icon: Settings, adminOnly: false },
   ];
 
   const visibleLinks = navLinks.filter((l) => !l.adminOnly || isAdmin);
 
-  const isActive = (href: string) => location === href || location.startsWith(href + '/');
+  const isActive = (href: string) =>
+    location === href || location.startsWith(href + "/");
 
-  const ThemeButton = ({ className = '' }: { className?: string }) => (
+  const ThemeButton = ({ className = "" }: { className?: string }) => (
     <button
-      onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+      onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
       aria-label="Toggle theme"
-      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       className={`flex items-center justify-center w-9 h-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ${className}`}
     >
-      {theme === 'dark' ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
+      {theme === "dark" ? (
+        <Sun className="w-[18px] h-[18px]" />
+      ) : (
+        <Moon className="w-[18px] h-[18px]" />
+      )}
     </button>
   );
 
@@ -73,7 +110,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             key={href}
             href={href}
             onClick={onNavigate}
-            className={`nav-chip px-3 py-2.5 ${active ? 'nav-chip-active' : 'nav-chip-idle hover:bg-muted'}`}
+            className={`nav-chip px-3 py-2.5 ${active ? "nav-chip-active" : "nav-chip-idle hover:bg-muted"}`}
           >
             <Icon className="w-[18px] h-[18px]" />
             <span>{label}</span>
@@ -92,7 +129,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Zap className="w-5 h-5" />
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="font-display font-bold text-lg tracking-tight brand-gradient">HARRYAXE</span>
+            <span className="font-display font-bold text-lg tracking-tight brand-gradient">
+              HARRYAXE
+            </span>
             <span className="page-eyebrow">Control Panel</span>
           </span>
         </Link>
@@ -104,9 +143,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="mt-4 pt-4 border-t border-card-border space-y-1">
           <div className="px-3 py-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center text-[10px] font-bold uppercase">
-              {(username || 'U').slice(0, 1)}
+              {(username || "U").slice(0, 1)}
             </span>
-            <span className="truncate">{isAdmin ? 'Admin' : username || 'User'}</span>
+            <span className="truncate">
+              {isAdmin ? "Admin" : username || "User"}
+            </span>
             <span className="ml-auto">
               <ThemeButton />
             </span>
@@ -128,8 +169,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Zap className="w-4 h-4" />
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="font-display font-bold text-base tracking-tight brand-gradient">HARRYAXE</span>
-            <span className="page-eyebrow" style={{ fontSize: 9 }}>Control Panel</span>
+            <span className="font-display font-bold text-base tracking-tight brand-gradient">
+              HARRYAXE
+            </span>
+            <span className="page-eyebrow" style={{ fontSize: 9 }}>
+              Control Panel
+            </span>
           </span>
         </Link>
         <div className="flex items-center gap-1.5">
@@ -147,10 +192,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Mobile drawer (slide-in, accessible from the top bar) ── */}
       {drawerOpen && (
         <div className="md:hidden fixed inset-0 z-40">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
           <div className="absolute right-0 top-0 bottom-0 w-72 max-w-[85vw] bg-card border-l border-card-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
             <div className="flex items-center justify-between px-4 h-14 border-b border-card-border">
-              <span className="font-display font-bold tracking-tight brand-gradient">HARRYAXE</span>
+              <span className="font-display font-bold tracking-tight brand-gradient">
+                HARRYAXE
+              </span>
               <button
                 onClick={() => setDrawerOpen(false)}
                 aria-label="Close menu"
@@ -165,9 +215,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="px-3 py-4 border-t border-card-border space-y-1">
               <div className="px-3 py-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <span className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center text-[10px] font-bold uppercase">
-                  {(username || 'U').slice(0, 1)}
+                  {(username || "U").slice(0, 1)}
                 </span>
-                <span className="truncate">{isAdmin ? 'Admin' : username || 'User'}</span>
+                <span className="truncate">
+                  {isAdmin ? "Admin" : username || "User"}
+                </span>
               </div>
               <button
                 onClick={handleLogout}

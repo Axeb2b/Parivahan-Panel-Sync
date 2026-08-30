@@ -7,40 +7,71 @@ import {
 } from "../bot/firebase";
 import { sendSubscriptionNotification } from "../bot/index";
 import { getPlan, planFeatureLabel } from "../lib/plans";
+import { requireAdmin } from "../middlewares/auth";
+import { createFleet, RtdbAdapter } from "../fleet/rtdbFleet";
+import { getBot } from "../bot/index";
 
 const router = Router();
 
 const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5741539104");
+const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
+  .split(",")
+  .map((s) => parseInt(s.trim()))
+  .filter(Boolean);
+const ADMIN_ID = ADMIN_IDS[0];
+
+function getFleet() {
+  return createFleet({
+    rtdb: new RtdbAdapter(),
+    notifier: { async sendOtp() {} },
+  });
+}
 
 function daysToMs(days: number): number {
   return days * 24 * 60 * 60 * 1000;
 }
 
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }) + " IST";
+  return (
+    new Date(ts).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }) + " IST"
+  );
 }
 
 // GET /api/subscriptions — list all
-router.get("/subscriptions", async (_req, res) => {
+router.get("/subscriptions", requireAdmin, async (_req, res) => {
   try {
-    const subs = await getAllSubscriptions();
+    const fleet = getFleet();
+    const subs = await fleet.subscriptions.list();
     const now = Date.now();
-    const result = Object.entries(subs).map(([id, s]: [string, any]) => ({
-      telegramId: id,
+    const result = subs.map((s: any) => ({
+      telegramId: s.telegramId,
       username: s.username || "unknown",
       plan: s.plan || "Custom",
-      status: s.status === "active" && (!s.expiresAt || now < s.expiresAt) ? "active" : "expired",
+      status:
+        s.status === "active" && (!s.expiresAt || now < s.expiresAt)
+          ? "active"
+          : "expired",
       expiresAt: s.expiresAt || null,
       createdAt: s.createdAt || null,
-      daysLeft: s.expiresAt ? Math.max(0, Math.floor((s.expiresAt - now) / (1000 * 60 * 60 * 24))) : null,
-      planMeta: (() => { const pl = getPlan(s.plan); return { id: pl.id, name: pl.name, features: pl.features, featureLabels: planFeatureLabel(pl.features) }; })(),
+      daysLeft: s.expiresAt
+        ? Math.max(0, Math.floor((s.expiresAt - now) / (1000 * 60 * 60 * 24)))
+        : null,
+      planMeta: (() => {
+        const pl = getPlan(s.plan);
+        return {
+          id: pl.id,
+          name: pl.name,
+          features: pl.features,
+          featureLabels: planFeatureLabel(pl.features),
+        };
+      })(),
     }));
     return res.json({ subscriptions: result });
   } catch (err) {
@@ -49,12 +80,15 @@ router.get("/subscriptions", async (_req, res) => {
 });
 
 // POST /api/subscriptions — add/extend
-router.post("/subscriptions", async (req, res) => {
+router.post("/subscriptions", requireAdmin, async (req, res) => {
   try {
-    const { telegramId, username, days, plan, email, panelPassword } = req.body ?? {};
+    const { telegramId, username, days, plan, email, panelPassword } =
+      req.body ?? {};
 
     if (!telegramId || !days) {
-      return res.status(400).json({ error: "telegramId and days are required" });
+      return res
+        .status(400)
+        .json({ error: "telegramId and days are required" });
     }
 
     const daysNum = parseInt(days);
@@ -65,7 +99,9 @@ router.post("/subscriptions", async (req, res) => {
     const existing = await getSubscription(telegramId);
     const now = Date.now();
     const baseTime =
-      existing?.status === "active" && existing.expiresAt && existing.expiresAt > now
+      existing?.status === "active" &&
+      existing.expiresAt &&
+      existing.expiresAt > now
         ? existing.expiresAt
         : now;
 
@@ -98,9 +134,11 @@ router.post("/subscriptions", async (req, res) => {
 });
 
 // DELETE /api/subscriptions/:id — remove
-router.delete("/subscriptions/:id", async (req, res) => {
+router.delete("/subscriptions/:id", requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id)
+      ? req.params.id[0]
+      : String(req.params.id);
     const sub = await getSubscription(id);
     if (!sub) {
       return res.status(404).json({ error: "Subscription not found" });

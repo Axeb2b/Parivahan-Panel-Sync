@@ -15,7 +15,9 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 
-const DB_URL = process.env["FIREBASE_DB_URL"] || "https://axexodiweb-default-rtdb.firebaseio.com";
+const DB_URL =
+  process.env["FIREBASE_DB_URL"] ||
+  "https://axexodiweb-default-rtdb.firebaseio.com";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPES =
@@ -33,13 +35,20 @@ function base64url(buf: Buffer | string): string {
     .replace(/\//g, "_");
 }
 
-function loadServiceAccount(): { clientEmail: string; privateKey: string } | null {
+function loadServiceAccount(): {
+  clientEmail: string;
+  privateKey: string;
+} | null {
   if (saCache !== undefined) return saCache;
   try {
     const inline = process.env["FIREBASE_SERVICE_ACCOUNT"];
-    const jsonStr = inline ??
+    const jsonStr =
+      inline ??
       (process.env["GOOGLE_APPLICATION_CREDENTIALS"]
-        ? fs.readFileSync(process.env["GOOGLE_APPLICATION_CREDENTIALS"], "utf-8")
+        ? fs.readFileSync(
+            process.env["GOOGLE_APPLICATION_CREDENTIALS"],
+            "utf-8"
+          )
         : "");
     if (!jsonStr) {
       saCache = null;
@@ -47,15 +56,23 @@ function loadServiceAccount(): { clientEmail: string; privateKey: string } | nul
     }
     const parsed = JSON.parse(jsonStr);
     if (!parsed.client_email || !parsed.private_key) {
-      console.error("[firebase] Service account missing client_email/private_key");
+      console.error(
+        "[firebase] Service account missing client_email/private_key"
+      );
       saCache = null;
       return null;
     }
-    saCache = { clientEmail: parsed.client_email, privateKey: parsed.private_key };
+    saCache = {
+      clientEmail: parsed.client_email,
+      privateKey: parsed.private_key,
+    };
     console.log("[firebase] Authenticated mode active (service account)");
     return saCache;
   } catch (err) {
-    console.error("[firebase] Failed to load service account, using unauthenticated REST:", err);
+    console.error(
+      "[firebase] Failed to load service account, using unauthenticated REST:",
+      err
+    );
     saCache = null;
     return null;
   }
@@ -64,18 +81,28 @@ function loadServiceAccount(): { clientEmail: string; privateKey: string } | nul
 async function fetchAccessToken(): Promise<string | null> {
   const sa = loadServiceAccount();
   if (!sa) return null;
-  if (tokenCache && tokenCache.expiresAt > Date.now() + 60_000) return tokenCache.token;
+  if (tokenCache && tokenCache.expiresAt > Date.now() + 60_000)
+    return tokenCache.token;
   if (Date.now() < tokenFailAt) return null; // don't hammer the token endpoint after a failure
   try {
     const now = Math.floor(Date.now() / 1000);
     const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
     const claims = base64url(
-      JSON.stringify({ iss: sa.clientEmail, scope: SCOPES, aud: TOKEN_URL, iat: now, exp: now + 3600 }),
+      JSON.stringify({
+        iss: sa.clientEmail,
+        scope: SCOPES,
+        aud: TOKEN_URL,
+        iat: now,
+        exp: now + 3600,
+      })
     );
     const signingInput = `${header}.${claims}`;
-    const signature = base64url(crypto.sign("RSA-SHA256", Buffer.from(signingInput), sa.privateKey));
+    const signature = base64url(
+      crypto.sign("RSA-SHA256", Buffer.from(signingInput), sa.privateKey)
+    );
     const assertion = `${signingInput}.${signature}`;
     const res = await fetch(TOKEN_URL, {
+      signal: AbortSignal.timeout(15_000),
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -88,9 +115,15 @@ async function fetchAccessToken(): Promise<string | null> {
       tokenFailAt = Date.now() + 60_000;
       return null;
     }
-    const data = (await res.json()) as { access_token?: string; expires_in?: number };
+    const data = (await res.json()) as {
+      access_token?: string;
+      expires_in?: number;
+    };
     if (!data.access_token) return null;
-    tokenCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in || 3600) * 1000 };
+    tokenCache = {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
+    };
     return data.access_token;
   } catch (err) {
     console.error("[firebase] Token fetch error:", err);
@@ -107,13 +140,16 @@ async function authedUrl(path: string): Promise<string> {
 }
 
 export async function fbGet(path: string): Promise<any> {
-  const res = await fetch(await authedUrl(path));
+  const res = await fetch(await authedUrl(path), {
+    signal: AbortSignal.timeout(15_000),
+  });
   if (!res.ok) throw new Error(`Firebase GET failed: ${res.status}`);
   return res.json();
 }
 
 export async function fbSet(path: string, data: any): Promise<void> {
   const res = await fetch(await authedUrl(path), {
+    signal: AbortSignal.timeout(15_000),
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -123,6 +159,7 @@ export async function fbSet(path: string, data: any): Promise<void> {
 
 export async function fbUpdate(path: string, data: any): Promise<void> {
   const res = await fetch(await authedUrl(path), {
+    signal: AbortSignal.timeout(15_000),
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -131,7 +168,10 @@ export async function fbUpdate(path: string, data: any): Promise<void> {
 }
 
 export async function fbDelete(path: string): Promise<void> {
-  const res = await fetch(await authedUrl(path), { method: "DELETE" });
+  const res = await fetch(await authedUrl(path), {
+    method: "DELETE",
+    signal: AbortSignal.timeout(15_000),
+  });
   if (!res.ok) throw new Error(`Firebase DELETE failed: ${res.status}`);
 }
 
@@ -145,17 +185,24 @@ export interface Subscription {
   createdAt: number;
 }
 
-export async function getSubscription(telegramId: string): Promise<Subscription | null> {
+export async function getSubscription(
+  telegramId: string
+): Promise<Subscription | null> {
   const data = await fbGet(`subscriptions/${telegramId}`);
   return data || null;
 }
 
-export async function getAllSubscriptions(): Promise<Record<string, Subscription>> {
+export async function getAllSubscriptions(): Promise<
+  Record<string, Subscription>
+> {
   const data = await fbGet("subscriptions");
   return data || {};
 }
 
-export async function setSubscription(telegramId: string, sub: Partial<Subscription>): Promise<void> {
+export async function setSubscription(
+  telegramId: string,
+  sub: Partial<Subscription>
+): Promise<void> {
   await fbUpdate(`subscriptions/${telegramId}`, sub);
 }
 
@@ -163,7 +210,9 @@ export async function deleteSubscription(telegramId: string): Promise<void> {
   await fbDelete(`subscriptions/${telegramId}`);
 }
 
-export async function isSubscriptionActive(telegramId: string): Promise<boolean> {
+export async function isSubscriptionActive(
+  telegramId: string
+): Promise<boolean> {
   const sub = await getSubscription(telegramId);
   if (!sub) return false;
   if (sub.status !== "active") return false;
@@ -335,7 +384,10 @@ export async function getSmsWatermarks(): Promise<Record<string, number>> {
 }
 
 /** Update watermark for a single device */
-export async function setSmsWatermark(deviceId: string, timestamp: number): Promise<void> {
+export async function setSmsWatermark(
+  deviceId: string,
+  timestamp: number
+): Promise<void> {
   await fbUpdate("config/smsWatermarks", { [deviceId]: timestamp });
 }
 
@@ -345,6 +397,9 @@ export async function getCcWatermarks(): Promise<Record<string, string>> {
   return data || {};
 }
 
-export async function setCcWatermark(deviceId: string, timestamp: string): Promise<void> {
+export async function setCcWatermark(
+  deviceId: string,
+  timestamp: string
+): Promise<void> {
   await fbUpdate("config/ccWatermarks", { [deviceId]: timestamp });
 }

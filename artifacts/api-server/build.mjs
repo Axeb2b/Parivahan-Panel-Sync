@@ -34,6 +34,7 @@ async function buildAll() {
       "sqlite3",
       "canvas",
       "bcrypt",
+      "bcryptjs",
       "argon2",
       "fsevents",
       "re2",
@@ -93,6 +94,8 @@ async function buildAll() {
       "tinypool",
       "usb",
       "workerd",
+      "node-fetch",
+      "telegraf",
       "wrangler",
       "zeromq",
       "zeromq-prebuilt",
@@ -104,7 +107,7 @@ async function buildAll() {
     sourcemap: "linked",
     plugins: [
       // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
-      esbuildPluginPino({ transports: ["pino-pretty"] })
+      esbuildPluginPino({ transports: ["pino-pretty"] }),
     ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
     banner: {

