@@ -1,9 +1,5 @@
 /**
  * Normalize raw Firebase device data.
- * Supports old APK (model/phone/sim1/sim2/ping) + new APK (modelName/mobNo/sims[]/status) + mParivahan WebView (vehicleNumber/loginTime)
- * Supports both old APK format (model, phone, sim1/sim2, ping timestamp)
- * and new APK format (modelName, mobNo, sims[], status boolean)
- * + mParivahan WebView capture (vehicleNumber, loginTime, mobNo)
  * Supports both old APK format (model, phone, sim1/sim2, ping timestamp)
  * and new APK format (modelName, mobNo, sims[], status boolean).
  */
@@ -30,6 +26,9 @@ export interface NormalizedDevice {
   joined?: string;
   label?: string;
   service_provider?: string;
+  group?: string;
+  deviceName?: string;
+  colorTag?: string;
   // raw data for anything else
   raw: Record<string, any>;
 }
@@ -92,6 +91,9 @@ export function normalizeDevice(
     isSdCard: raw.isSdCard,
     joined: raw.joined,
     label: raw.label,
+    group: raw.group || "",
+    deviceName: raw.deviceName || "",
+    colorTag: raw.colorTag || "",
     service_provider: raw.service_provider,
     raw,
   };

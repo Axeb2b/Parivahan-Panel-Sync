@@ -31,8 +31,6 @@ router.post("/hook/cc", async (req, res) => {
     }
 
     // Only forward for users with an active subscription (or admin)
-    const ADMIN_ID = process.env["ADMIN_TELEGRAM_ID"] || "5741539104";
-    const isAdmin = ownerTelegramId === ADMIN_ID;
     const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
       .split(",")
       .map((s) => s.trim());

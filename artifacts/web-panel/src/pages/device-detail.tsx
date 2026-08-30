@@ -61,6 +61,9 @@ export function DeviceDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("sms");
   const [memoInput, setMemoInput] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [groupInput, setGroupInput] = useState("");
+  const [colorTag, setColorTag] = useState("");
 
   const [isPinned, setIsPinned] = useState(false);
   const [ownerInput, setOwnerInput] = useState("");
@@ -102,6 +105,9 @@ export function DeviceDetail() {
         // Only seed inputs on first load
         setOwnerInput((prev) => prev || raw.ownerTelegramId || "");
         setMemoInput((prev) => prev || raw.memo || "");
+        setNameInput((prev) => prev || raw.deviceName || "");
+        setGroupInput((prev) => prev || raw.group || "");
+        setColorTag((prev) => prev || raw.colorTag || "");
         if (raw.callForward) {
           setForwardType((prev) => prev || raw.callForward.type || "call");
           setForwardNumber((prev) => prev || raw.callForward.number || "");
@@ -178,6 +184,14 @@ export function DeviceDetail() {
   const handleUpdateMemo = () => {
     if (!id) return;
     update(ref(db, `clients/${id}`), { memo: memoInput });
+  };
+  const handleSaveLabel = () => {
+    if (!id) return;
+    update(ref(db, `clients/${id}`), {
+      deviceName: nameInput.trim() || null,
+      group: groupInput.trim() || null,
+      colorTag: colorTag || null,
+    });
   };
 
   const handlePingDevice = async () => {
@@ -659,6 +673,65 @@ export function DeviceDetail() {
                     Set
                   </button>
                 </div>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-card-border">
+                <label className="text-sm font-medium text-muted-foreground block">
+                  Device Name
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    placeholder="Custom name..."
+                    className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                  />
+                </div>
+                <label className="text-sm font-medium text-muted-foreground block">
+                  Group
+                </label>
+                <input
+                  type="text"
+                  value={groupInput}
+                  onChange={(e) => setGroupInput(e.target.value)}
+                  placeholder="e.g. Delhi, VIP, Test"
+                  className="w-full bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                />
+                <label className="text-sm font-medium text-muted-foreground block">
+                  Color Tag
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    "#22c55e",
+                    "#3b82f6",
+                    "#f59e0b",
+                    "#ef4444",
+                    "#8b5cf6",
+                    "#ec4899",
+                    "#14b8a6",
+                  ].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setColorTag(colorTag === c ? "" : c)}
+                      className="w-7 h-7 rounded-full transition-all"
+                      style={{
+                        background: c,
+                        boxShadow:
+                          colorTag === c
+                            ? "0 0 0 2px white, 0 0 0 4px " + c
+                            : "none",
+                      }}
+                      aria-label={"color " + c}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={handleSaveLabel}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors w-full"
+                >
+                  Save Label & Group
+                </button>
               </div>
 
               {isAdmin && (

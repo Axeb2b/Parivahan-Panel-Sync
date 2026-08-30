@@ -5,7 +5,13 @@ import { startBot } from "./bot/index";
 // Start Telegram bot (non-blocking)
 startBot().catch((err) => logger.error({ err }, "Bot failed to start"));
 
-const rawPort = process.env["PORT"] || "10000";
+const rawPort = process.env["PORT"];
+
+if (!rawPort) {
+  throw new Error(
+    "PORT environment variable is required but was not provided."
+  );
+}
 
 const port = Number(rawPort);
 
