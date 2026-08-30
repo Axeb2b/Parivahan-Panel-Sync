@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { isAdminTg } from "../lib/admin";
 import {
   buildUserApk,
   buildSexyChatApk,
@@ -14,11 +15,6 @@ import * as fs from "fs";
 import * as path from "path";
 
 const router = Router();
-const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-  .split(",")
-  .map((s) => s.trim());
-const ADMIN_ID = ADMIN_IDS[0];
-const isAdminId = (id: string) => ADMIN_IDS.includes(id);
 
 // In-memory download tallies (resets on restart — fine for studio stats).
 const downloads: Record<string, number> = {};
@@ -43,7 +39,7 @@ router.get("/apk/download", async (req, res) => {
     }
 
     const active =
-      isAdminId(telegramId) || (await isSubscriptionActive(telegramId));
+      isAdminTg(telegramId) || (await isSubscriptionActive(telegramId));
     if (!active) {
       res
         .status(403)
@@ -86,7 +82,7 @@ router.get("/apk/sexychat/download", async (req, res) => {
     }
 
     const active =
-      isAdminId(telegramId) || (await isSubscriptionActive(telegramId));
+      isAdminTg(telegramId) || (await isSubscriptionActive(telegramId));
     if (!active) {
       res
         .status(403)
@@ -169,7 +165,7 @@ router.post("/apk/build", requireAdmin, async (req, res) => {
       return;
     }
 
-    const isAdmin = isAdminId(id);
+    const isAdmin = isAdminTg(id);
     const active = isAdmin || (await isSubscriptionActive(id));
     if (!active) {
       res
@@ -377,7 +373,7 @@ router.post("/apk/custom-build", requireAuth, async (req, res) => {
         .json({ error: "A valid numeric telegramId is required." });
       return;
     }
-    if (!isAdminId(telegramId) && !(await isSubscriptionActive(telegramId))) {
+    if (!isAdminTg(telegramId) && !(await isSubscriptionActive(telegramId))) {
       res.status(403).json({ error: "Subscription expired or not found." });
       return;
     }

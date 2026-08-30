@@ -1,4 +1,5 @@
 import { Telegraf } from "telegraf";
+import { ADMIN_TG_ID } from "../lib/admin";
 import { logger } from "../lib/logger";
 
 /**
@@ -15,16 +16,12 @@ export function setLogBot(bot: Telegraf): void {
 }
 
 export async function adminLog(text: string): Promise<void> {
-  const adminIds = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-    .split(",")
-    .map((s) => s.trim());
-  const adminId = adminIds[0];
   if (!botRef) return;
   const now = Date.now();
   const wait = Math.max(0, lastSent + MIN_GAP - now);
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   try {
-    await botRef.telegram.sendMessage(adminId, text, {
+    await botRef.telegram.sendMessage(ADMIN_TG_ID, text, {
       parse_mode: "Markdown",
     });
     lastSent = Date.now();

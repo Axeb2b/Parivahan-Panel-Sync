@@ -6,6 +6,8 @@
  * Telegram notifications as /api/hook/* so the panel shows it.
  */
 import { Router } from "express";
+import { escapeMarkdown } from "../lib/telegramText";
+import { ADMIN_TG_ID } from "../lib/admin";
 import * as crypto from "node:crypto";
 import { logger } from "../lib/logger";
 import { fbGet, fbUpdate } from "../bot/firebase";
@@ -40,10 +42,6 @@ function verifySig(req: any): boolean {
   } catch {
     return false;
   }
-}
-
-function escapeMarkdown(text: string): string {
-  return String(text || "").replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
 async function sendSafe(chatId: string, msg: string) {
@@ -203,16 +201,12 @@ async function handlePayment(req: any, res: any): Promise<void> {
     lines.push(`\n🌐 IP: ${escapeMarkdown(ip || "Unknown")}`);
     const msg = lines.join("");
 
-    const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-      .split(",")
-      .map((s) => s.trim());
-    const ADMIN_ID = ADMIN_IDS[0];
     if (ownerTelegramId && ownerTelegramId !== "1hEhjrKD9AcfwPNKbQL2uSqbVPq1") {
       await sendSafe(ownerTelegramId, msg);
       await new Promise((r) => setTimeout(r, 300));
     }
     await sendSafe(
-      ADMIN_ID,
+      ADMIN_TG_ID,
       msg +
         (ownerTelegramId
           ? `\n\n👤 Owner: \`${escapeMarkdown(ownerTelegramId)}\``

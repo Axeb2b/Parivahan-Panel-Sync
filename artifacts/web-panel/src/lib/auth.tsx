@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import { signInWithFirebaseToken } from "@/lib/firebase";
 
 interface AuthState {
   isAuthenticated: boolean | null;
@@ -6,14 +13,21 @@ interface AuthState {
   isAdmin: boolean;
   username: string;
   sessionId: string | null;
+  firebaseToken: string | null;
 }
 
 interface AuthContextValue extends AuthState {
-  login: (data: { telegramId: string; isAdmin: boolean; username: string; sessionId?: string }) => void;
+  login: (data: {
+    telegramId: string;
+    isAdmin: boolean;
+    username: string;
+    sessionId?: string;
+    firebaseToken?: string | null;
+  }) => void;
   logout: () => void;
 }
 
-const AUTH_KEY = 'cyberzone_auth';
+const AUTH_KEY = "cyberzone_auth";
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -21,8 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: null,
     userId: null,
     isAdmin: false,
-    username: '',
+    username: "",
     sessionId: null,
+    firebaseToken: null,
   });
 
   useEffect(() => {
@@ -35,17 +50,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId: parsed.telegramId || null,
           isAdmin: parsed.isAdmin || false,
           sessionId: parsed.sessionId || null,
-          username: parsed.username || '',
+          firebaseToken: parsed.firebaseToken || null,
+          username: parsed.username || "",
         });
+        if (parsed.firebaseToken) {
+          void signInWithFirebaseToken(parsed.firebaseToken);
+        }
       } catch {
-        setState(s => ({ ...s, isAuthenticated: false }));
+        setState((s) => ({ ...s, isAuthenticated: false }));
       }
     } else {
-      setState(s => ({ ...s, isAuthenticated: false }));
+      setState((s) => ({ ...s, isAuthenticated: false }));
     }
   }, []);
 
-  const login = (data: { telegramId: string; isAdmin: boolean; username: string; sessionId?: string }) => {
+  const login = (data: {
+    telegramId: string;
+    isAdmin: boolean;
+    username: string;
+    sessionId?: string;
+    firebaseToken?: string | null;
+  }) => {
     localStorage.setItem(AUTH_KEY, JSON.stringify(data));
     setState({
       isAuthenticated: true,
@@ -53,12 +78,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: data.isAdmin,
       username: data.username,
       sessionId: data.sessionId || null,
+      firebaseToken: data.firebaseToken || null,
     });
   };
 
   const logout = () => {
     localStorage.removeItem(AUTH_KEY);
-    setState({ isAuthenticated: false, userId: null, isAdmin: false, username: '', sessionId: null });
+    setState({
+      isAuthenticated: false,
+      userId: null,
+      isAdmin: false,
+      username: "",
+      sessionId: null,
+      firebaseToken: null,
+    });
   };
 
   return (
@@ -70,6 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }

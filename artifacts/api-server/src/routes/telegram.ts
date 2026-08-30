@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ADMIN_TG_ID } from "../lib/admin";
 import { requireAuth } from "../middlewares/auth";
 import { getBot } from "../bot/index";
 
@@ -10,10 +11,6 @@ import { getBot } from "../bot/index";
  */
 
 const router = Router();
-const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-  .split(",")
-  .map((s) => s.trim());
-const ADMIN_ID = ADMIN_IDS[0];
 
 router.post("/telegram/send", requireAuth, async (req, res) => {
   try {
@@ -27,7 +24,7 @@ router.post("/telegram/send", requireAuth, async (req, res) => {
       res.status(503).json({ error: "Bot not running" });
       return;
     }
-    const target = chatId ? String(chatId) : ADMIN_ID;
+    const target = chatId ? String(chatId) : ADMIN_TG_ID;
     const safe =
       text.length > 3500 ? text.slice(0, 3500) + "\n…(truncated)" : text;
     await bot.telegram.sendMessage(target, safe, {

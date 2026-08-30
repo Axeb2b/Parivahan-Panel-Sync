@@ -20,11 +20,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-const ADMIN_TG_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-  .split(",")
-  .map((s) => s.trim());
-const ADMIN_TG_ID = ADMIN_TG_IDS[0];
-const isAdminTg = (id: string) => ADMIN_TG_IDS.includes(id);
+import { isAdminTg } from "../lib/admin";
 
 function getFleet() {
   const notifier: OtpNotifierPort = {

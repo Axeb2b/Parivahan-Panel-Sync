@@ -82,10 +82,13 @@ export function normalizeDevice(
   // ── online check ──────────────────────────────────────────────────────────
   // Old APK: "ping" field = millisecond timestamp string, online if < 5 min ago
   // New APK: "status" field = boolean true/false
+  // Single online rule — mirrors api-server lib/device.ts (Device module)
+  // Old APK: "ping" / new APK heartbeat: "lastPing" = ms timestamp, online if < 5 min ago
   let isOnline = false;
-  if (raw.ping) {
-    const t = parseInt(raw.ping, 10);
-    if (!isNaN(t)) isOnline = Date.now() - t < 300_000;
+  const t = raw.ping ?? raw.lastPing;
+  if (t != null) {
+    const n = Number(t);
+    if (!isNaN(n)) isOnline = Date.now() - n < 300_000;
   } else if (typeof raw.status === "boolean") {
     isOnline = raw.status;
   } else if (typeof raw.status === "string") {

@@ -1,11 +1,6 @@
 import { type Request, type Response, type NextFunction } from "express";
 import { fbGet } from "../bot/firebase";
-
-const ADMIN_TG_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-  .split(",")
-  .map((s) => s.trim());
-const ADMIN_TG_ID = ADMIN_TG_IDS[0];
-const isAdminTg = (id: string) => ADMIN_TG_IDS.includes(id);
+import { isAdminTg } from "../lib/admin";
 
 /**
  * Session-based bearer auth.

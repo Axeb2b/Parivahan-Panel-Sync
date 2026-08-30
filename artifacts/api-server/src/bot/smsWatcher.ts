@@ -1,3 +1,4 @@
+import { escapeMarkdown } from "../lib/telegramText";
 import { Telegraf } from "telegraf";
 import { logger } from "../lib/logger";
 import {
@@ -172,10 +173,6 @@ function isFinanceSms(text: string): boolean {
     }
   }
   return hasAmount;
-}
-
-function escapeMarkdown(text: string): string {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
 /** Small delay to avoid Telegram rate limits */

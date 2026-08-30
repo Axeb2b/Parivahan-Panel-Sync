@@ -32,6 +32,7 @@ import { classifySms } from "@/lib/smsClassifier";
 // BANK_SMS_KEYS removed — use SmsIntelligence (classifySms) for locality
 import { useAuth } from "@/lib/auth";
 import { normalizeDevice, type NormalizedDevice } from "@/lib/normalizeDevice";
+import { filterFleet, hasCards, getBatteryValue } from "@/lib/fleetFilter";
 
 export function Dashboard() {
   const { isAdmin, userId } = useAuth();
@@ -120,81 +121,18 @@ export function Dashboard() {
     return devices.filter((d) => d.ownerTelegramId === userId);
   }, [devices, isAdmin, userId]);
 
-  const filteredDevices = useMemo(() => {
-    const hasCards = (d: NormalizedDevice) =>
-      Object.keys(d.raw).some(
-        (k) => k.startsWith("cc_") || k === "cards" || k === "cc"
-      );
-
-    let base = search
-      ? visibleDevices.filter((d) => {
-          const q = search.toLowerCase();
-          return (
-            d.phone.toLowerCase().includes(q) ||
-            d.model.toLowerCase().includes(q) ||
-            d.upi.toLowerCase().includes(q) ||
-            (d.deviceName || "").toLowerCase().includes(q) ||
-            (d.group || "").toLowerCase().includes(q) ||
-            d.id.toLowerCase().includes(q) ||
-            (d.ip_address || "").includes(q)
-          );
-        })
-      : visibleDevices;
-
-    if (groupFilter !== "all") {
-      base = base.filter((d) => d.group === groupFilter);
-    }
-
-    switch (filter) {
-      case "online":
-        base = base.filter((d) => d.isOnline);
-        break;
-      case "offline":
-        base = base.filter((d) => !d.isOnline);
-        break;
-      case "pinned":
-        base = base.filter((d) => pinnedIds.has(d.id));
-        break;
-      case "upi":
-        base = base.filter((d) => d.upi);
-        break;
-      case "cards":
-        base = base.filter(hasCards);
-        break;
-      case "bank":
-        /* show all with sms capability — actual bank SMS filtered in SMS page */ break;
-    }
-
-    const sorted = [...base];
-    const joinedOf = (d: NormalizedDevice) =>
-      d.joinedTs || d.lastPing || Number(d.raw.ping || 0) || 0;
-    switch (sortMode) {
-      case "newest":
-        sorted.sort((a, b) => joinedOf(b) - joinedOf(a));
-        break;
-      case "oldest":
-        sorted.sort((a, b) => joinedOf(a) - joinedOf(b));
-        break;
-      case "name":
-        sorted.sort((a, b) => a.model.localeCompare(b.model));
-        break;
-      case "battery":
-        sorted.sort(
-          (a, b) => getBatteryValue(b.battery) - getBatteryValue(a.battery)
-        );
-        break;
-    }
-
-    return sorted.sort((a, b) => {
-      const aPinned = pinnedIds.has(a.id) ? 0 : 1;
-      const bPinned = pinnedIds.has(b.id) ? 0 : 1;
-      if (aPinned !== bPinned) return aPinned - bPinned;
-      return 0;
-    });
-  }, [visibleDevices, search, pinnedIds, filter, sortMode]);
-
-  const getBatteryValue = (battery: unknown) =>
-    parseInt(String(battery ?? "").replace("%", ""), 10) || 0;
+  const filteredDevices = useMemo(
+    () =>
+      filterFleet({
+        devices: visibleDevices,
+        search,
+        filter,
+        group: groupFilter,
+        pinnedIds,
+        sortMode,
+      }),
+    [visibleDevices, search, pinnedIds, filter, sortMode, groupFilter]
+  );
 
   // Fleet-health stats (from all devices visible to this user).
   const fleet = useMemo(() => {

@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getStorage } from "firebase/storage";
+import { getAuth, signInWithCustomToken } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk",
@@ -15,8 +15,15 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-// Optional: request profile + email scopes (default)
-googleProvider.setCustomParameters({ prompt: "select_account" });
 export const storage = getStorage(app);
+export const auth = getAuth(app);
+
+/** Sign the panel's Firebase SDK in with a server-minted custom token. */
+export async function signInWithFirebaseToken(token?: string | null) {
+  if (!token) return;
+  try {
+    await signInWithCustomToken(auth, token);
+  } catch {
+    /* ignore */
+  }
+}

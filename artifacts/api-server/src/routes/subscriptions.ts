@@ -13,12 +13,6 @@ import { getBot } from "../bot/index";
 
 const router = Router();
 
-const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-  .split(",")
-  .map((s) => parseInt(s.trim()))
-  .filter(Boolean);
-const ADMIN_ID = ADMIN_IDS[0];
-
 function getFleet() {
   return createFleet({
     rtdb: new RtdbAdapter(),

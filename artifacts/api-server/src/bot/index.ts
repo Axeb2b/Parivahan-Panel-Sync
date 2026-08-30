@@ -1,4 +1,5 @@
 import { Context, Markup, Telegraf } from "telegraf";
+import { ADMIN_ID, isAdminTg } from "../lib/admin";
 import { logger } from "../lib/logger";
 import {
   buildUserApk,
@@ -31,13 +32,6 @@ const pendingActions = new Map<
 >();
 
 const BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
-const ADMIN_IDS = (process.env["ADMIN_TELEGRAM_ID"] || "5064888403")
-  .split(",")
-  .map((s) => parseInt(s.trim()))
-  .filter(Boolean);
-const ADMIN_ID = ADMIN_IDS[0];
-const isAdminId = (id: number | string) =>
-  ADMIN_IDS.includes(typeof id === "string" ? parseInt(id) : id);
 
 function getPanelUrl(): string {
   const custom = process.env["PANEL_URL"];
@@ -65,7 +59,7 @@ function formatDate(ts: number): string {
 }
 
 function isAdmin(ctx: Context): boolean {
-  return isAdminId(ctx.from?.id ?? 0);
+  return isAdminTg(ctx.from?.id ?? 0);
 }
 
 let bot: Telegraf | null = null;
