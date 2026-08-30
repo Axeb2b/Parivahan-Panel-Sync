@@ -3,6 +3,7 @@ import { useRoute, Link, useLocation } from "wouter";
 import { db } from "@/lib/firebase";
 import { ref, onValue, set, remove, update } from "firebase/database";
 import { Layout } from "@/components/layout";
+import { TabBar } from "@/components/ui/tab-bar";
 import { useAuth } from "@/lib/auth";
 import {
   ArrowLeft,
@@ -798,27 +799,16 @@ export function DeviceDetail() {
         <div className="lg:col-span-3">
           <div className="stat-card overflow-hidden flex flex-col h-[700px]">
             <div className="flex overflow-x-auto border-b border-card-border hide-scrollbar bg-muted p-2 gap-2 sticky top-0 z-10 -mx-4 px-4 sm:mx-0 sm:px-2">
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap
-                      ${
-                        isActive
-                          ? tab.id === "delete"
-                            ? "bg-destructive text-primary-foreground shadow-sm"
-                            : "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:bg-card hover:text-foreground"
-                      }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {tab.label}
-                  </button>
-                );
-              })}
+              <TabBar
+                tabs={TABS.map((t) => ({
+                  id: t.id,
+                  label: t.label,
+                  icon: <t.icon className="w-4 h-4" />,
+                }))}
+                active={activeTab}
+                onChange={setActiveTab}
+                dangerIds={["delete"]}
+              />
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 bg-background relative">

@@ -1,7 +1,16 @@
-import React from 'react';
-import { useAuth } from '@/lib/auth';
-import { useLocation, Link } from 'wouter';
-import { LogOut, Crown, User, LayoutGrid, MessageSquare, Settings, Send, Zap } from 'lucide-react';
+import React from "react";
+import { useAuth } from "@/lib/auth";
+import { useLocation, Link } from "wouter";
+import {
+  LogOut,
+  Crown,
+  User,
+  LayoutGrid,
+  MessageSquare,
+  Settings,
+  Send,
+  Zap,
+} from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAdmin, username } = useAuth();
@@ -9,18 +18,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     logout();
-    setLocation('/');
+    setLocation("/");
   };
 
   const navLinks = [
-    { href: '/dashboard', label: 'Devices', icon: LayoutGrid, adminOnly: false },
-    { href: '/all-sms', label: 'SMS', icon: MessageSquare, adminOnly: false },
-    { href: '/subscriptions', label: 'Users', icon: Crown, adminOnly: true },
-    { href: '/telegram', label: 'Telegram', icon: Send, adminOnly: false },
-    { href: '/profile', label: 'Profile', icon: Settings, adminOnly: false },
+    {
+      href: "/dashboard",
+      label: "Devices",
+      icon: LayoutGrid,
+      adminOnly: false,
+    },
+    { href: "/all-sms", label: "SMS", icon: MessageSquare, adminOnly: false },
+    { href: "/subscriptions", label: "Users", icon: Crown, adminOnly: true },
+    { href: "/telegram", label: "Telegram", icon: Send, adminOnly: false },
+    { href: "/profile", label: "Profile", icon: Settings, adminOnly: false },
   ];
 
-  const visibleLinks = navLinks.filter(l => !l.adminOnly || isAdmin);
+  const visibleLinks = navLinks.filter((l) => !l.adminOnly || isAdmin);
 
   return (
     <div className="min-h-screen text-foreground flex flex-col font-sans pb-16 sm:pb-0">
@@ -32,23 +46,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-white leading-tight brand-gradient">HARRYAXE</span>
-              <span className="text-[10px] font-medium tracking-[0.25em] text-[#7e86a3] uppercase leading-tight">Panel Pro</span>
+              <span className="font-bold tracking-tight text-lg text-white leading-tight brand-gradient">
+                HARRYAXE
+              </span>
+              <span className="text-[10px] font-medium tracking-[0.25em] text-[#7e86a3] uppercase leading-tight">
+                Panel Pro
+              </span>
             </div>
           </Link>
 
           {/* Desktop nav — hidden on mobile */}
           <nav className="hidden sm:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1">
             {visibleLinks.map(({ href, label, icon: Icon }) => {
-              const active = location === href || location.startsWith(href + '/');
+              const active =
+                location === href || location.startsWith(href + "/");
               return (
                 <Link
                   key={href}
                   href={href}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
                     active
-                      ? 'bg-[#6466f1] text-white shadow-md shadow-[#6466f1]/40 btn-glow'
-                      : 'text-[#7e86a3] hover:text-white hover:bg-white/10'
+                      ? "bg-[#6466f1] text-white shadow-md shadow-[#6466f1]/40 btn-glow"
+                      : "text-[#7e86a3] hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -62,7 +81,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-[#c5cbe0]">
             <User className="w-3 h-3 text-[#6466f1]" />
-            <span>{isAdmin ? 'Admin' : username || 'User'}</span>
+            <span>{isAdmin ? "Admin" : username || "User"}</span>
           </div>
           <button
             onClick={handleLogout}
@@ -79,20 +98,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* ── Mobile bottom nav — visible only on mobile ── */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 glass-card border-t border-white/10 flex items-stretch">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 glass-card border-t border-white/10 flex items-stretch pb-[env(safe-area-inset-bottom)]">
         {visibleLinks.map(({ href, label, icon: Icon }) => {
-          const active = location === href || location.startsWith(href + '/');
+          const active = location === href || location.startsWith(href + "/");
           return (
             <Link
               key={href}
               href={href}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
-                active
-                  ? 'text-[#6466f1]'
-                  : 'text-[#7e86a3]'
+                active ? "text-[#6466f1]" : "text-[#7e86a3]"
               }`}
             >
-              <div className={`p-1.5 rounded-xl transition-colors ${active ? 'bg-[#6466f1]/15' : ''}`}>
+              <div
+                className={`p-1.5 rounded-xl transition-colors ${active ? "bg-[#6466f1]/15" : ""}`}
+              >
                 <Icon className="w-5 h-5" />
               </div>
               <span>{label}</span>

@@ -461,10 +461,16 @@ export function AllSms() {
         </div>
 
         {/* ── Category chips (horizontally scrollable on mobile) ── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:flex-wrap sm:overflow-visible">
+        <div
+          role="tablist"
+          aria-label="SMS category"
+          className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:flex-wrap sm:overflow-visible"
+        >
           <button
+            role="tab"
+            aria-selected={catFilter === "all"}
             onClick={() => setCatFilter("all")}
-            className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors ${
+            className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
               catFilter === "all"
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-card border-card-border text-muted-foreground hover:bg-muted"
@@ -475,8 +481,10 @@ export function AllSms() {
           {ALL_CATS.map((c) => (
             <button
               key={c}
+              role="tab"
+              aria-selected={catFilter === c}
               onClick={() => setCatFilter(catFilter === c ? "all" : c)}
-              className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors flex items-center gap-1.5 ${
+              className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                 catFilter === c
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-card border-card-border text-muted-foreground hover:bg-muted"
