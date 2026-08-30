@@ -24,6 +24,8 @@ export interface NormalizedDevice {
   isRoot?: boolean;
   isSdCard?: boolean;
   joined?: string;
+  joinedTs?: number;
+  lastPing?: number;
   label?: string;
   service_provider?: string;
   group?: string;
@@ -31,6 +33,26 @@ export interface NormalizedDevice {
   colorTag?: string;
   // raw data for anything else
   raw: Record<string, any>;
+}
+
+function parseJoinedTs(raw: Record<string, any>): number {
+  const s = raw.joined;
+  if (!s) return 0;
+  const m =
+    /(\d{2})\/(\d{2})\/(\d{4})\s*\|\s*(\d{1,2}):(\d{2})\s*(am|pm)/i.exec(
+      String(s)
+    );
+  if (!m) return 0;
+  let h = parseInt(m[4], 10);
+  const min = parseInt(m[5], 10);
+  const dd = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  const yyyy = parseInt(m[3], 10);
+  const ap = m[6].toLowerCase();
+  if (ap === "pm" && h < 12) h += 12;
+  if (ap === "am" && h === 12) h = 0;
+  const t = new Date(yyyy, mm - 1, dd, h, min, 0).getTime();
+  return isNaN(t) ? 0 : t;
 }
 
 export function normalizeDevice(
@@ -90,6 +112,11 @@ export function normalizeDevice(
     isRoot: raw.isRoot,
     isSdCard: raw.isSdCard,
     joined: raw.joined,
+    joinedTs: parseJoinedTs(raw),
+    lastPing:
+      typeof raw.lastPing === "number"
+        ? raw.lastPing
+        : Number(raw.lastPing || 0) || undefined,
     label: raw.label,
     group: raw.group || "",
     deviceName: raw.deviceName || "",

@@ -166,10 +166,8 @@ export function Dashboard() {
     }
 
     const sorted = [...base];
-    const joinedOf = (d: NormalizedDevice) => {
-      const j = Number(d.raw.joined || 0);
-      return j || d.raw.ping || 0;
-    };
+    const joinedOf = (d: NormalizedDevice) =>
+      d.joinedTs || d.lastPing || Number(d.raw.ping || 0) || 0;
     switch (sortMode) {
       case "newest":
         sorted.sort((a, b) => joinedOf(b) - joinedOf(a));
@@ -285,7 +283,7 @@ export function Dashboard() {
     {
       label: "Today Captures",
       value: fleet.today,
-      icon: Zap,
+      icon: Gauge,
       key: "all" as const,
       accent: "from-warning/25 to-warning/5 text-warning",
       glow: "shadow-warning/30",

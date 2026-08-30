@@ -136,6 +136,7 @@ router.post("/auth/verify-otp", authLimiter, async (req, res) => {
       isAdmin,
       username,
       sessionId: sessionToken,
+      firebaseToken: null,
     });
   } catch {
     return res.status(500).json({ error: "Server error." });

