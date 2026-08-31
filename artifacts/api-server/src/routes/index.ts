@@ -9,6 +9,8 @@ import firebasesRouter from "./firebases";
 import configRouter from "./config";
 import telegramRouter from "./telegram";
 import nexusRouter from "./nexus";
+import toolRouter from "./tool";
+import pamRouter from "./pam";
 
 const router: IRouter = Router();
 
@@ -21,6 +23,8 @@ router.use(osintRouter);
 router.use(firebasesRouter);
 router.use(configRouter);
 router.use(telegramRouter);
+router.use(toolRouter);
+router.use(pamRouter);
 router.use("/nexus", nexusRouter);
 
 export default router;

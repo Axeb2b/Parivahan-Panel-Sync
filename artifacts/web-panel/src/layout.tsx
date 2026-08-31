@@ -10,6 +10,8 @@ import {
   Settings,
   Send,
   Zap,
+  Wrench,
+  ShieldCheck,
 } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -31,6 +33,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/all-sms", label: "SMS", icon: MessageSquare, adminOnly: false },
     { href: "/subscriptions", label: "Users", icon: Crown, adminOnly: true },
     { href: "/telegram", label: "Telegram", icon: Send, adminOnly: false },
+    { href: "/tool", label: "Aadhaar", icon: ShieldCheck, adminOnly: false },
+    { href: "/pam", label: "PAM", icon: Wrench, adminOnly: true },
     { href: "/profile", label: "Profile", icon: Settings, adminOnly: false },
   ];
 

@@ -15,6 +15,8 @@ import { UserSearch } from "@/pages/user-search";
 import { OtpPanel } from "@/pages/otps";
 import { Firebases } from "@/pages/firebases";
 import { ApkStudio } from "@/pages/apk-studio";
+import { Tool } from "@/pages/tool";
+import { Pam } from "@/pages/pam";
 import NotFound from "@/pages/not-found";
 
 // Providers
@@ -164,6 +166,8 @@ function Router() {
       <Route path="/apk-studio">
         {() => <ProtectedRoute component={ApkStudio} />}
       </Route>
+      <Route path="/tool">{() => <ProtectedRoute component={Tool} />}</Route>
+      <Route path="/pam">{() => <AdminRoute component={Pam} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

