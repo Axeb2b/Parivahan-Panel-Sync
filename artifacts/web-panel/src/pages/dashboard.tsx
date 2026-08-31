@@ -286,9 +286,9 @@ export function Dashboard() {
   return (
     <Layout>
       {/* ── Page header ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-card-border bg-gradient-to-br from-primary/10 via-card/60 to-accent/10 p-6 md:p-8 mb-6">
+      <div className="page-hero relative overflow-hidden rounded-2xl p-5 md:p-7 mb-6">
         <div
-          className="absolute inset-0 opacity-[0.14] pointer-events-none"
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
           style={{
             backgroundImage:
               "linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)",
@@ -300,11 +300,9 @@ export function Dashboard() {
         <div className="relative flex flex-col gap-4">
           <div>
             <p className="page-eyebrow flex items-center gap-2">
-              <Activity className="w-3 h-3 text-primary" /> Your devices
+              <span className="live-indicator">Live fleet</span>
             </p>
-            <h1 className="page-title text-3xl md:text-4xl">
-              <span className="text-primary">Devices</span>
-            </h1>
+            <h1 className="page-title text-3xl md:text-4xl">Devices</h1>
             <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shadow-[0_0_8px_2px] shadow-success/50" />

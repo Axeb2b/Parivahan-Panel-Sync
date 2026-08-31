@@ -41,26 +41,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const visibleLinks = navLinks.filter((l) => !l.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen text-foreground flex flex-col font-sans pb-16 sm:pb-0">
+    <div className="app-shell min-h-screen text-foreground flex flex-col font-sans pb-16 sm:pb-0">
       {/* ── Top header (glass) ── */}
-      <header className="sticky top-0 z-10 glass-card px-4 lg:px-6 h-16 flex items-center justify-between">
+      <header className="app-header sticky top-0 z-30 px-4 lg:px-7 h-[4.5rem] flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#6466f1] to-[#00c2ff] flex items-center justify-center shadow-lg shadow-[#6466f1]/30 group-hover:scale-105 transition-transform">
+            <div className="brand-mark w-10 h-10 rounded-xl shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-white leading-tight brand-gradient">
+              <span className="font-display font-bold tracking-tight text-lg text-foreground leading-tight">
                 PARIVAHAN
               </span>
-              <span className="text-[10px] font-medium tracking-[0.25em] text-[#7e86a3] uppercase leading-tight">
+              <span className="text-[10px] font-mono font-bold tracking-[0.2em] text-muted-foreground uppercase leading-tight">
                 Panel Pro
               </span>
             </div>
           </Link>
 
           {/* Desktop nav — hidden on mobile */}
-          <nav className="hidden sm:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1">
+          <nav className="hidden sm:flex items-center gap-1 rounded-2xl border border-border/70 bg-card/60 p-1">
             {visibleLinks.map(({ href, label, icon: Icon }) => {
               const active =
                 location === href || location.startsWith(href + "/");
@@ -68,10 +68,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  className={`nav-chip px-3.5 py-2 ${
                     active
-                      ? "bg-[#6466f1] text-white shadow-md shadow-[#6466f1]/40 btn-glow"
-                      : "text-[#7e86a3] hover:text-white hover:bg-white/10"
+                      ? "nav-chip-active shadow-sm btn-glow"
+                      : "nav-chip-idle hover:bg-muted hover:text-foreground"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -83,13 +83,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-[#c5cbe0]">
-            <User className="w-3 h-3 text-[#6466f1]" />
+          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border text-xs font-medium text-muted-foreground">
+            <User className="w-3 h-3 text-primary" />
             <span>{isAdmin ? "Admin" : username || "User"}</span>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center w-9 h-9 rounded-full text-[#7e86a3] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
+            aria-label="Log out"
+            className="flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -97,12 +98,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* ── Page content ── */}
-      <main className="flex-1 overflow-x-hidden p-4 lg:p-6 container mx-auto max-w-7xl">
+      <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8 container mx-auto max-w-[88rem]">
         {children}
       </main>
 
       {/* ── Mobile bottom nav — visible only on mobile ── */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-20 glass-card border-t border-white/10 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 app-header flex items-stretch pb-[env(safe-area-inset-bottom)]">
         {visibleLinks.map(({ href, label, icon: Icon }) => {
           const active = location === href || location.startsWith(href + "/");
           return (
@@ -110,11 +111,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
-                active ? "text-[#6466f1]" : "text-[#7e86a3]"
+                active ? "text-primary" : "text-muted-foreground"
               }`}
             >
               <div
-                className={`p-1.5 rounded-xl transition-colors ${active ? "bg-[#6466f1]/15" : ""}`}
+                className={`p-1.5 rounded-xl transition-colors ${active ? "bg-primary/12" : ""}`}
               >
                 <Icon className="w-5 h-5" />
               </div>
@@ -125,7 +126,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Logout at the end of mobile nav */}
         <button
           onClick={handleLogout}
-          className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 py-2 text-[10px] font-medium text-[#7e86a3] transition-colors"
+          className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 py-2 text-[10px] font-medium text-muted-foreground transition-colors"
         >
           <div className="p-1.5 rounded-xl">
             <LogOut className="w-5 h-5" />
