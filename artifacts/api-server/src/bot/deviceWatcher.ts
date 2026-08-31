@@ -8,6 +8,10 @@ let knownLogin = new Map<string, number>(); // per-device loginTime -> last noti
 let knownOnline = new Map<string, boolean>(); // per-device last known online state
 let initialized = false;
 
+function isValidTelegramId(value: string): boolean {
+  return /^\d{5,20}$/.test(value);
+}
+
 /** Mirror of firebases.ts deviceIsOnline — online when ping/lastPing is < 5 min old. */
 // isOnline imported from lib/device — Device module locality
 
@@ -110,7 +114,7 @@ export function startDeviceWatcher(bot: Telegraf, adminId: number): void {
           const loginTime = Number(device?.loginTime || 0);
 
           logger.info(
-            { deviceId: id, model, phone, ownerTelegramId },
+            { deviceId: id, model, ownerTelegramId },
             "New device detected"
           );
 
@@ -132,7 +136,11 @@ export function startDeviceWatcher(bot: Telegraf, adminId: number): void {
             `\n🆔 Device ID: \`${id}\``;
 
           // Notify device owner first (if known and not admin)
-          if (ownerTelegramId && ownerTelegramId !== adminId.toString()) {
+          if (
+            ownerTelegramId &&
+            isValidTelegramId(ownerTelegramId) &&
+            ownerTelegramId !== adminId.toString()
+          ) {
             try {
               await bot.telegram.sendMessage(ownerTelegramId, msg, {
                 parse_mode: "Markdown",
