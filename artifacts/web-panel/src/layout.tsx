@@ -47,7 +47,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex flex-col">
               <span className="font-bold tracking-tight text-lg text-white leading-tight brand-gradient">
-                HARRYAXE
+                PARIVAHAN
               </span>
               <span className="text-[10px] font-medium tracking-[0.25em] text-[#7e86a3] uppercase leading-tight">
                 Panel Pro

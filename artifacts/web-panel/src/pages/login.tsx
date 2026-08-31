@@ -196,7 +196,7 @@ export function Login() {
             <Zap className="w-7 h-7" />
           </div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-foreground mb-1">
-            HARRYAXE
+            PARIVAHAN
           </h1>
           <p className="page-eyebrow">Panel · Sign in</p>
         </div>

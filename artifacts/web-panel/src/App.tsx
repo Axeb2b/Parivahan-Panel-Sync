@@ -190,7 +190,7 @@ function ShareLinkImporter() {
     }
     const [url, key] = decoded.split("||").map((x) => x.trim());
     if (!url || !/^https:\/\/.+\.firebaseio\.com$/.test(url)) return;
-    const doneKey = "harryaxe-imported-" + m[1];
+    const doneKey = "parivahan-imported-" + m[1];
     try {
       if (sessionStorage.getItem(doneKey)) return;
     } catch {

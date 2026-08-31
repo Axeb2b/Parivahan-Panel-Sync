@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 
-const THEME_KEY = "harryaxe-theme";
+const THEME_KEY = "parivahan-theme";
 
 function getInitialTheme(): "dark" | "light" {
   try {
@@ -131,7 +131,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </span>
           <span className="flex flex-col leading-tight">
             <span className="font-display font-bold text-lg tracking-tight brand-gradient">
-              HARRYAXE
+              PARIVAHAN
             </span>
             <span className="page-eyebrow">Control Panel</span>
           </span>
@@ -171,7 +171,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </span>
           <span className="flex flex-col leading-tight">
             <span className="font-display font-bold text-base tracking-tight brand-gradient">
-              HARRYAXE
+              PARIVAHAN
             </span>
             <span className="page-eyebrow" style={{ fontSize: 9 }}>
               Control Panel
@@ -200,7 +200,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="absolute right-0 top-0 bottom-0 w-72 max-w-[85vw] bg-card border-l border-card-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
             <div className="flex items-center justify-between px-4 h-14 border-b border-card-border">
               <span className="font-display font-bold tracking-tight brand-gradient">
-                HARRYAXE
+                PARIVAHAN
               </span>
               <button
                 onClick={() => setDrawerOpen(false)}
