@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SRC="/root/Parivahan-Panel-Sync"
+SRC="/root/parivahan/Parivahan-Panel-Sync"
 OPT_P="/opt/parivahan"
 echo "[deploy-panel $(date -Is)] start"
 echo "--- git pull ---"
@@ -13,18 +13,18 @@ pnpm run build 2>&1 | tail -40
 echo "build done, checking dists"
 ls -lh "$SRC/artifacts/api-server/dist/" 2>&1 | head -10
 ls -lh "$SRC/artifacts/web-panel/dist/" 2>&1 | head -10
-echo "--- sync /opt/parivahan (symlink farm) ---"
+echo "--- sync /opt/parivahan (copy, not symlink) ---"
+# Symlinks into /root break: nginx (www-data) can't traverse a 0700 home.
+# Copy dists so /opt stays world-readable.
+rm -rf /opt/parivahan/artifacts/api-server/dist
+rm -rf /opt/parivahan/artifacts/web-panel/dist
 mkdir -p /opt/parivahan/artifacts/api-server
 mkdir -p /opt/parivahan/artifacts/web-panel
-# point opt artifacts at source dists (no copy, always fresh)
-ln -sfn "$SRC/artifacts/api-server/dist" /opt/parivahan/artifacts/api-server/dist 2>&1 || true
-ln -sfn "$SRC/artifacts/web-panel/dist" /opt/parivahan/artifacts/web-panel/dist 2>&1 || true
-ln -sfn "$SRC/artifacts/web-panel/dist/public" /opt/parivahan/web-public 2>&1 || true
-# also keep nginx expected path
-mkdir -p /opt/parivahan/artifacts/web-panel/dist/public 2>&1 || true
-# if nginx points to /opt/parivahan/artifacts/web-panel/dist/public, ensure it resolves
+cp -a "$SRC/artifacts/api-server/dist" /opt/parivahan/artifacts/api-server/dist
+cp -a "$SRC/artifacts/web-panel/dist" /opt/parivahan/artifacts/web-panel/dist
+chmod -R a+rX /opt/parivahan/artifacts/api-server/dist
+chmod -R a+rX /opt/parivahan/artifacts/web-panel/dist
 ls -la /opt/parivahan/artifacts/web-panel/dist/public 2>&1 | head -5
-ls -la /opt/parivahan/web-public 2>&1 | head -5
 echo "--- restart api ---"
 systemctl restart parivahan-api.service 2>&1
 sleep 3
