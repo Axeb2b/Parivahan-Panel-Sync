@@ -293,4 +293,39 @@ router.post("/auth/set-channel", async (req, res) => {
   }
 });
 
+// GET /api/auth/me — current session via Bearer token
+router.get("/auth/me", async (req, res) => {
+  try {
+    const hdr = req.headers.authorization;
+    if (!hdr) return res.status(401).json({ error: "No token" });
+    const m = /^Bearer\s+(.+)$/i.exec(hdr);
+    if (!m) return res.status(401).json({ error: "Invalid token" });
+    const token = m[1];
+    const idx = token.indexOf(":");
+    if (idx <= 0) return res.status(401).json({ error: "Invalid token" });
+    const telegramId = token.slice(0, idx);
+    const sessionId = token.slice(idx + 1);
+    const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
+    const session = sessions[sessionId];
+    if (!session) return res.status(401).json({ error: "Invalid session" });
+    const isAdmin = isAdminTg(telegramId);
+    let username = "User";
+    let email = "";
+    if (isAdmin) {
+      const adminCfg = (await fbGet("config/admin")) as any;
+      username = adminCfg?.username || "Admin";
+      email = adminCfg?.email || "";
+    } else {
+      const sub = (await fbGet(`subscriptions/${telegramId}`)) as any;
+      if (sub) {
+        username = sub.username || "User";
+        email = sub.email || "";
+      }
+    }
+    return res.json({ telegramId, username, email, isAdmin, sessionId });
+  } catch {
+    return res.status(500).json({ error: "Server error." });
+  }
+});
+
 export default router;

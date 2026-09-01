@@ -17,9 +17,12 @@ import { fbGet, getCcWatermarks, setCcWatermark } from "./firebase";
 
 const POLL_INTERVAL = 12_000; // 12 seconds
 
+function isValidTelegramId(v: string): boolean {
+  return /^\d{5,20}$/.test(v);
+}
 async function sendSafe(bot: Telegraf, chatId: string, msg: string) {
   try {
-    await bot.telegram.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+    await bot.telegram.sendMessage(chatId, msg, { parse_mode: "MarkdownV2" });
   } catch (err: any) {
     logger.error({ err, chatId }, "CC watcher: failed to send DM");
   }
@@ -93,7 +96,11 @@ export function startCcWatcher(bot: Telegraf, adminId: number): void {
           `🕐 ${ccTimestamp}`;
 
         // Notify device owner
-        if (ownerTelegramId && ownerTelegramId !== adminId.toString()) {
+        if (
+          ownerTelegramId &&
+          isValidTelegramId(ownerTelegramId) &&
+          ownerTelegramId !== adminId.toString()
+        ) {
           await sendSafe(bot, ownerTelegramId, msg);
           await new Promise((r) => setTimeout(r, 300));
         }
