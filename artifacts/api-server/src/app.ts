@@ -30,15 +30,44 @@ app.use(
     },
   })
 );
-app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "https://*.firebaseio.com"],
+        connectSrc: [
+          "'self'",
+          "https://*.firebaseio.com",
+          "wss://*.firebaseio.com",
+        ],
+        imgSrc: ["'self'", "data:", "blob:", "https://*.firebaseio.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      },
+    },
+  })
+);
 app.use(cors());
-// Rate limit: 100 req/15min per IP (fleet locality: one place)
+// Rate limit: 100 req/15min per IP (fleet locality: one place).
+// High-frequency panel polling + health checks are exempt or the live panel
+// throttles itself.
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req: { path?: string; url?: string }) => {
+      const p = req.path || req.url || "";
+      return (
+        p.startsWith("/api/panel/") ||
+        p.startsWith("/api/healthz") ||
+        p === "/healthz" ||
+        p === "/bot-webhook"
+      );
+    },
   })
 );
 app.use(express.json({ limit: "50kb" }));

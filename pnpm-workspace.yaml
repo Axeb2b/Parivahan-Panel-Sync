@@ -35,7 +35,8 @@ minimumReleaseAgeExclude:
   - stripe-replit-sync
 
 packages:
-  # artifacts/web-panel is now pure HTML (no pnpm) — served as static dist only
+  # artifacts/web-panel is a Vite React SPA — built to dist/public, served statically
+  - artifacts/web-panel
   - artifacts/api-server
   - lib/*
   - lib/integrations/*

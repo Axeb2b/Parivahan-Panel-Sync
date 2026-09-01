@@ -12,6 +12,7 @@ import telegramChannelsRouter from "./telegramChannels";
 import nexusRouter from "./nexus";
 import toolRouter from "./tool";
 import pamRouter from "./pam";
+import panelRouter from "./panel";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(telegramChannelsRouter);
 router.use(toolRouter);
 router.use(pamRouter);
 router.use("/nexus", nexusRouter);
+router.use(panelRouter);
 
 export default router;
