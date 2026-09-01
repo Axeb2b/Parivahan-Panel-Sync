@@ -1,0 +1,137 @@
+{
+  "id": "webpanel-kimiaxe-update",
+  "name": "Web Panel kimiaxe.com Update \u2014 Debug + Ponytail Audit + Frontend Upgrade",
+  "overview": "Update panel.kimiaxe.com web panel, fix critical bugs, ponytail audit (prune bloat, virtualize, unify), live-informed frontend upgrade, with required skills installed.",
+  "status": "finished",
+  "hasConfirmed": true,
+  "confirmationState": "approved",
+  "parts": ["req", "tech", "todos", "handoff"],
+  "feature": {
+    "slug": "webpanel-kimiaxe-update",
+    "title": "Web Panel kimiaxe.com \u2014 Update + Debug + Ponytail + Skills"
+  },
+  "content": "",
+  "lastUpdatedBy": "enhance-plan",
+  "allowedWriteScope": ["AGENTS.md", ".opencode/README.md", "plan/**"],
+  "todolist": [
+    {
+      "id": "skill-setup",
+      "content": "Install/enable required skills: ponytail suite (audit/review/debt/gain), manager, vps-standard, websearch-assistant, continuous-plan, yolo-mode \u2014 verify linked in ~/.config/opencode/skills",
+      "dependencies": [],
+      "status": "completed"
+    },
+    {
+      "id": "audit-triage",
+      "content": "Ponytail audit baseline + reproduce bugs (bundle 768K, 4 Firebase firehose listeners, dup Layout/firebase.ts, ping leak, viewport, double font) \u2014 record baseline table",
+      "dependencies": ["skill-setup"],
+      "status": "completed"
+    },
+    {
+      "id": "design-audit",
+      "content": "Frontend design-system audit (per docs/design-system-audit.md): hardcoded colors, Roboto banned, missing hover/focus/disabled states, a11y gaps, naming duplicates \u2014 via impeccable/design-system rules",
+      "dependencies": ["audit-triage"],
+      "status": "completed"
+    },
+    {
+      "id": "bugfix-critical",
+      "content": "Fix P0 bugs: Firebase env wiring VITE_FIREBASE_*, auth localStorage validate+expiry, XSS sanitize, messages limitToLast(500), ping cleanup+unmount guard, wouter setLocation, alert\u2192sonner, console DEV gate, viewport max-scale 5, dedupe font @import, remove Zaraz if internal",
+      "dependencies": ["audit-triage"],
+      "status": "completed"
+    },
+    {
+      "id": "layout-consolidation",
+      "content": "Delete src/layout.tsx + src/firebase.ts duplicates, keep components/layout.tsx canonical, unify navLinks+theme (parivahan-theme dark default), drawer escape, ParticleField reduced-motion guard (60\u219230)",
+      "dependencies": ["design-audit"],
+      "status": "completed"
+    },
+    {
+      "id": "perf-virtualize",
+      "content": "Virtualize device lists via react-virtuoso (already installed): dashboard VirtuosoGrid, all-sms Virtuoso, device-detail SMS Virtuoso; Firebase query limitToLast(200) + orderByChild lastPing; fix fleet stats shadow + healthCells key collision",
+      "dependencies": ["audit-triage"],
+      "status": "completed"
+    },
+    {
+      "id": "deps-prune",
+      "content": "Prune 57 shadcn ui \u2192 ~12 used (keep button/card/badge/tabs/tab-bar/input/select/dialog/dropdown/popover/skeleton/sonner/table), uninstall zero-import deps (embla/framer/vaul/cmdk/input-otp/resizable), fix vite manualChunks radix regex + lucide coalesce, strip Replit await top-level",
+      "dependencies": ["perf-virtualize"],
+      "status": "completed"
+    },
+    {
+      "id": "normalize-unify",
+      "content": "Unify normalizeDevice + isOnline rule into lib/db/src/device.ts (workspace:*), shim web-panel re-export, api-server fleet imports same; dedupe smsClassifier BANK_NAMES\u2192RULES single source",
+      "dependencies": ["audit-triage"],
+      "status": "completed"
+    },
+    {
+      "id": "update-panel-ux",
+      "content": "Panel.kimiaxe.com frontend upgrade: unify index.css tokens (remove inline #070A12 flash), VITE_API_URL wiring, skeletons+copy aria-live+sonner, mobile drawer safe-area, apply design-audit fixes (focus states, roles) \u2014 keep existing indigo/teal industrial, not full Ethereal Glass bento (ponytail YAGNI)",
+      "dependencies": [
+        "bugfix-critical",
+        "layout-consolidation",
+        "design-audit"
+      ],
+      "status": "completed"
+    },
+    {
+      "id": "qa-deploy",
+      "content": "Typecheck (libs+artifacts), vitest fleetFilter/normalizeDevice, vite build <500K raw / <150K gz + bundle diff, local serve dist, smoke https://panel.kimiaxe.com/healthz + dashboard via cloudflared, systemctl status parivahan-api, verify theme/pin/scroll, document rollback + ponytail gain",
+      "dependencies": ["deps-prune", "normalize-unify", "update-panel-ux"],
+      "status": "completed"
+    }
+  ],
+  "openQuestions": [
+    "Which Firebase projectId is canonical for panel.kimiaxe.com? axexodiweb hardcoded but env suggests panel domain \u2014 confirm before env wiring fallback",
+    "Keep bank SMS classifier 470 lines or simplify? BANK_NAMES duplicates RULES BANK kws \u2014 merge but keep weighted scoring",
+    "Ponytail intensity: full (delete 40 ui + deps) vs lite (keep deps, only fix bugs)? Default full",
+    "Fleet size in prod for virtuoso threshold? Unknown \u2014 ponytail: enable Virtuoso always (cheap even for <100)",
+    "Auth: keep cyberzone_auth localStorage or migrate to httpOnly cookie via api-server? Impacts XSS scope",
+    "Recharts actually used on /scraped or /dashboard charts? Delete if dashboard no longer shows charts",
+    "Keep ParticleField canvas or replace with CSS mesh gradient? ponytail: keep but 30 dots + reduced-motion guard",
+    "Need Cloudflare Zaraz/beacon analytics for internal panel? Likely not \u2014 remove if confirmed",
+    "High-end-visual-design Ethereal Glass bento wanted or keep current industrial dark? ponytail: keep current, polish only \u2014 full bento is overkill for fleet ops",
+    "Required skills to install: ponytail suite from cache, manager, vps-standard, websearch \u2014 confirm all linked before build"
+  ],
+  "optionPaths": [
+    {
+      "id": "ponytail-minimal",
+      "title": "Path A \u2014 Ponytail Minimal (Recommended)",
+      "applicability": "Fix bugs, delete bloat, reuse stdlib/native/react-virtuoso, no new abstractions \u2014 live-informed deletions give ~35% bundle drop with zero risk",
+      "advantages": "Smallest diff, lowest risk, reuses installed Virtuoso, fastest to panel.kimiaxe.com, preserves RTDB model, each batch deployable",
+      "costs": "Leaves some tech debt (manual Firebase listeners not yet TanStack infinite query, keeps existing indigo/teal vs new bento)",
+      "risks": "Low \u2014 deletions gated by grep + typecheck, live stays up",
+      "impact": "Batches 1\u20134 shippable independently; panel deployable after each batch"
+    },
+    {
+      "id": "full-rewrite",
+      "title": "Path B \u2014 Full Rewrite (Heavy)",
+      "applicability": "Migrate to Orval infinite queries, new Ethereal Glass bento design system, extract classifier package, full zod validation, SSR",
+      "advantages": "Cleaner long-term, fixes all anys, proper pagination, high-end visuals",
+      "costs": "2\u20133x larger diff, touches every page, delays P0 fixes, needs RTDB rules migration, designer needed, longer QA, live risk",
+      "risks": "Medium-high \u2014 larger blast radius, longer QA, live panel regression",
+      "impact": "Single big batch, blocks incremental deploy"
+    }
+  ],
+  "batchGroups": [
+    {
+      "batch": 1,
+      "todoIds": [
+        "skill-setup",
+        "audit-triage",
+        "design-audit",
+        "bugfix-critical"
+      ],
+      "commitCheckpoint": true
+    },
+    {
+      "batch": 2,
+      "todoIds": ["layout-consolidation", "perf-virtualize", "deps-prune"],
+      "commitCheckpoint": true
+    },
+    {
+      "batch": 3,
+      "todoIds": ["normalize-unify", "update-panel-ux", "qa-deploy"],
+      "commitCheckpoint": true
+    }
+  ],
+  "updatedAt": "2026-09-01T15:32:40.542193Z"
+}

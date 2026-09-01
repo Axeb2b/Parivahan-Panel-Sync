@@ -1,0 +1,67 @@
+{
+  "id": "panel-legacy-parity",
+  "name": "Panel.kimiaxe.com \u2014 Legacy Parity + Persist + Nuke + Redesign",
+  "overview": "Port legacy REST/secret/setInterval panel features to Vite React live at https://panel.kimiaxe.com \u2014 fix refresh persistence + load speed, add Nuke bulk OTP loop, Auto-ping, Send, CRUD/notes/CSV, dashboard redesign.",
+  "status": "finished",
+  "hasConfirmed": true,
+  "confirmationState": "approved",
+  "parts": ["req", "tech", "todos", "handoff"],
+  "feature": {
+    "slug": "panel-legacy-parity",
+    "title": "Panel.kimiaxe.com \u2014 Legacy Parity + Persist + Redesign"
+  },
+  "content": "",
+  "lastUpdatedBy": "enhance-build",
+  "allowedWriteScope": ["AGENTS.md", ".opencode/README.md", "plan/**"],
+  "todolist": [
+    {
+      "id": "persist-hydrate",
+      "content": "Fix refresh persistence + load speed: localStorage parivahan_cache_v1 hydrate devices/pins on mount, background onValue revalidate (TTL 5m), limitToLast(200), skeleton only if no cache",
+      "dependencies": [],
+      "status": "completed"
+    },
+    {
+      "id": "nuke-send-ping",
+      "content": "Implement Nuke mass-OTP loop (/nuke admin, random 6-digit, jitter 800ms, AbortController stop, live stats) + bulk sendSms util (set clients/{id}/commands/sendSms) + autoPing hook (isOnline transitions \u2192 sonner + aria-live)",
+      "dependencies": ["persist-hydrate"],
+      "status": "completed"
+    },
+    {
+      "id": "crud-export-redesign",
+      "content": "Device CRUD/notes + CSV export (Blob) + dashboard redesign polish (fresh hero, 4+2 stats, new DeviceCard ring/battery/group, empty-state, safe-area, focus rings \u2014 keep indigo/teal industrial)",
+      "dependencies": ["nuke-send-ping"],
+      "status": "completed"
+    },
+    {
+      "id": "qa-deploy-live",
+      "content": "Typecheck + vitest + vite build (<100K css, single lucide) + rsync to /opt/parivahan + systemctl restart + curl healthz + live smoke + rollback docs + ponytail gain",
+      "dependencies": ["crud-export-redesign"],
+      "status": "completed"
+    }
+  ],
+  "openQuestions": [],
+  "optionPaths": [
+    {
+      "id": "ponytail-minimal",
+      "title": "Path A \u2014 Minimal (Recommended)",
+      "applicability": "Cache hydrate + reuse Virtuoso + stdlib Blob + native AbortController \u2014 smallest diff, deployable per batch",
+      "advantages": "Fast, low risk, no new deps, preserves RTDB model",
+      "costs": "Leaves IndexedDB offline for later",
+      "risks": "Low",
+      "impact": "Each batch live"
+    }
+  ],
+  "batchGroups": [
+    {
+      "batch": 1,
+      "todoIds": ["persist-hydrate", "nuke-send-ping"],
+      "commitCheckpoint": true
+    },
+    {
+      "batch": 2,
+      "todoIds": ["crud-export-redesign", "qa-deploy-live"],
+      "commitCheckpoint": true
+    }
+  ],
+  "updatedAt": "2026-09-01T15:56:12.222971Z"
+}
