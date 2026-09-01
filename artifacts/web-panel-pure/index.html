@@ -546,7 +546,7 @@
       }
       .dev-detail-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 12px;
         margin-bottom: 16px;
       }
@@ -671,25 +671,25 @@
       }
       .grid2 {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 12px;
       }
       .grid3 {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 12px;
       }
       .grid4 {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px;
       }
       @media (max-width: 900px) {
         .grid4 {
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         }
         .grid3 {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
         }
       }
       @media (max-width: 640px) {
@@ -995,16 +995,16 @@
           font-size: 22px !important;
         }
         #healthStrip {
-          grid-template-columns: repeat(2, 1fr) !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         }
         .grid4 {
-          grid-template-columns: 1fr !important;
+          grid-template-columns: minmax(0, 1fr) !important;
         }
         .grid3 {
-          grid-template-columns: 1fr !important;
+          grid-template-columns: minmax(0, 1fr) !important;
         }
         .grid2 {
-          grid-template-columns: 1fr !important;
+          grid-template-columns: minmax(0, 1fr) !important;
         }
         .btn,
         .input,
@@ -1014,6 +1014,9 @@
         html,
         body {
           overflow-x: hidden;
+        }
+        .ambient-blob {
+          display: none !important;
         }
         .card {
           border-radius: 12px;
@@ -1162,7 +1165,7 @@
           font-size: 28px !important;
         }
         .dev-detail-grid {
-          grid-template-columns: 1fr !important;
+          grid-template-columns: minmax(0, 1fr) !important;
         }
         .dev-detail-info-card {
           padding: 12px !important;
@@ -1210,7 +1213,7 @@
         .grid4,
         .grid3,
         .grid2 {
-          grid-template-columns: 1fr !important;
+          grid-template-columns: minmax(0, 1fr) !important;
         }
         .stat-val {
           font-size: 36px !important;
@@ -1345,7 +1348,7 @@
           class="card"
           style="display: flex; gap: 12px; flex-wrap: wrap; align-items: end"
         >
-          <div style="flex: 1 1 280px">
+          <div style="flex: 1 1 280px; min-width: 0">
             <div class="eyebrow">Firebase REST</div>
             <input
               id="fbUrl"
@@ -1359,7 +1362,7 @@
               Firebase console
             </div>
           </div>
-          <div style="flex: 1 1 260px">
+          <div style="flex: 1 1 260px; min-width: 0">
             <div class="eyebrow">API Key (?auth=API_KEY)</div>
             <input
               id="fbSecret"
@@ -1375,7 +1378,7 @@
               >
             </div>
           </div>
-          <div style="display: flex; gap: 8px">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
             <button class="btn pri" id="saveCfg">Save &amp; Connect</button>
             <button class="btn" id="clearCfg">Clear</button>
           </div>
@@ -1605,11 +1608,22 @@
             <div>
               <p
                 class="page-eyebrow"
-                style="display: flex; align-items: center; gap: 8px"
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  flex-wrap: wrap;
+                  min-width: 0;
+                "
               >
                 <span class="live-indicator">Live fleet</span>
                 <span style="opacity: 0.4">•</span>
-                <span id="heroSub" class="small">loading…</span>
+                <span
+                  id="heroSub"
+                  class="small"
+                  style="min-width: 0; overflow-wrap: anywhere"
+                  >loading…</span
+                >
               </p>
               <h1 class="page-title" style="font-size: 30px">
                 Devices
@@ -1699,7 +1713,7 @@
           class="grid"
           style="
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
+            grid-template-columns: repeat(6, minmax(0, 1fr));
             gap: 12px;
             margin-bottom: 24px;
             margin-top: 16px;
@@ -3006,7 +3020,7 @@
           healthEl.innerHTML = healthData
             .map(
               (c) => `
-            <div class="stat-card" style="padding:14px;display:flex;align-items:center;gap:12px;cursor:${c.clickable === false ? "default" : "pointer"};border-color:${c.key && els.flt && els.flt.value === c.key ? "hsl(var(--primary)/0.6)" : "hsl(var(--card-border))"};${c.key && els.flt && els.flt.value === c.key ? "box-shadow:0 0 0 1px hsl(var(--primary)/0.4)" : ""}" onclick="${c.key ? `document.getElementById('flt').value='${c.key}'; renderFleet()` : ""}">
+            <div class="stat-card" style="padding:14px;display:flex;align-items:center;gap:12px;cursor:${c.clickable === false ? "default" : "pointer"};border-color:${c.key && els.flt && els.flt.value === c.key ? "hsl(var(--primary)/0.6)" : "hsl(var(--card-border))"};${c.key && els.flt && els.flt.value === c.key ? "box-shadow:0 0 0 1px hsl(var(--primary)/0.4)" : ""}" ${c.key ? `role="button" tabindex="0"` : ""} onclick="${c.key ? `document.getElementById('flt').value='${c.key}'; renderFleet()` : ""}">
               <div style="width:44px;height:44px;border-radius:12px;background:${c.bg};display:flex;align-items:center;justify-content:center;color:${c.color};font-weight:700">${c.label[0]}</div>
               <div><div class="page-eyebrow" style="font-size:10px">${c.label}</div><div class="mono" style="font-size:22px;font-weight:700">${String(c.value).padStart(2, "0")}</div></div>
             </div>
@@ -3083,8 +3097,8 @@
             const sel = d.id === selectedId ? " sel" : "";
             const batt = parseInt(String(d.battery).replace("%", "")) || 0;
             const battCl = batt <= 20 ? ' style="color:var(--warn)"' : "";
-            return `<div class="dev${sel}" data-id="${esc(d.id)}" onclick="window._sel('${esc(d.id)}')">
-   <span class="dot ${d.isOnline ? "ok" : "bad"}" title="${d.isOnline ? "online" : "offline"}"></span>
+            return `<div class="dev${sel}" data-id="${esc(d.id)}" role="button" tabindex="0" onclick="window._sel('${esc(d.id)}')">
+   <span class="dot ${d.isOnline ? "ok" : "bad"}" role="img" title="${d.isOnline ? "online" : "offline"}" aria-label="${d.isOnline ? "online" : "offline"}"></span>
    <div style="flex:1;min-width:0">
     <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.model)} <span class="small mono">${esc(d.id.slice(0, 8))}</span></div>
     <div class="mono small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.phone || "—")} ${d.upi ? "· " + esc(d.upi) : ""}</div>
@@ -4068,6 +4082,22 @@
         const last = localStorage.getItem("parivahan_pure_tab");
         if (last) setTimeout(() => showTab(last), 0);
       } catch {}
+
+      // keyboard activation for role="button" elements (device/stat cards)
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const t = e.target;
+        if (
+          t &&
+          t.getAttribute &&
+          t.getAttribute("role") === "button" &&
+          t.tagName !== "BUTTON" &&
+          t.tagName !== "A"
+        ) {
+          e.preventDefault();
+          t.click();
+        }
+      });
 
       // ---- SMS All ----
       async function fetchSmsAll() {
