@@ -37,7 +37,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "https://*.firebaseio.com"],
         imgSrc: ["'self'", "data:", "blob:"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
