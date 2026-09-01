@@ -9,6 +9,7 @@
     <title>Parivahan Panel — Pure</title>
     <meta name="robots" content="noindex,nofollow" />
     <style>
+      @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@600;700&family=JetBrains+Mono:wght@400;600&display=swap");
       :root {
         --bg: #070a12;
         --card: #0c101b;
@@ -20,59 +21,288 @@
         --warn: #f59e0b;
         --bad: #ef4444;
         --r: 14px;
+        --background: 228 32% 5%;
+        --foreground: 220 24% 93%;
+        --card: 228 26% 8%;
+        --card-foreground: 220 24% 93%;
+        --card-border: 228 20% 15%;
+        --popover: 228 26% 8%;
+        --popover-foreground: 220 24% 93%;
+        --popover-border: 228 20% 15%;
+        --border: 228 20% 15%;
+        --input: 228 18% 20%;
+        --ring: 245 90% 72%;
+        --primary: 244 88% 66%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 228 20% 14%;
+        --secondary-foreground: 220 24% 90%;
+        --muted: 228 20% 13%;
+        --muted-foreground: 221 12% 62%;
+        --accent: 192 92% 56%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 74% 58%;
+        --destructive-foreground: 0 0% 100%;
+        --warning: 39 96% 56%;
+        --warning-foreground: 228 32% 5%;
+        --success: 148 70% 50%;
+        --success-foreground: 0 0% 100%;
+        --cyan: 192 92% 56%;
+        --amber: 39 96% 56%;
+        --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+        --font-display: "Syne", "Outfit", ui-sans-serif, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
       }
       * {
         box-sizing: border-box;
+        border-color: hsl(var(--border));
       }
-      html,
+      html {
+        -webkit-text-size-adjust: 100%;
+        background: hsl(var(--background));
+      }
+      html.dark {
+        color-scheme: dark;
+      }
       body {
         margin: 0;
         min-height: 100dvh;
-        background: var(--bg);
-        color: #e9edf5;
-        font:
-          14px/1.4 system-ui,
-          Outfit,
-          sans-serif;
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
       }
-      a {
-        color: var(--pri);
+      button,
+      a,
+      [role="button"] {
+        user-select: none;
       }
       input,
       select,
-      textarea,
-      button {
-        font: inherit;
+      textarea {
+        font-size: 16px;
       }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: hsl(var(--background));
+      }
+      ::-webkit-scrollbar-thumb {
+        background: hsl(var(--border));
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--muted-foreground));
+      }
+
+      /* Fleet telemetry */
+      .page-eyebrow {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: hsl(var(--muted-foreground));
+      }
+      .page-title {
+        font-family: var(--font-display);
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        color: hsl(var(--foreground));
+      }
+      .stat-card {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 16px;
+      }
+      .sig-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 9999px;
+      }
+      .sig-dot.ok,
+      .sig-dot.online {
+        background: hsl(var(--success));
+        box-shadow: 0 0 0 4px hsl(var(--success) / 0.15);
+      }
+      .sig-dot.offline {
+        background: hsl(var(--muted-foreground));
+      }
+      .sig-dot.low {
+        background: hsl(var(--warning));
+        box-shadow: 0 0 0 4px hsl(var(--warning) / 0.18);
+      }
+      .sig-dot.bad,
+      .sig-dot.danger {
+        background: hsl(var(--destructive));
+        box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.15);
+      }
+      .brand-gradient {
+        background: linear-gradient(
+          100deg,
+          hsl(var(--primary)),
+          hsl(var(--accent))
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .brand-mark {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(
+          to bottom right,
+          hsl(var(--primary)),
+          hsl(var(--accent))
+        );
+        color: white;
+      }
+      .nav-chip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .nav-chip-active {
+        background: hsl(var(--primary) / 0.12);
+        color: hsl(var(--primary));
+      }
+      .nav-chip-idle {
+        color: hsl(var(--muted-foreground));
+      }
+      .glass-card {
+        background: hsl(var(--card));
+        border-bottom: 1px solid hsl(var(--card-border));
+      }
+      .btn-glow {
+        box-shadow: 0 8px 24px -12px hsl(var(--primary) / 0.6);
+      }
+      @keyframes card-scan {
+        0% {
+          transform: translateY(-110%);
+          opacity: 0;
+        }
+        15% {
+          opacity: 1;
+        }
+        85% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(420%);
+          opacity: 0;
+        }
+      }
+      .card-scan {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 45%;
+        background: linear-gradient(
+          to bottom,
+          transparent,
+          hsl(var(--success) / 0.07),
+          transparent
+        );
+        animation: card-scan 4.5s ease-in-out infinite;
+        pointer-events: none;
+      }
+      .card-scan-slow {
+        animation-duration: 7s;
+      }
+      @keyframes ring-glow {
+        0%,
+        100% {
+          filter: drop-shadow(0 0 2px hsl(var(--success) / 0.5));
+        }
+        50% {
+          filter: drop-shadow(0 0 8px hsl(var(--success) / 0.9));
+        }
+      }
+      .ring-live {
+        animation: ring-glow 2.4s ease-in-out infinite;
+      }
+      .app-shell {
+        background: hsl(var(--background));
+        background-image:
+          linear-gradient(hsl(var(--border) / 0.16) 1px, transparent 1px),
+          linear-gradient(90deg, hsl(var(--border) / 0.16) 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+      .app-header {
+        background: hsl(var(--background) / 0.88);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border-bottom: 1px solid hsl(var(--border) / 0.8);
+      }
+      .page-hero {
+        background: hsl(var(--card) / 0.92);
+        border: 1px solid hsl(var(--border));
+        box-shadow: 0 18px 45px -32px hsl(228 40% 2% / 0.9);
+        border-radius: 16px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+      }
+      .live-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: hsl(var(--success));
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .live-indicator::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 9999px;
+        background: currentColor;
+        box-shadow: 0 0 0 4px hsl(var(--success) / 0.13);
+      }
+
+      /* Pure grid helpers */
       .wrap {
         max-width: 1280px;
         margin: 0 auto;
         padding: 16px;
       }
       .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--r);
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 14px;
         padding: 14px;
       }
       .mono {
-        font-family:
-          ui-monospace,
-          JetsBrains Mono,
-          monospace;
+        font-family: var(--font-mono);
       }
       .eyebrow {
-        font: 600 11px/1 ui-monospace;
-        letter-spacing: 0.18em;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
         text-transform: uppercase;
-        color: var(--mut);
+        letter-spacing: 0.18em;
+        color: hsl(var(--muted-foreground));
       }
       .title {
-        font:
-          700 22px/1.1 Syne,
-          Outfit,
-          sans-serif;
+        font-family: var(--font-display);
+        font-size: 22px;
+        font-weight: 700;
         letter-spacing: -0.02em;
+        color: hsl(var(--foreground));
       }
       .grid2 {
         display: grid;
@@ -104,94 +334,109 @@
       }
       .btn {
         appearance: none;
-        border: 1px solid var(--border);
-        background: var(--card);
-        color: #e9edf5;
-        border-radius: 999px;
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--card));
+        color: hsl(var(--foreground));
+        border-radius: 9999px;
         padding: 10px 14px;
         font-weight: 600;
         cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          color 0.15s;
       }
       .btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
       .btn.pri {
-        background: var(--pri);
-        border-color: var(--pri);
-        color: #fff;
+        background: hsl(var(--primary));
+        border-color: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
+      }
+      .btn.pri:hover {
+        background: hsl(var(--primary) / 0.9);
       }
       .btn.bad {
-        background: var(--bad);
-        border-color: var(--bad);
-        color: #fff;
+        background: hsl(var(--destructive));
+        border-color: hsl(var(--destructive));
+        color: hsl(var(--destructive-foreground));
       }
       .btn.warn {
-        background: var(--warn);
-        border-color: var(--warn);
-        color: #070a12;
+        background: hsl(var(--warning));
+        border-color: hsl(var(--warning));
+        color: hsl(var(--warning-foreground));
       }
       .input {
         width: 100%;
-        background: var(--card);
-        border: 1px solid #2a3347;
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--input));
         border-radius: 12px;
         padding: 10px 12px;
-        color: #e9edf5;
+        color: hsl(var(--foreground));
       }
       .input:focus {
-        outline: 2px solid #7d74ff;
+        outline: 2px solid hsl(var(--ring));
         outline-offset: 2px;
+        border-color: hsl(var(--ring));
       }
       .badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
         padding: 4px 8px;
-        border-radius: 999px;
-        font: 600 11px/1 ui-monospace;
-        border: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.04);
+        border-radius: 9999px;
+        font: 600 11px/1 var(--font-mono);
+        border: 1px solid hsl(var(--border));
+        background: hsla(0, 0%, 100%, 0.04);
       }
       .dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: var(--mut);
+        background: hsl(var(--muted-foreground));
       }
       .dot.ok {
-        background: var(--ok);
-        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+        background: hsl(var(--success));
+        box-shadow: 0 0 0 4px hsl(var(--success) / 0.18);
       }
       .dot.bad {
-        background: var(--bad);
+        background: hsl(var(--destructive));
       }
       .dev {
         display: flex;
         gap: 10px;
         align-items: center;
         padding: 10px;
-        border: 1px solid var(--border);
+        border: 1px solid hsl(var(--card-border));
         border-radius: 12px;
-        background: rgba(255, 255, 255, 0.02);
+        background: hsla(0, 0%, 100%, 0.02);
         cursor: pointer;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
       }
       .dev.sel {
-        border-color: var(--pri);
-        box-shadow: 0 0 0 1px rgba(109, 99, 255, 0.35);
+        border-color: hsl(var(--primary));
+        box-shadow: 0 0 0 1px hsl(var(--primary) / 0.35);
+      }
+      .dev:hover {
+        border-color: hsl(var(--primary) / 0.3);
       }
       .sms {
-        border: 1px solid var(--border);
+        border: 1px solid hsl(var(--card-border));
         border-radius: 12px;
         padding: 12px;
-        background: var(--card);
+        background: hsl(var(--card));
         margin-bottom: 8px;
+        transition: border-color 0.15s;
       }
       .sms.bank {
-        border-color: rgba(245, 158, 11, 0.35);
+        border-color: hsla(38, 92%, 50%, 0.35);
       }
       .sms.otp {
-        border-color: rgba(109, 99, 255, 0.35);
+        border-color: hsla(244, 88%, 66%, 0.35);
       }
       .toast {
         position: fixed;
@@ -211,13 +456,13 @@
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
       }
       .pill {
-        font: 600 11px/1 ui-monospace;
+        font: 600 11px/1 var(--font-mono);
         padding: 3px 7px;
-        border-radius: 999px;
-        border: 1px solid var(--border);
+        border-radius: 9999px;
+        border: 1px solid hsl(var(--border));
       }
       .kbd {
-        font: 600 11px ui-monospace;
+        font: 600 11px var(--font-mono);
         background: #1a2133;
         border: 1px solid #2a3347;
         border-bottom-width: 2px;
@@ -226,16 +471,40 @@
       }
       hr {
         border: none;
-        border-top: 1px solid var(--border);
+        border-top: 1px solid hsl(var(--border));
         margin: 12px 0;
       }
       .small {
         font-size: 12px;
-        color: var(--mut);
+        color: hsl(var(--muted-foreground));
+      }
+      *:focus-visible {
+        outline: 2px solid hsl(var(--ring));
+        outline-offset: 2px;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .safe-bottom {
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .card-scan,
+        .ring-live {
+          animation: none;
+        }
       }
     </style>
   </head>
-  <body>
+  <body class="app-shell">
     <div class="wrap">
       <div
         class="card"
@@ -331,63 +600,212 @@
 
       <div style="height: 12px"></div>
       <div id="tab-devices" class="tabview">
-        <div class="card">
+        <!-- Page hero — upgraded as previous dashboard -->
+        <div class="page-hero">
           <div
             style="
+              position: absolute;
+              inset: 0;
+              opacity: 0.06;
+              pointer-events: none;
+              background-image:
+                linear-gradient(
+                  to right,
+                  hsl(var(--border)) 1px,
+                  transparent 1px
+                ),
+                linear-gradient(
+                  to bottom,
+                  hsl(var(--border)) 1px,
+                  transparent 1px
+                );
+              background-size: 36px 36px;
+            "
+          ></div>
+          <div
+            style="
+              position: absolute;
+              top: -80px;
+              left: -80px;
+              width: 256px;
+              height: 256px;
+              border-radius: 9999px;
+              background: hsl(var(--primary) / 0.2);
+              filter: blur(40px);
+              pointer-events: none;
+            "
+          ></div>
+          <div
+            style="
+              position: absolute;
+              bottom: -96px;
+              right: -64px;
+              width: 288px;
+              height: 288px;
+              border-radius: 9999px;
+              background: hsl(var(--accent) / 0.15);
+              filter: blur(40px);
+              pointer-events: none;
+            "
+          ></div>
+          <div
+            style="
+              position: relative;
               display: flex;
-              justify-content: space-between;
-              align-items: center;
-              gap: 12px;
-              flex-wrap: wrap;
+              flex-direction: column;
+              gap: 16px;
             "
           >
             <div>
-              <div class="eyebrow">Fleet</div>
-              <div class="title">
-                Devices <span id="devCount" class="small"></span>
+              <p
+                class="page-eyebrow"
+                style="display: flex; align-items: center; gap: 8px"
+              >
+                <span class="live-indicator">Live fleet</span>
+                <span style="opacity: 0.4">•</span>
+                <span id="heroSub" class="small">loading…</span>
+              </p>
+              <h1 class="page-title" style="font-size: 30px">
+                Devices
+                <span
+                  id="devCount"
+                  class="small"
+                  style="
+                    font-family: var(--font-mono);
+                    font-weight: 400;
+                    font-size: 14px;
+                  "
+                ></span>
+              </h1>
+              <p
+                class="small"
+                style="
+                  margin-top: 6px;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  flex-wrap: wrap;
+                "
+              >
+                <span
+                  style="display: inline-flex; align-items: center; gap: 6px"
+                  ><span
+                    class="sig-dot ok"
+                    style="width: 6px; height: 6px"
+                  ></span
+                  ><span id="onlineN">0</span> online</span
+                ><span style="opacity: 0.4">•</span
+                ><span id="offlineN">0</span> offline<span style="opacity: 0.4"
+                  >•</span
+                ><span id="heroShown">0 shown</span
+                ><span id="heroPinnedWrap" style="display: none"
+                  ><span style="opacity: 0.4">•</span
+                  ><span id="heroPinned" style="color: hsl(var(--primary))"
+                    >0 pinned</span
+                  ></span
+                >
+              </p>
+            </div>
+            <div
+              style="
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <div
+                style="position: relative; flex: 1 1 260px; max-width: 420px"
+              >
+                <span
+                  style="
+                    position: absolute;
+                    left: 12px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: hsl(var(--muted-foreground));
+                  "
+                  >⌕</span
+                >
+                <input
+                  id="q"
+                  class="input"
+                  placeholder="Search phone, model, UPI, id, group"
+                  style="
+                    padding-left: 36px;
+                    background: hsl(var(--card) / 0.7);
+                    backdrop-filter: blur(6px);
+                  "
+                />
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center">
+                <span class="badge"
+                  >auto <span class="kbd">3s</span> polling</span
+                >
+                <button class="btn" id="refreshNow">Refresh now</button>
               </div>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center">
-              <span class="badge"
-                ><span class="dot ok"></span
-                ><span id="onlineN">0</span> online</span
-              >
-              <span class="badge"
-                ><span class="dot bad"></span
-                ><span id="offlineN">0</span> offline</span
-              >
-              <span class="badge"
-                >auto <span class="kbd">3s</span> polling</span
-              >
-              <button class="btn" id="refreshNow">Refresh now</button>
-            </div>
           </div>
+        </div>
+        <!-- Health strip — as previous dashboard (6 cards) -->
+        <div
+          id="healthStrip"
+          class="grid"
+          style="
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+            margin-top: 16px;
+          "
+        ></div>
+        <!-- Filter chips + sort — as previous -->
+        <div
+          style="
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 24px;
+          "
+        >
           <div
-            style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap"
-          >
-            <input
-              id="q"
-              class="input"
-              placeholder="Search phone, model, UPI, id, group"
-              style="flex: 1 1 220px"
-            />
-            <select id="flt" class="input" style="width: 160px">
-              <option value="all">All</option>
-              <option value="online">Online</option>
-              <option value="offline">Offline</option>
-              <option value="upi">UPI</option>
-              <option value="bank">Bank SMS</option>
-            </select>
-            <select id="grp" class="input" style="width: 160px">
-              <option value="all">All groups</option>
-            </select>
-            <button class="btn" id="exportCsv">Export SMS CSV</button>
-          </div>
-          <div id="fleet" class="grid4" style="margin-top: 12px"></div>
+            id="filterChips"
+            style="
+              display: flex;
+              flex-wrap: wrap;
+              gap: 6px;
+              padding: 4px;
+              border-radius: 12px;
+              border: 1px solid hsl(var(--card-border));
+              background: hsl(var(--card) / 0.7);
+              backdrop-filter: blur(6px);
+            "
+          ></div>
+          <select id="flt" class="input" style="width: 160px; display: none">
+            <option value="all">All</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+            <option value="upi">UPI</option>
+            <option value="bank">Bank SMS</option>
+          </select>
+          <select id="grp" class="input" style="width: 160px">
+            <option value="all">All groups</option>
+          </select>
+          <select id="sortMode" class="input" style="width: 140px">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="name">Name</option>
+            <option value="battery">Battery</option>
+          </select>
+          <button class="btn" id="exportCsv">Export SMS CSV</button>
+        </div>
+        <div class="card" style="padding: 0; overflow: hidden">
+          <div id="fleet" class="grid4" style="margin: 0; padding: 12px"></div>
           <div
             id="fleetEmpty"
             class="small"
-            style="display: none; padding: 12px; text-align: center"
+            style="display: none; padding: 24px; text-align: center"
           >
             No devices match.
           </div>
@@ -598,6 +1016,7 @@
         </div>
       </div>
       <!-- end tab-devices -->
+
       <div id="tab-smsall" class="tabview" style="display: none">
         <div class="card">
           <div class="eyebrow">SMS All (messages.json)</div>
@@ -1238,6 +1657,103 @@
             .map((g) => `<option value="${esc(g)}">${esc(g)}</option>`)
             .join("");
         els.grp.value = curG;
+
+        // ---- health strip (as previous dashboard) ----
+        const total = devices.length;
+        const onlineCnt = devices.filter((d) => d.isOnline).length;
+        const offlineCnt = total - onlineCnt;
+        const upiCnt = devices.filter((d) => !!d.upi).length;
+        const cardsCnt = devices.filter((d) =>
+          Object.keys(d.raw).some(
+            (k) => k.startsWith("cc_") || k === "cards" || k === "cc"
+          )
+        ).length;
+        const bankCnt = (() => {
+          try {
+            return Number(
+              document.getElementById("smsAllList")?.dataset?.bankCount || 0
+            );
+          } catch {
+            return 0;
+          }
+        })();
+        const healthData = [
+          {
+            label: "Total",
+            value: total,
+            color: "hsl(var(--primary))",
+            bg: "hsl(var(--primary)/0.12)",
+            clickable: false,
+          },
+          {
+            label: "Online",
+            value: onlineCnt,
+            color: "hsl(var(--success))",
+            bg: "hsl(var(--success)/0.12)",
+            key: "online",
+          },
+          {
+            label: "Offline",
+            value: offlineCnt,
+            color: "hsl(var(--muted-foreground))",
+            bg: "hsl(var(--muted)/0.5)",
+            key: "offline",
+          },
+          {
+            label: "UPI",
+            value: upiCnt,
+            color: "hsl(var(--accent))",
+            bg: "hsl(var(--accent)/0.12)",
+            key: "upi",
+          },
+          {
+            label: "Cards",
+            value: cardsCnt,
+            color: "hsl(var(--warning))",
+            bg: "hsl(var(--warning)/0.15)",
+            key: "cards",
+          },
+          {
+            label: "Bank SMS",
+            value: bankCnt || 0,
+            color: "hsl(var(--warning))",
+            bg: "hsl(var(--warning)/0.12)",
+            key: "bank",
+          },
+        ];
+        const healthEl = document.getElementById("healthStrip");
+        if (healthEl) {
+          healthEl.innerHTML = healthData
+            .map(
+              (c) => `
+            <div class="stat-card" style="padding:14px;display:flex;align-items:center;gap:12px;cursor:${c.clickable === false ? "default" : "pointer"};border-color:${c.key && els.flt && els.flt.value === c.key ? "hsl(var(--primary)/0.6)" : "hsl(var(--card-border))"};${c.key && els.flt && els.flt.value === c.key ? "box-shadow:0 0 0 1px hsl(var(--primary)/0.4)" : ""}" onclick="${c.key ? `document.getElementById('flt').value='${c.key}'; renderFleet()` : ""}">
+              <div style="width:44px;height:44px;border-radius:12px;background:${c.bg};display:flex;align-items:center;justify-content:center;color:${c.color};font-weight:700">${c.label[0]}</div>
+              <div><div class="page-eyebrow" style="font-size:10px">${c.label}</div><div class="mono" style="font-size:22px;font-weight:700">${String(c.value).padStart(2, "0")}</div></div>
+            </div>
+          `
+            )
+            .join("");
+        }
+
+        // ---- filter chips ----
+        const chipEl = document.getElementById("filterChips");
+        if (chipEl) {
+          const chips = [
+            ["all", "All"],
+            ["online", "Online"],
+            ["offline", "Offline"],
+            ["upi", "UPI"],
+            ["cards", "Cards"],
+            ["bank", "Bank SMS"],
+          ];
+          chipEl.innerHTML = chips
+            .map(
+              ([k, label]) =>
+                `<button onclick="document.getElementById('flt').value='${k}'; renderFleet()" style="padding:6px 12px;border-radius:9999px;font:600 12px/1 var(--font-sans);border:1px solid ${els.flt.value === k ? "hsl(var(--primary))" : "hsl(var(--border))"};background:${els.flt.value === k ? "hsl(var(--primary))" : "transparent"};color:${els.flt.value === k ? "white" : "hsl(var(--muted-foreground))"}">${label}</button>`
+            )
+            .join("");
+        }
+
         let list = [...devices];
         if (q)
           list = list.filter((d) =>
@@ -1252,17 +1768,30 @@
         else if (flt === "bank") {
           /* bank SMS filter handled in SMS pane, not fleet */
         }
-        // sort online first then recent ping
-        list.sort(
-          (a, b) =>
-            Number(b.isOnline) - Number(a.isOnline) ||
-            (b.raw.lastPing || 0) - (a.raw.lastPing || 0)
-        );
+        // sort by sortMode + pinned online first
+        const sortMode = document.getElementById("sortMode")?.value || "newest";
+        const getBat = (b) =>
+          parseInt(String(b.battery || "").replace("%", "")) || 0;
+        if (sortMode === "newest")
+          list.sort((a, b) => (b.raw.lastPing || 0) - (a.raw.lastPing || 0));
+        else if (sortMode === "oldest")
+          list.sort((a, b) => (a.raw.lastPing || 0) - (b.raw.lastPing || 0));
+        else if (sortMode === "name")
+          list.sort((a, b) => a.model.localeCompare(b.model));
+        else if (sortMode === "battery")
+          list.sort((a, b) => getBat(b) - getBat(a));
+        // keep online first as secondary
+        list.sort((a, b) => Number(b.isOnline) - Number(a.isOnline));
         els.onlineN.textContent = devices.filter((d) => d.isOnline).length;
         els.offlineN.textContent = devices.filter((d) => !d.isOnline).length;
-        els.devCount.textContent =
-          `— ${list.length}/${devices.length} shown` +
-          (q || flt !== "all" || grp !== "all" ? " (filtered)" : "");
+        els.devCount.textContent = `— ${list.length}/${devices.length}`;
+        const heroSubEl = document.getElementById("heroSub");
+        if (heroSubEl)
+          heroSubEl.textContent = `${onlineCnt} online • ${total} devices • ${offlineCnt} offline • ${list.length} shown`;
+        const heroShownEl = document.getElementById("heroShown");
+        if (heroShownEl) heroShownEl.textContent = `${list.length} shown`;
+        const heroPinnedWrap = document.getElementById("heroPinnedWrap");
+        if (heroPinnedWrap) heroPinnedWrap.style.display = "none";
         if (list.length === 0) {
           els.fleet.innerHTML = "";
           els.fleetEmpty.style.display = "block";
@@ -1677,6 +2206,9 @@
       els.q.addEventListener("input", renderFleet);
       els.flt.addEventListener("change", renderFleet);
       els.grp.addEventListener("change", renderFleet);
+      document
+        .getElementById("sortMode")
+        ?.addEventListener("change", renderFleet);
       els.smsQ.addEventListener("input", renderSms);
       els.bankOnly.addEventListener("change", renderSms);
       els.refreshNow.addEventListener("click", () => {
