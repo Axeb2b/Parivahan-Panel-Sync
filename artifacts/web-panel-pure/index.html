@@ -4,8 +4,9 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=5"
+      content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover"
     />
+    <meta name="theme-color" content="#070a12" />
     <title>Parivahan Panel — Pure</title>
     <meta name="robots" content="noindex,nofollow" />
     <style>
@@ -92,6 +93,8 @@
       a,
       [role="button"] {
         user-select: none;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
       }
       input,
       select,
@@ -99,18 +102,49 @@
         font-size: 16px;
       }
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: hsl(var(--background));
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
         background: hsl(var(--border));
-        border-radius: 4px;
+        border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
         background: hsl(var(--muted-foreground));
+      }
+
+      /* Ambient animated blob — floating glow depth */
+      .ambient-blob {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.06;
+        pointer-events: none;
+        z-index: 0;
+        animation: ambient-drift 20s ease-in-out infinite alternate;
+      }
+      @keyframes ambient-drift {
+        0% {
+          transform: translate(0, 0) scale(1);
+        }
+        33% {
+          transform: translate(30px, -20px) scale(1.05);
+        }
+        66% {
+          transform: translate(-20px, 15px) scale(0.95);
+        }
+        100% {
+          transform: translate(10px, -10px) scale(1.02);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ambient-blob {
+          animation: none;
+          opacity: 0.03;
+        }
       }
 
       /* Fleet telemetry */
@@ -121,6 +155,14 @@
         text-transform: uppercase;
         letter-spacing: 0.2em;
         color: hsl(var(--muted-foreground));
+        background: linear-gradient(
+          90deg,
+          hsl(var(--muted-foreground)),
+          hsl(var(--accent))
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
       .page-title {
         font-family: var(--font-display);
@@ -128,21 +170,46 @@
         font-weight: 700;
         letter-spacing: -0.025em;
         color: hsl(var(--foreground));
+        text-shadow: 0 0 40px hsl(var(--primary) / 0.1);
       }
       .stat-card {
         background: hsl(var(--card));
         border: 1px solid hsl(var(--card-border));
         border-radius: 16px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         transition:
           transform 200ms var(--ease-elite),
           border-color 200ms var(--ease-elite),
-          box-shadow 200ms var(--ease-elite);
+          box-shadow 200ms var(--ease-elite),
+          background 200ms var(--ease-elite);
         will-change: transform;
+        position: relative;
+        overflow: hidden;
+      }
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 16px;
+        background: linear-gradient(
+          135deg,
+          hsl(var(--primary) / 0.04),
+          transparent 60%
+        );
+        opacity: 0;
+        transition: opacity 200ms var(--ease-elite);
+        pointer-events: none;
       }
       .stat-card:hover {
-        transform: translateY(-2px);
-        border-color: hsl(var(--primary) / 0.3);
-        box-shadow: 0 8px 24px -12px hsl(var(--primary) / 0.25);
+        transform: translateY(-3px);
+        border-color: hsl(var(--primary) / 0.35);
+        box-shadow:
+          0 8px 32px -12px hsl(var(--primary) / 0.3),
+          0 0 0 1px hsl(var(--primary) / 0.1);
+      }
+      .stat-card:hover::before {
+        opacity: 1;
       }
       .stat-card:active {
         transform: scale(0.98);
@@ -152,23 +219,30 @@
         width: 8px;
         height: 8px;
         border-radius: 9999px;
+        transition: box-shadow 200ms;
       }
       .sig-dot.ok,
       .sig-dot.online {
         background: hsl(var(--success));
-        box-shadow: 0 0 0 4px hsl(var(--success) / 0.15);
+        box-shadow:
+          0 0 0 4px hsl(var(--success) / 0.15),
+          0 0 6px hsl(var(--success) / 0.3);
       }
       .sig-dot.offline {
         background: hsl(var(--muted-foreground));
       }
       .sig-dot.low {
         background: hsl(var(--warning));
-        box-shadow: 0 0 0 4px hsl(var(--warning) / 0.18);
+        box-shadow:
+          0 0 0 4px hsl(var(--warning) / 0.18),
+          0 0 6px hsl(var(--warning) / 0.3);
       }
       .sig-dot.bad,
       .sig-dot.danger {
         background: hsl(var(--destructive));
-        box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.15);
+        box-shadow:
+          0 0 0 4px hsl(var(--destructive) / 0.15),
+          0 0 6px hsl(var(--destructive) / 0.3);
       }
       .brand-gradient {
         color: hsl(var(--primary));
@@ -193,22 +267,32 @@
         font-size: 14px;
         font-weight: 500;
         transition:
-          background 0.15s,
-          color 0.15s;
+          background 150ms var(--ease-smooth),
+          color 150ms var(--ease-smooth),
+          box-shadow 150ms var(--ease-smooth);
       }
       .nav-chip-active {
         background: hsl(var(--primary) / 0.12);
         color: hsl(var(--primary));
+        box-shadow: 0 0 0 1px hsl(var(--primary) / 0.2);
       }
       .nav-chip-idle {
         color: hsl(var(--muted-foreground));
       }
+      .nav-chip-idle:hover {
+        background: hsl(var(--muted) / 0.3);
+        color: hsl(var(--foreground));
+      }
       .glass-card {
-        background: hsl(var(--card));
+        background: hsl(var(--card) / 0.92);
         border-bottom: 1px solid hsl(var(--card-border));
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
       }
       .btn-glow {
-        box-shadow: 0 8px 24px -12px hsl(var(--primary) / 0.6);
+        box-shadow:
+          0 8px 24px -12px hsl(var(--primary) / 0.6),
+          0 0 0 1px hsl(var(--primary) / 0.2);
       }
       @keyframes card-scan {
         0% {
@@ -259,8 +343,8 @@
       .app-shell {
         background: hsl(var(--background));
         background-image:
-          linear-gradient(hsl(var(--border) / 0.16) 1px, transparent 1px),
-          linear-gradient(90deg, hsl(var(--border) / 0.16) 1px, transparent 1px);
+          linear-gradient(hsl(var(--border) / 0.12) 1px, transparent 1px),
+          linear-gradient(90deg, hsl(var(--border) / 0.12) 1px, transparent 1px);
         background-size: 32px 32px;
       }
       .app-header {
@@ -277,6 +361,19 @@
         padding: 20px;
         position: relative;
         overflow: hidden;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        animation: hero-enter 400ms var(--ease-smooth) both;
+      }
+      @keyframes hero-enter {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
       .live-indicator {
         display: inline-flex;
@@ -288,6 +385,7 @@
         font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
+        text-shadow: 0 0 12px hsl(var(--success) / 0.4);
       }
       .live-indicator::before {
         content: "";
@@ -295,7 +393,23 @@
         height: 7px;
         border-radius: 9999px;
         background: currentColor;
-        box-shadow: 0 0 0 4px hsl(var(--success) / 0.13);
+        box-shadow:
+          0 0 0 4px hsl(var(--success) / 0.13),
+          0 0 8px hsl(var(--success) / 0.3);
+        animation: live-pulse 2s ease-in-out infinite;
+      }
+      @keyframes live-pulse {
+        0%,
+        100% {
+          box-shadow:
+            0 0 0 4px hsl(var(--success) / 0.13),
+            0 0 8px hsl(var(--success) / 0.3);
+        }
+        50% {
+          box-shadow:
+            0 0 0 6px hsl(var(--success) / 0.2),
+            0 0 12px hsl(var(--success) / 0.5);
+        }
       }
 
       /* Pure grid helpers */
@@ -309,6 +423,227 @@
         border: 1px solid hsl(var(--card-border));
         border-radius: 14px;
         padding: 14px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      /* Text wrapping fixes */
+      .wrap-text {
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      .truncate {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sms-body {
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        line-height: 1.5;
+      }
+      .dev-info-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Device detail view */
+      .dev-detail {
+        display: none;
+      }
+      .dev-detail.active {
+        display: block;
+        animation: fadeUp 0.25s ease;
+      }
+      .dev-detail-hero {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+      }
+      .dev-detail-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(
+          90deg,
+          hsl(var(--primary)),
+          hsl(var(--accent))
+        );
+      }
+      .dev-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        color: hsl(var(--foreground));
+      }
+      .dev-back-btn:hover {
+        border-color: hsl(var(--primary) / 0.4);
+        color: hsl(var(--primary));
+      }
+      .dev-hero-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: linear-gradient(
+          135deg,
+          hsl(var(--primary) / 0.2),
+          hsl(var(--accent) / 0.1)
+        );
+        border: 1px solid hsl(var(--primary) / 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        flex-shrink: 0;
+      }
+      .dev-hero-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .dev-hero-name {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .dev-hero-meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .dev-hero-batt {
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .dev-hero-batt-num {
+        font-size: 36px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .dev-hero-batt-label {
+        font-size: 10px;
+        color: hsl(var(--muted-foreground));
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .dev-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .dev-detail-info-card {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .dev-detail-info-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: hsl(var(--muted-foreground));
+        margin-bottom: 4px;
+      }
+      .dev-detail-info-val {
+        font-size: 14px;
+        font-weight: 600;
+        word-break: break-all;
+      }
+      .dev-detail-info-val.mono {
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+      .dev-detail-sms-section {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 14px;
+        padding: 16px;
+      }
+      .dev-detail-sms-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .dev-detail-sms-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .dev-detail-sms-list {
+        max-height: 480px;
+        overflow-y: auto;
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 12px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .dev-detail-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+      .dev-detail-actions .btn {
+        flex: 1;
+        min-width: 120px;
+      }
+      .dev-detail-send-section {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 14px;
+        padding: 16px;
+        margin-top: 16px;
+      }
+
+      /* Shimmer loading skeleton */
+      @keyframes shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+      .skeleton {
+        background: linear-gradient(
+          90deg,
+          hsl(var(--card)) 25%,
+          hsl(var(--card-border) / 0.4) 50%,
+          hsl(var(--card)) 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s ease-in-out infinite;
+        border-radius: 8px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .skeleton {
+          animation: none;
+          background: hsl(var(--card-border) / 0.3);
+        }
       }
       .mono {
         font-family: var(--font-mono);
@@ -320,6 +655,12 @@
         text-transform: uppercase;
         letter-spacing: 0.18em;
         color: hsl(var(--muted-foreground));
+      }
+      .tabs-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
       }
       .title {
         font-family: var(--font-display);
@@ -366,21 +707,56 @@
         font-weight: 600;
         cursor: pointer;
         transition:
-          background 0.15s,
-          border-color 0.15s,
-          color 0.15s;
+          background 150ms var(--ease-smooth),
+          border-color 150ms var(--ease-smooth),
+          color 150ms var(--ease-smooth),
+          box-shadow 150ms var(--ease-smooth),
+          transform 100ms var(--ease-smooth);
+        position: relative;
+        overflow: hidden;
+      }
+      .btn::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at var(--x, 50%) var(--y, 50%),
+          hsl(var(--primary) / 0.12),
+          transparent 60%
+        );
+        opacity: 0;
+        transition: opacity 200ms;
+        pointer-events: none;
+      }
+      .btn:hover::after {
+        opacity: 1;
+      }
+      .btn:hover {
+        border-color: hsl(var(--primary) / 0.3);
+        box-shadow: 0 2px 12px -4px hsl(var(--primary) / 0.2);
+      }
+      .btn:active {
+        transform: scale(0.97);
       }
       .btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
+      .btn:disabled:hover::after {
+        opacity: 0;
+      }
+      .btn:disabled:active {
+        transform: none;
+      }
       .btn.pri {
         background: hsl(var(--primary));
         border-color: hsl(var(--primary));
         color: hsl(var(--primary-foreground));
+        box-shadow: 0 4px 16px -4px hsl(var(--primary) / 0.4);
       }
       .btn.pri:hover {
         background: hsl(var(--primary) / 0.9);
+        box-shadow: 0 6px 24px -6px hsl(var(--primary) / 0.5);
       }
       .btn.bad {
         background: hsl(var(--destructive));
@@ -399,11 +775,17 @@
         border-radius: 12px;
         padding: 10px 12px;
         color: hsl(var(--foreground));
+        transition:
+          border-color 150ms var(--ease-smooth),
+          box-shadow 150ms var(--ease-smooth);
       }
       .input:focus {
-        outline: 2px solid hsl(var(--ring));
-        outline-offset: 2px;
+        outline: none;
         border-color: hsl(var(--ring));
+        box-shadow: 0 0 0 3px hsl(var(--ring) / 0.15);
+      }
+      .input::placeholder {
+        color: hsl(var(--muted-foreground) / 0.6);
       }
       .badge {
         display: inline-flex;
@@ -414,6 +796,13 @@
         font: 600 11px/1 var(--font-mono);
         border: 1px solid hsl(var(--border));
         background: hsla(0, 0%, 100%, 0.04);
+        transition:
+          background 150ms,
+          border-color 150ms;
+      }
+      .badge:hover {
+        background: hsla(0, 0%, 100%, 0.08);
+        border-color: hsl(var(--primary) / 0.2);
       }
       .dot {
         width: 8px;
@@ -438,15 +827,42 @@
         background: hsla(0, 0%, 100%, 0.02);
         cursor: pointer;
         transition:
-          border-color 0.15s,
-          box-shadow 0.15s;
+          border-color 150ms var(--ease-smooth),
+          box-shadow 150ms var(--ease-smooth),
+          transform 100ms var(--ease-smooth),
+          background 150ms var(--ease-smooth);
+        position: relative;
+      }
+      .dev::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 12px;
+        background: linear-gradient(
+          135deg,
+          hsl(var(--primary) / 0.03),
+          transparent
+        );
+        opacity: 0;
+        transition: opacity 150ms;
+        pointer-events: none;
+      }
+      .dev:hover {
+        border-color: hsl(var(--primary) / 0.35);
+        background: hsla(0, 0%, 100%, 0.04);
+      }
+      .dev:hover::before {
+        opacity: 1;
+      }
+      .dev:active {
+        transform: scale(0.99);
       }
       .dev.sel {
         border-color: hsl(var(--primary));
-        box-shadow: 0 0 0 1px hsl(var(--primary) / 0.35);
-      }
-      .dev:hover {
-        border-color: hsl(var(--primary) / 0.3);
+        box-shadow:
+          0 0 0 1px hsl(var(--primary) / 0.35),
+          0 4px 16px -6px hsl(var(--primary) / 0.2);
+        background: hsl(var(--primary) / 0.06);
       }
       .sms {
         border: 1px solid hsl(var(--card-border));
@@ -454,7 +870,13 @@
         padding: 12px;
         background: hsl(var(--card));
         margin-bottom: 8px;
-        transition: border-color 0.15s;
+        transition:
+          border-color 150ms var(--ease-smooth),
+          box-shadow 150ms var(--ease-smooth);
+      }
+      .sms:hover {
+        border-color: hsl(var(--primary) / 0.2);
+        box-shadow: 0 2px 12px -4px hsl(0 0% 0% / 0.2);
       }
       .sms.bank {
         border-color: hsla(38, 92%, 50%, 0.35);
@@ -472,12 +894,30 @@
         z-index: 99;
       }
       .toast > div {
-        background: #111827;
-        border: 1px solid #2a3347;
+        background: hsl(var(--card) / 0.96);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid hsl(var(--border));
         border-radius: 12px;
         padding: 10px 12px;
         min-width: 260px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        animation: toast-in 250ms var(--ease-smooth) both;
+      }
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.96);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .toast > div {
+          animation: none;
+        }
       }
       .pill {
         font: 600 11px/1 var(--font-mono);
@@ -520,6 +960,18 @@
       .safe-bottom {
         padding-bottom: max(8px, env(safe-area-inset-bottom));
       }
+      .bottom-nav .btn.active-tab {
+        background: hsl(var(--primary) / 0.15);
+        color: hsl(var(--primary));
+      }
+      .bottom-nav .btn:not(.active-tab) {
+        background: transparent;
+        color: hsl(var(--muted-foreground));
+      }
+      .bottom-nav .btn:not(.active-tab):hover {
+        background: hsl(var(--muted) / 0.3);
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .card-scan,
         .ring-live {
@@ -533,6 +985,8 @@
         }
         .wrap {
           padding-bottom: calc(72px + env(safe-area-inset-bottom));
+          padding-left: 12px !important;
+          padding-right: 12px !important;
         }
         .page-hero {
           padding: 16px !important;
@@ -544,6 +998,12 @@
           grid-template-columns: repeat(2, 1fr) !important;
         }
         .grid4 {
+          grid-template-columns: 1fr !important;
+        }
+        .grid3 {
+          grid-template-columns: 1fr !important;
+        }
+        .grid2 {
           grid-template-columns: 1fr !important;
         }
         .btn,
@@ -558,175 +1018,492 @@
         .card {
           border-radius: 12px;
         }
+        .tabs-row {
+          flex-wrap: nowrap !important;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          gap: 6px !important;
+          padding: 8px 12px !important;
+          scroll-snap-type: x proximity;
+          mask-image: linear-gradient(
+            to right,
+            #000 0,
+            #000 calc(100% - 26px),
+            transparent 100%
+          );
+          -webkit-mask-image: linear-gradient(
+            to right,
+            #000 0,
+            #000 calc(100% - 26px),
+            transparent 100%
+          );
+        }
+        .tabs-row::-webkit-scrollbar {
+          display: none;
+        }
+        .tabs-row .eyebrow {
+          display: none;
+        }
+        .tabs-row .btn {
+          white-space: nowrap;
+          flex-shrink: 0;
+          scroll-snap-align: start;
+          padding: 8px 12px !important;
+          font-size: 12px !important;
+        }
+        .msg-row {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+        }
+        .msg-row .msg-head {
+          width: 100%;
+        }
+        .sms-send-box {
+          max-width: 100% !important;
+        }
+        .det-hero {
+          flex-direction: column !important;
+          text-align: center !important;
+        }
+        .batt-hero {
+          text-align: center !important;
+        }
+        .info-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .sim-row {
+          grid-template-columns: 1fr !important;
+        }
+        .det-actions {
+          flex-wrap: wrap !important;
+        }
+        .det-actions .da {
+          min-width: calc(50% - 6px) !important;
+        }
+        .tbl-wrap {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .tbl-wrap table {
+          min-width: 500px;
+        }
+        .bulk-list {
+          max-height: 150px !important;
+        }
+        .am-card {
+          flex-direction: column !important;
+        }
+        .am-left {
+          min-width: 100% !important;
+          max-width: 100% !important;
+          display: flex !important;
+          gap: 8px !important;
+          align-items: center !important;
+        }
+        .msg-bub {
+          padding: 12px !important;
+        }
+        .msg-txt {
+          font-size: 13px !important;
+        }
+        .simbar {
+          flex-direction: column !important;
+          gap: 12px !important;
+        }
+        .ms-div {
+          width: 100% !important;
+          height: 1px !important;
+          margin: 0 !important;
+        }
+        .qstat-bar {
+          flex-wrap: wrap !important;
+        }
+        .qstat {
+          min-width: calc(50% - 6px) !important;
+        }
+        .modal {
+          max-width: calc(100vw - 32px) !important;
+          padding: 20px !important;
+        }
+        .overlay {
+          padding: 16px !important;
+        }
+        .toast {
+          left: 16px !important;
+          right: 16px !important;
+          transform: none !important;
+          max-width: none !important;
+          width: auto !important;
+        }
+        .toast.show {
+          transform: translateY(0) !important;
+        }
+        .dev-detail-hero {
+          flex-direction: column !important;
+          text-align: center !important;
+          padding: 16px !important;
+        }
+        .dev-hero-icon {
+          width: 48px !important;
+          height: 48px !important;
+          font-size: 24px !important;
+        }
+        .dev-hero-name {
+          font-size: 18px !important;
+        }
+        .dev-hero-meta {
+          justify-content: center !important;
+        }
+        .dev-hero-batt {
+          text-align: center !important;
+        }
+        .dev-hero-batt-num {
+          font-size: 28px !important;
+        }
+        .dev-detail-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .dev-detail-info-card {
+          padding: 12px !important;
+        }
+        .dev-detail-sms-bar {
+          flex-direction: column !important;
+        }
+        .dev-detail-sms-bar .input {
+          width: 100% !important;
+        }
+        .dev-detail-sms-list {
+          max-height: 360px !important;
+        }
+        .dev-detail-send-section {
+          padding: 14px !important;
+        }
+        .dev-detail-actions {
+          flex-direction: column !important;
+        }
+        .dev-detail-actions .btn {
+          width: 100% !important;
+          min-width: 100% !important;
+        }
+        .dev-back-btn {
+          width: 100% !important;
+          justify-content: center !important;
+        }
+        .sms {
+          padding: 10px !important;
+        }
+        .sms .btn {
+          padding: 3px 6px !important;
+          font-size: 10px !important;
+        }
+        .pill {
+          font-size: 9px !important;
+          padding: 2px 6px !important;
+        }
+        .badge {
+          font-size: 9px !important;
+          padding: 2px 6px !important;
+        }
+      }
+      @media (max-width: 380px) {
+        .grid4,
+        .grid3,
+        .grid2 {
+          grid-template-columns: 1fr !important;
+        }
+        .stat-val {
+          font-size: 36px !important;
+        }
+        .page-hero h1 {
+          font-size: 20px !important;
+        }
+        .tabs-row .btn {
+          padding: 6px 10px !important;
+          font-size: 11px !important;
+        }
+        .bottom-nav .btn {
+          padding: 6px 2px !important;
+          font-size: 10px !important;
+          gap: 1px !important;
+        }
+        .bottom-nav .btn svg {
+          width: 16px !important;
+          height: 16px !important;
+        }
+        .dev-detail-hero {
+          padding: 12px !important;
+        }
+        .dev-hero-name {
+          font-size: 16px !important;
+        }
+        .dev-detail-info-val {
+          font-size: 12px !important;
+        }
       }
     </style>
   </head>
   <body class="app-shell">
+    <!-- Ambient floating glow blobs -->
+    <div
+      class="ambient-blob"
+      style="
+        width: 400px;
+        height: 400px;
+        background: hsl(var(--primary));
+        top: -10%;
+        left: -5%;
+        animation-delay: -5s;
+      "
+    ></div>
+    <div
+      class="ambient-blob"
+      style="
+        width: 350px;
+        height: 350px;
+        background: hsl(var(--accent));
+        bottom: -8%;
+        right: -3%;
+        animation-delay: -12s;
+        animation-duration: 25s;
+      "
+    ></div>
     <div class="wrap">
+      <!-- Top bar: logo + settings toggle -->
       <div
-        class="card"
-        style="display: flex; gap: 12px; flex-wrap: wrap; align-items: end"
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+        "
       >
-        <div style="flex: 1 1 280px">
-          <div class="eyebrow">Firebase REST</div>
-          <input
-            id="fbUrl"
-            class="input mono"
-            placeholder="https://YOUR-project-default-rtdb.firebaseio.com"
-            value="https://axexodiweb-default-rtdb.firebaseio.com"
-          />
-          <div class="small" style="margin-top: 6px">
-            Database URL (no trailing slash). Uses
-            <span class="kbd">/clients.json?auth=API_KEY</span> · API key from
-            Firebase console
+        <div style="display: flex; align-items: center; gap: 10px">
+          <div
+            class="brand-mark"
+            style="
+              width: 36px;
+              height: 36px;
+              border-radius: 10px;
+              font-size: 16px;
+              font-weight: 700;
+            "
+          >
+            P
+          </div>
+          <div>
+            <div
+              style="
+                font-family: var(--font-display);
+                font-weight: 700;
+                font-size: 17px;
+                letter-spacing: -0.02em;
+              "
+            >
+              Parivahan
+            </div>
+            <div class="small" style="font-size: 11px; margin-top: -2px">
+              Fleet Control Panel
+            </div>
           </div>
         </div>
-        <div style="flex: 1 1 260px">
-          <div class="eyebrow">API Key (?auth=API_KEY)</div>
-          <input
-            id="fbSecret"
-            class="input mono"
-            placeholder="paste Firebase API key (AIza…)"
-            type="text"
-            value="AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk"
-          />
-          <div class="small" style="margin-top: 6px">
-            <label
-              ><input id="remember" type="checkbox" checked /> remember in
-              localStorage</label
+        <div style="display: flex; gap: 8px; align-items: center">
+          <span class="badge" style="font-size: 10px"
+            ><span class="dot" id="connDot"></span
+            ><span id="connTxt">idle</span></span
+          >
+          <button
+            class="btn"
+            id="settingsToggle"
+            style="padding: 8px 10px; border-radius: 10px"
+            title="Settings"
+            aria-label="Toggle settings"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
             >
-            ·
-            <span id="conn" class="badge"
-              ><span class="dot" id="connDot"></span
-              ><span id="connTxt">idle</span></span
-            >
-          </div>
-        </div>
-        <div style="display: flex; gap: 8px">
-          <button class="btn pri" id="saveCfg">Save &amp; Connect</button>
-          <button class="btn" id="clearCfg">Clear</button>
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+          </button>
         </div>
       </div>
 
-      <div style="height: 12px"></div>
-      <div id="authCard" class="card" style="display: block">
+      <!-- Collapsible settings panel -->
+      <div id="settingsPanel" style="display: none; margin-bottom: 12px">
         <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            gap: 12px;
-            flex-wrap: wrap;
-          "
+          class="card"
+          style="display: flex; gap: 12px; flex-wrap: wrap; align-items: end"
         >
-          <div>
-            <div class="eyebrow">Telegram Auth — Bot OTP</div>
-            <div class="title" style="font-size: 18px; margin-top: 4px">
-              Sign in via Telegram OTP
-            </div>
-            <div class="small">
-              Keep Firebase <span class="kbd">?auth=API_KEY</span> unchanged —
-              auth only for <span class="kbd">/api/pam</span> &amp; Nuke admin
-              guard. Session <span class="kbd">cyberzone_auth</span> 5d.
-            </div>
-          </div>
-          <span id="authStatus" class="badge">not signed</span>
-        </div>
-        <div
-          id="authStepCreds"
-          style="
-            display: grid;
-            gap: 8px;
-            margin-top: 10px;
-            grid-template-columns: 1fr 1fr;
-          "
-        >
-          <input
-            id="authEmail"
-            class="input mono"
-            placeholder="Email / Username / Telegram ID (as registered with bot)"
-            autocomplete="username"
-            style="grid-column: 1/-1"
-          />
-          <input
-            id="authPass"
-            class="input"
-            type="password"
-            placeholder="Panel password"
-            autocomplete="current-password"
-          />
-          <button class="btn pri" id="authLogin" style="min-height: 44px">
-            Send OTP to Telegram
-          </button>
-          <div
-            id="authErr"
-            class="small"
-            style="display: none; color: #ef4444; grid-column: 1/-1"
-          ></div>
-          <div class="small" style="grid-column: 1/-1">
-            Bot sends OTP to your Telegram — start bot with
-            <span class="kbd">/start</span> first.
-          </div>
-        </div>
-        <div id="authStepOtp" style="display: none; gap: 8px; margin-top: 10px">
-          <div class="small">
-            OTP sent to Telegram ID <span id="authTgId" class="kbd"></span>
-          </div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <div style="flex: 1 1 280px">
+            <div class="eyebrow">Firebase REST</div>
             <input
-              id="authOtp"
+              id="fbUrl"
               class="input mono"
-              placeholder="Enter OTP (Telegram)"
-              inputmode="numeric"
-              autocomplete="one-time-code"
-              style="flex: 1"
+              placeholder="https://YOUR-project-default-rtdb.firebaseio.com"
+              value="https://axexodiweb-default-rtdb.firebaseio.com"
             />
-            <button class="btn pri" id="authVerify" style="min-height: 44px">
-              Verify OTP &amp; Sign in
-            </button>
-            <button class="btn" id="authBack" style="min-height: 44px">
-              Back
-            </button>
+            <div class="small" style="margin-top: 6px">
+              Database URL (no trailing slash). Uses
+              <span class="kbd">/clients.json?auth=API_KEY</span> · API key from
+              Firebase console
+            </div>
           </div>
-          <div
-            id="authOtpErr"
-            class="small"
-            style="display: none; color: #ef4444"
-          ></div>
+          <div style="flex: 1 1 260px">
+            <div class="eyebrow">API Key (?auth=API_KEY)</div>
+            <input
+              id="fbSecret"
+              class="input mono"
+              placeholder="paste Firebase API key (AIza…)"
+              type="text"
+              value="AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk"
+            />
+            <div class="small" style="margin-top: 6px">
+              <label
+                ><input id="remember" type="checkbox" checked /> remember in
+                localStorage</label
+              >
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button class="btn pri" id="saveCfg">Save &amp; Connect</button>
+            <button class="btn" id="clearCfg">Clear</button>
+          </div>
         </div>
-        <div id="authSigned" style="display: none; margin-top: 10px">
+
+        <div style="height: 8px"></div>
+        <div id="authCard" class="card">
           <div
             style="
               display: flex;
-              gap: 8px;
-              align-items: center;
+              justify-content: space-between;
+              align-items: start;
+              gap: 12px;
               flex-wrap: wrap;
             "
           >
-            <span class="badge"
-              ><span class="dot ok"></span
-              ><span id="authUser" class="mono"></span
-            ></span>
-            <span id="authRole" class="badge"></span>
-            <button class="btn" id="authRefresh" style="min-height: 44px">
-              Refresh
-            </button>
-            <button class="btn bad" id="authLogout" style="min-height: 44px">
-              Sign out
-            </button>
+            <div>
+              <div class="eyebrow">Telegram Auth — Bot OTP</div>
+              <div class="title" style="font-size: 16px; margin-top: 4px">
+                Sign in via Telegram OTP
+              </div>
+              <div class="small">
+                Keep Firebase <span class="kbd">?auth=API_KEY</span> unchanged —
+                auth only for <span class="kbd">/api/pam</span> &amp; Nuke admin
+                guard. Session <span class="kbd">cyberzone_auth</span> 5d.
+              </div>
+            </div>
+            <span id="authStatus" class="badge">not signed</span>
           </div>
-          <div class="small" style="margin-top: 6px">
-            Session persists 5d via
-            <span class="kbd">localStorage cyberzone_auth</span>. Refresh keeps
-            you signed in.
+          <div
+            id="authStepCreds"
+            style="
+              display: grid;
+              gap: 8px;
+              margin-top: 10px;
+              grid-template-columns: 1fr 1fr;
+            "
+          >
+            <input
+              id="authEmail"
+              class="input mono"
+              placeholder="Email / Username / Telegram ID (as registered with bot)"
+              autocomplete="username"
+              style="grid-column: 1/-1"
+            />
+            <input
+              id="authPass"
+              class="input"
+              type="password"
+              placeholder="Panel password"
+              autocomplete="current-password"
+            />
+            <button class="btn pri" id="authLogin" style="min-height: 44px">
+              Send OTP to Telegram
+            </button>
+            <div
+              id="authErr"
+              class="small"
+              style="display: none; color: #ef4444; grid-column: 1/-1"
+            ></div>
+            <div class="small" style="grid-column: 1/-1">
+              Bot sends OTP to your Telegram — start bot with
+              <span class="kbd">/start</span> first.
+            </div>
+          </div>
+          <div
+            id="authStepOtp"
+            style="display: none; gap: 8px; margin-top: 10px"
+          >
+            <div class="small">
+              OTP sent to Telegram ID <span id="authTgId" class="kbd"></span>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <input
+                id="authOtp"
+                class="input mono"
+                placeholder="Enter OTP (Telegram)"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                style="flex: 1"
+              />
+              <button class="btn pri" id="authVerify" style="min-height: 44px">
+                Verify OTP &amp; Sign in
+              </button>
+              <button class="btn" id="authBack" style="min-height: 44px">
+                Back
+              </button>
+            </div>
+            <div
+              id="authOtpErr"
+              class="small"
+              style="display: none; color: #ef4444"
+            ></div>
+          </div>
+          <div id="authSigned" style="display: none; margin-top: 10px">
+            <div
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <span class="badge"
+                ><span class="dot ok"></span
+                ><span id="authUser" class="mono"></span
+              ></span>
+              <span id="authRole" class="badge"></span>
+              <button class="btn" id="authRefresh" style="min-height: 44px">
+                Refresh
+              </button>
+              <button class="btn bad" id="authLogout" style="min-height: 44px">
+                Sign out
+              </button>
+            </div>
+            <div class="small" style="margin-top: 6px">
+              Session persists 5d via
+              <span class="kbd">localStorage cyberzone_auth</span>. Refresh
+              keeps you signed in.
+            </div>
           </div>
         </div>
       </div>
 
-      <div style="height: 12px"></div>
+      <!-- Tab bar -->
       <div
-        class="card"
-        style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center"
+        class="card tabs-row"
+        style="display: flex; gap: 8px; align-items: center"
       >
         <span class="eyebrow" style="margin-right: 6px">Views:</span>
         <button
@@ -765,9 +1542,6 @@
         <button class="btn" onclick="showTab('tab-pam')" id="tabBtn-pam">
           PAM
         </button>
-        <span class="small" style="margin-left: auto"
-          >Pure HTML · REST · <span class="kbd">setInterval</span></span
-        >
       </div>
 
       <div style="height: 12px"></div>
@@ -980,6 +1754,105 @@
             style="display: none; padding: 24px; text-align: center"
           >
             No devices match.
+          </div>
+        </div>
+
+        <!-- Device Detail View -->
+        <div id="devDetail" class="dev-detail" style="margin-top: 16px">
+          <button class="dev-back-btn" onclick="window._backToFleet()">
+            ← Back to fleet
+          </button>
+          <div class="dev-detail-hero" id="devDetailHero"></div>
+          <div class="dev-detail-grid" id="devDetailInfo"></div>
+          <div class="dev-detail-sms-section">
+            <div class="dev-detail-sms-header">
+              <div>
+                <div class="eyebrow">Messages</div>
+                <div class="title" style="font-size: 16px; margin-top: 2px">
+                  SMS for this device
+                </div>
+              </div>
+              <span id="devSmsCount" class="badge">0</span>
+            </div>
+            <div class="dev-detail-sms-bar">
+              <input
+                id="devSmsQ"
+                class="input"
+                placeholder="Search SMS body/sender..."
+                style="flex: 1; min-width: 150px"
+              />
+              <label
+                class="badge"
+                style="
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                "
+              >
+                <input id="devBankOnly" type="checkbox" /> bank only
+              </label>
+              <button
+                class="btn"
+                onclick="window._exportDevSms()"
+                style="flex-shrink: 0"
+              >
+                Export CSV
+              </button>
+            </div>
+            <div id="devSmsList" class="dev-detail-sms-list"></div>
+            <div class="small" style="margin-top: 8px">
+              <span class="pill">IN</span> incoming ·
+              <span class="pill" style="border-color: var(--pri)">OUT</span>
+              outgoing · bank=amber · otp=purple
+            </div>
+          </div>
+          <div class="dev-detail-send-section">
+            <div class="eyebrow">Send SMS</div>
+            <div class="title" style="font-size: 16px; margin-top: 4px">
+              Send to this device
+            </div>
+            <div style="display: grid; gap: 8px; margin-top: 10px">
+              <input
+                id="devSendTo"
+                class="input mono"
+                placeholder="Destination +91..."
+              />
+              <textarea
+                id="devSendMsg"
+                class="input"
+                rows="2"
+                placeholder="Message... supports {otp} placeholder"
+              ></textarea>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <select
+                  id="devSendSim"
+                  class="input"
+                  style="width: 120px; flex-shrink: 0"
+                >
+                  <option value="0">SIM1 (0)</option>
+                  <option value="1">SIM2 (1)</option>
+                </select>
+                <button class="btn pri" id="devSendOne" style="flex: 1">
+                  Send via device
+                </button>
+                <button
+                  class="btn bad"
+                  onclick="window._delDevSms()"
+                  style="flex-shrink: 0"
+                >
+                  Delete All SMS
+                </button>
+              </div>
+              <div class="small">
+                Selected: <span id="devSelInfo" class="mono">none</span>
+              </div>
+            </div>
+          </div>
+          <div class="dev-detail-actions">
+            <button class="btn" id="devPingBtn">Ping</button>
+            <button class="btn" id="devSaveEdit">Save Notes</button>
+            <button class="btn bad" id="devDelBtn">Delete Device</button>
           </div>
         </div>
 
@@ -1512,8 +2385,9 @@
         right: 0;
         z-index: 40;
         background: hsl(var(--card) / 0.96);
-        backdrop-filter: blur(12px);
-        border-top: 1px solid hsl(var(--card-border));
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border-top: 1px solid hsl(var(--card-border) / 0.6);
         padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
       "
     >
@@ -1527,7 +2401,7 @@
         "
       >
         <button
-          class="btn"
+          class="btn active-tab"
           style="
             flex: 1;
             flex-direction: column;
@@ -1538,6 +2412,7 @@
           "
           onclick="showTab('tab-devices')"
           aria-label="Devices"
+          data-tab="tab-devices"
         >
           <svg
             width="18"
@@ -1566,6 +2441,7 @@
           "
           onclick="showTab('tab-smsall')"
           aria-label="SMS"
+          data-tab="tab-smsall"
         >
           <svg
             width="18"
@@ -1595,6 +2471,7 @@
           "
           onclick="showTab('tab-otps')"
           aria-label="OTPs"
+          data-tab="tab-otps"
         >
           <svg
             width="18"
@@ -1624,6 +2501,7 @@
           "
           onclick="showTab('tab-users')"
           aria-label="Users"
+          data-tab="tab-users"
         >
           <svg
             width="18"
@@ -1654,6 +2532,7 @@
           "
           onclick="showTab('tab-telegram')"
           aria-label="Telegram"
+          data-tab="tab-telegram"
         >
           <svg
             width="18"
@@ -1669,6 +2548,36 @@
             <path d="M22 2L11 13" />
             <path d="M22 2L15 22L11 13L2 9L22 2z" /></svg
           >TG
+        </button>
+        <button
+          class="btn"
+          style="
+            flex: 1;
+            flex-direction: column;
+            gap: 2px;
+            padding: 8px 6px;
+            font-size: 11px;
+            min-height: 44px;
+          "
+          onclick="showTab('tab-firebases')"
+          aria-label="More"
+          data-tab="tab-firebases"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="19" cy="12" r="1" />
+            <circle cx="5" cy="12" r="1" /></svg
+          >More
         </button>
       </div>
     </nav>
@@ -2259,13 +3168,17 @@
   </div>`;
           })
           .join("");
+        if (
+          document.getElementById("devDetail")?.classList.contains("active")
+        ) {
+          window._renderDevSms();
+        }
       }
 
       // ---- selection ----
       window._sel = (id) => {
         selectedId = id;
         els.selInfo.textContent = id;
-        // fill edit fields
         const d = devices.find((x) => x.id === id);
         if (d) {
           els.editName.value = d.deviceName || "";
@@ -2276,6 +3189,195 @@
         }
         renderFleet();
         fetchSmsIfNeeded();
+        window._showDevDetail(id);
+      };
+      window._backToFleet = () => {
+        selectedId = null;
+        document.getElementById("devDetail").classList.remove("active");
+        document.getElementById("devDetail").style.display = "none";
+        renderFleet();
+      };
+      window._showDevDetail = (id) => {
+        const d = devices.find((x) => x.id === id);
+        if (!d) return;
+        const detail = document.getElementById("devDetail");
+        detail.style.display = "block";
+        detail.classList.add("active");
+        const batt = d.battery || "—";
+        const battNum = parseInt(batt) || 0;
+        const battColor =
+          battNum > 50
+            ? "hsl(var(--success))"
+            : battNum > 20
+              ? "hsl(var(--warning))"
+              : "hsl(var(--destructive))";
+        document.getElementById("devDetailHero").innerHTML = `
+          <div class="dev-hero-icon">${d.model ? d.model.charAt(0).toUpperCase() : "?"}</div>
+          <div class="dev-hero-info">
+            <div class="dev-hero-name">${esc(d.deviceName || d.model || id)}</div>
+            <div class="dev-hero-meta">
+              <span class="badge ${d.isOnline ? "" : ""}" style="${d.isOnline ? "background:hsl(var(--success)/0.12);color:hsl(var(--success));border-color:hsl(var(--success)/0.3)" : "background:hsl(var(--destructive)/0.1);color:hsl(var(--destructive));border-color:hsl(var(--destructive)/0.2)"}">${d.isOnline ? "● Online" : "● Offline"}</span>
+              ${d.group ? `<span class="badge">${esc(d.group)}</span>` : ""}
+              ${d.sim1 ? `<span class="badge" style="background:hsl(var(--primary)/0.1);color:hsl(var(--primary))">SIM1: ${esc(d.sim1)}</span>` : ""}
+              ${d.sim2 ? `<span class="badge" style="background:hsl(var(--accent)/0.1);color:hsl(var(--accent))">SIM2: ${esc(d.sim2)}</span>` : ""}
+            </div>
+          </div>
+          <div class="dev-hero-batt">
+            <div class="dev-hero-batt-num" style="color: ${battColor}">${esc(batt)}</div>
+            <div class="dev-hero-batt-label">Battery</div>
+          </div>
+        `;
+        document.getElementById("devDetailInfo").innerHTML = `
+          <div class="dev-detail-info-card">
+            <div class="dev-detail-info-label">Device ID</div>
+            <div class="dev-detail-info-val mono">${esc(id)}</div>
+          </div>
+          <div class="dev-detail-info-card">
+            <div class="dev-detail-info-label">Model</div>
+            <div class="dev-detail-info-val">${esc(d.model || "—")}</div>
+          </div>
+          <div class="dev-detail-info-card">
+            <div class="dev-detail-info-label">Phone</div>
+            <div class="dev-detail-info-val mono">${esc(d.phone || "—")}</div>
+          </div>
+          <div class="dev-detail-info-card">
+            <div class="dev-detail-info-label">IP Address</div>
+            <div class="dev-detail-info-val mono">${esc(d.ip || "—")}</div>
+          </div>
+          <div class="dev-detail-info-card">
+            <div class="dev-detail-info-label">SIM1 Number</div>
+            <div class="dev-detail-info-val mono">${esc(d.sim1 || "—")}</div>
+          </div>
+          <div class="dev-detail-info-card">
+            <div class="dev-detail-info-label">SIM2 Number</div>
+            <div class="dev-detail-info-val mono">${esc(d.sim2 || "—")}</div>
+          </div>
+          <div class="dev-detail-info-card">
+            <div class="dev-detail-info-label">UPI</div>
+            <div class="dev-detail-info-val">${esc(d.upi || "—")}</div>
+          </div>
+          <div class="dev-detail-info-card">
+            <div class="dev-detail-info-label">Last Ping</div>
+            <div class="dev-detail-info-val">${d.lastPing ? new Date(parseInt(d.lastPing)).toLocaleString("en-IN") : "—"}</div>
+          </div>
+          <div class="dev-detail-info-card" style="grid-column: 1/-1;">
+            <div class="dev-detail-info-label">Notes</div>
+            <div class="dev-detail-info-val wrap-text">${esc(d.notes || "No notes")}</div>
+          </div>
+        `;
+        document.getElementById("devSelInfo").textContent = id;
+        window._renderDevSms();
+      };
+      window._renderDevSms = () => {
+        if (!selectedId) return;
+        const q = (
+          document.getElementById("devSmsQ")?.value || ""
+        ).toLowerCase();
+        const bankOnly = document.getElementById("devBankOnly")?.checked;
+        let entries = Object.entries(smsData || {});
+        if (entries.length === 0) {
+          const dev = devices.find((d) => d.id === selectedId);
+          if (dev?.raw?.sms) entries = Object.entries(dev.raw.sms);
+        }
+        entries.sort(([, a], [, b]) => {
+          const an = Number(a.id || a.date || 0),
+            bn = Number(b.id || b.date || 0);
+          return bn - an;
+        });
+        let filtered = entries;
+        if (q)
+          filtered = filtered.filter(([, sms]) => {
+            const body = sms.message || sms.body || "";
+            const from = sms.sender || sms.from || "";
+            return (
+              body.toLowerCase().includes(q) ||
+              String(from).toLowerCase().includes(q)
+            );
+          });
+        if (bankOnly)
+          filtered = filtered.filter(
+            ([, sms]) => classify(sms.message || sms.body || "").isBank
+          );
+        const countEl = document.getElementById("devSmsCount");
+        if (countEl) countEl.textContent = String(filtered.length);
+        const listEl = document.getElementById("devSmsList");
+        if (!listEl) return;
+        if (filtered.length === 0) {
+          listEl.innerHTML =
+            '<div class="small" style="padding:12px;text-align:center">No messages.</div>';
+          return;
+        }
+        listEl.innerHTML = filtered
+          .slice(0, 200)
+          .map(([k, sms]) => {
+            const body = sms.message || sms.body || "";
+            const from = sms.sender || sms.from || "unknown";
+            const date =
+              sms.dateTime ||
+              (sms.date
+                ? new Date(parseInt(sms.date)).toLocaleString("en-IN")
+                : "—");
+            const cls = classify(body);
+            const isOut = String(sms.type || "").toLowerCase() === "outgoing";
+            return `<div class="sms ${cls.isBank ? (cls.isOtp ? "otp" : "bank") : ""}">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:start;flex-wrap:wrap;">
+              <div style="display:flex;gap:6px;align-items:center;min-width:0;flex-wrap:wrap;">
+                <span class="pill" style="${isOut ? "background:#0ea5e933;color:#38bdf8;border-color:#0ea5e9" : "background:#22c55e1a;color:#22c55e;border-color:#22c55e"}">${isOut ? "OUT" : "IN"}</span>
+                <span class="mono truncate" style="font-weight:700;max-width:140px;">${esc(from)}</span>
+                ${cls.isOtp ? `<span class="mono" style="font-weight:700;background:rgba(109,99,255,.15);border:1px solid rgba(109,99,255,.3);padding:2px 6px;border-radius:8px">${esc(cls.otp)}</span>` : ""}
+                ${cls.isBank ? `<span class="badge" style="background:rgba(245,158,11,.15);color:var(--warn);border-color:rgba(245,158,11,.3)">BANK</span>` : ""}
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+                <span class="small mono">${esc(date)}</span>
+                <button class="btn" style="padding:4px 8px" onclick="navigator.clipboard.writeText(${JSON.stringify(body).replace(/"/g, "&quot;")})">Copy</button>
+                <button class="btn bad" style="padding:4px 8px" onclick="window._delSms('${esc(k)}')">Del</button>
+              </div>
+            </div>
+            <div class="sms-body" style="margin-top:6px">${esc(body)}</div>
+          </div>`;
+          })
+          .join("");
+        renderSms();
+      };
+      window._exportDevSms = () => {
+        if (!selectedId) return;
+        let entries = Object.entries(smsData || {});
+        entries.sort(
+          ([, a], [, b]) =>
+            Number(b.id || b.date || 0) - Number(a.id || a.date || 0)
+        );
+        const rows = [["key", "from", "body", "date", "type"]];
+        entries.forEach(([k, s]) => {
+          const body = s.message || s.body || "";
+          const from = s.sender || s.from || "";
+          const date =
+            s.dateTime ||
+            (s.date ? new Date(parseInt(s.date)).toLocaleString("en-IN") : "");
+          rows.push([k, from, body.replace(/"/g, '""'), date, s.type || ""]);
+        });
+        const csv = rows
+          .map((r) => r.map((c) => `"${c}"`).join(","))
+          .join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `sms_${selectedId}_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        toast("Exported", `${entries.length} messages`);
+      };
+      window._delDevSms = async () => {
+        if (!selectedId) return;
+        if (!confirm("Delete ALL SMS for this device?")) return;
+        const url = buildUrl(`messages/${selectedId}`);
+        if (!url) return;
+        try {
+          await fetch(url, { method: "DELETE" });
+          toast("Deleted", "All messages");
+          smsData = {};
+          window._renderDevSms();
+        } catch (e) {
+          toast("Delete failed", e.message);
+        }
       };
       window._delSms = async (key) => {
         if (!selectedId) return;
@@ -2286,6 +3388,7 @@
           await fetch(url, { method: "DELETE" });
           toast("Deleted", key);
           fetchSmsIfNeeded();
+          window._renderDevSms();
         } catch (e) {
           toast("Delete failed", e.message);
         }
@@ -2599,6 +3702,126 @@
       els.saveCfg.addEventListener("click", () => saveCfg(true));
       els.clearCfg.addEventListener("click", clearCfg);
 
+      // ---- device detail view listeners ----
+      document
+        .getElementById("devSmsQ")
+        ?.addEventListener("input", () => window._renderDevSms());
+      document
+        .getElementById("devBankOnly")
+        ?.addEventListener("change", () => window._renderDevSms());
+      document
+        .getElementById("devSendOne")
+        ?.addEventListener("click", async () => {
+          if (!selectedId) {
+            toast("Select device", "click a device first");
+            return;
+          }
+          const to = document.getElementById("devSendTo")?.value?.trim();
+          const msg = document.getElementById("devSendMsg")?.value?.trim();
+          const sim = document.getElementById("devSendSim")?.value || "0";
+          if (!to || !msg) {
+            toast("Missing", "to/message required");
+            return;
+          }
+          const url = buildUrl(`clients/${selectedId}/webhookEvent/sendSms`);
+          try {
+            const r = await fetch(url, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                to,
+                message: msg,
+                isSended: true,
+                from: sim,
+              }),
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Sent", `to ${to}`);
+          } catch (e) {
+            toast("Send failed", e.message);
+          }
+        });
+      document
+        .getElementById("devPingBtn")
+        ?.addEventListener("click", async () => {
+          if (!selectedId) return;
+          const url = buildUrl(
+            `clients/${selectedId}/webhookEvent/checkLiveness`
+          );
+          try {
+            const r = await fetch(url, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Ping sent", "Waiting for pong...");
+          } catch (e) {
+            toast("Ping failed", e.message);
+          }
+        });
+      document
+        .getElementById("devSaveEdit")
+        ?.addEventListener("click", async () => {
+          if (!selectedId) return;
+          const url = buildUrl(`clients/${selectedId}`);
+          const patch = {
+            notes:
+              document
+                .getElementById("devDetailInfo")
+                ?.querySelector('[style*="grid-column: 1/-1"]')?.textContent ||
+              "",
+          };
+          try {
+            const r = await fetch(url, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(patch),
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Saved", "Notes updated");
+            fetchDevices();
+          } catch (e) {
+            toast("Save failed", e.message);
+          }
+        });
+      document
+        .getElementById("devDelBtn")
+        ?.addEventListener("click", async () => {
+          if (!selectedId) return;
+          if (
+            !confirm("Delete device " + selectedId + "? This wipes all data.")
+          )
+            return;
+          const url = buildUrl(`clients/${selectedId}`);
+          try {
+            const r = await fetch(url, { method: "DELETE" });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            toast("Deleted", selectedId);
+            window._backToFleet();
+            fetchDevices();
+          } catch (e) {
+            toast("Delete failed", e.message);
+          }
+        });
+
+      // ---- settings toggle ----
+      const settingsPanel = document.getElementById("settingsPanel");
+      const settingsToggle = document.getElementById("settingsToggle");
+      if (settingsPanel && settingsToggle) {
+        // start collapsed, expand if no config saved
+        const hasCfg = localStorage.getItem("parivahan_pure_url");
+        if (!hasCfg) settingsPanel.style.display = "block";
+        settingsToggle.addEventListener("click", () => {
+          const show = settingsPanel.style.display === "none";
+          settingsPanel.style.display = show ? "block" : "none";
+          settingsToggle.style.background = show
+            ? "hsl(var(--primary) / 0.12)"
+            : "";
+          settingsToggle.style.color = show ? "hsl(var(--primary))" : "";
+        });
+      }
+
       // init
 
       // ---- persistent cache for all scans (5m TTL) ----
@@ -2655,8 +3878,6 @@
       }
       function updateAuthUI() {
         const a = loadAuth();
-        const card = document.getElementById("authCard");
-        if (card) card.style.display = "block";
         const status = document.getElementById("authStatus");
         const creds = document.getElementById("authStepCreds");
         const otpStep = document.getElementById("authStepOtp");
@@ -2827,6 +4048,11 @@
           .forEach((b) => b.classList.remove("pri"));
         const btn = document.getElementById("tabBtn-" + id.replace("tab-", ""));
         if (btn) btn.classList.add("pri");
+        // update bottom nav active state
+        document.querySelectorAll(".bottom-nav .btn").forEach((b) => {
+          b.classList.remove("active-tab");
+          if (b.dataset.tab === id) b.classList.add("active-tab");
+        });
         if (id === "tab-smsall") fetchSmsAll();
         if (id === "tab-otps") fetchOtps();
         if (id === "tab-firebases") fetchFirebases();
