@@ -139,7 +139,7 @@ export async function fbGetFor(
   extraQuery = ""
 ): Promise<any> {
   const params: string[] = [];
-  if (key) params.push(`k=${encodeURIComponent(key)}`);
+  if (key) params.push(`key=${encodeURIComponent(key)}`);
   if (extraQuery) params.push(extraQuery.replace(/^\?/, ""));
   const qs = params.length ? `?${params.join("&")}` : "";
   const res = await fetch(`${dbUrl}/${path}.json${qs}`, {
