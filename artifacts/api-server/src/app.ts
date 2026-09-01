@@ -36,13 +36,9 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://*.firebaseio.com"],
-        connectSrc: [
-          "'self'",
-          "https://*.firebaseio.com",
-          "wss://*.firebaseio.com",
-        ],
-        imgSrc: ["'self'", "data:", "blob:", "https://*.firebaseio.com"],
+        scriptSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "blob:"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
       },

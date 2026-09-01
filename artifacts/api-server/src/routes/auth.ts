@@ -238,6 +238,23 @@ router.get("/auth/profile", async (req, res) => {
 
     const isAdmin = isAdminTg(telegramId);
 
+    // Count devices visible to this user (admin = all)
+    let deviceCount = 0;
+    const clients = await fbGet("clients").catch(() => null);
+    if (clients && typeof clients === "object") {
+      const keys = Object.keys(clients as Record<string, any>).filter(
+        (k) => !k.startsWith("*")
+      );
+      if (isAdmin) {
+        deviceCount = keys.length;
+      } else {
+        deviceCount = keys.filter(
+          (k) =>
+            (clients as Record<string, any>)[k]?.ownerTelegramId === telegramId
+        ).length;
+      }
+    }
+
     if (isAdmin) {
       const adminCfg = await fbGet("config/admin");
       const smsChannel = await fbGet("config/smsChannel");
@@ -246,6 +263,7 @@ router.get("/auth/profile", async (req, res) => {
         username: adminCfg?.username || "Admin",
         email: adminCfg?.email || "",
         smsChannel: smsChannel?.channelId || null,
+        deviceCount,
       });
     }
 
@@ -261,6 +279,7 @@ router.get("/auth/profile", async (req, res) => {
       plan: sub.plan || "",
       status: sub.status || "expired",
       expiresAt: sub.expiresAt || null,
+      deviceCount,
     });
   } catch {
     return res.status(500).json({ error: "Server error." });

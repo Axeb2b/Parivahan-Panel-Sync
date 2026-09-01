@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { ref, onValue, off } from "firebase/database";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -41,30 +39,6 @@ export function Profile() {
   const [deviceCount, setDeviceCount] = useState(0);
   const [sessions, setSessions] = useState<Record<string, any>>({});
 
-  // Count devices assigned to this user (admin = all)
-  useEffect(() => {
-    if (!userId) return;
-    const clientsRef = ref(db, "clients");
-    const handler = onValue(clientsRef, (snap) => {
-      const data = snap.val();
-      if (!data) {
-        setDeviceCount(0);
-        return;
-      }
-      if (isAdmin) {
-        setDeviceCount(
-          Object.keys(data).filter((k) => !k.startsWith("*")).length
-        );
-      } else {
-        const count = Object.values(data).filter(
-          (d: any) => d?.ownerTelegramId === userId
-        ).length;
-        setDeviceCount(count);
-      }
-    });
-    return () => off(clientsRef, "value", handler);
-  }, [userId, isAdmin]);
-
   // Fetch login sessions
   useEffect(() => {
     if (!userId) return;
@@ -96,6 +70,7 @@ export function Profile() {
     apiFetch(`/auth/profile?telegramId=${userId}`)
       .then((data) => {
         setProfile(data);
+        setDeviceCount(data.deviceCount || 0);
         if (data.smsChannel) setChannelInput(data.smsChannel);
       })
       .catch(() =>

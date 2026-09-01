@@ -29,6 +29,45 @@ interface AuthContextValue extends AuthState {
 const AUTH_KEY = "cyberzone_auth";
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function revalidateSession(): Promise<AuthState | null> {
+  const stored = localStorage.getItem(AUTH_KEY);
+  if (!stored) return null;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(stored);
+  } catch {
+    return null;
+  }
+  if (!parsed.telegramId || !parsed.sessionId) return null;
+  try {
+    const r = await fetch("/api/auth/me", {
+      headers: {
+        Authorization: `Bearer ${parsed.telegramId}:${parsed.sessionId}`,
+      },
+    });
+    if (!r.ok) return null;
+    const me = await r.json();
+    return {
+      isAuthenticated: true,
+      userId: me.telegramId || parsed.telegramId,
+      isAdmin: !!me.isAdmin,
+      sessionId: me.sessionId || parsed.sessionId,
+      firebaseToken: parsed.firebaseToken || null,
+      username: me.username || parsed.username || "",
+    };
+  } catch {
+    // Network blip — keep the stored session rather than force-logging out.
+    return {
+      isAuthenticated: true,
+      userId: parsed.telegramId,
+      isAdmin: !!parsed.isAdmin,
+      sessionId: parsed.sessionId,
+      firebaseToken: parsed.firebaseToken || null,
+      username: parsed.username || "",
+    };
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     isAuthenticated: null,
@@ -40,24 +79,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    let alive = true;
     const stored = localStorage.getItem(AUTH_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setState({
-          isAuthenticated: true,
-          userId: parsed.telegramId || null,
-          isAdmin: parsed.isAdmin || false,
-          sessionId: parsed.sessionId || null,
-          firebaseToken: parsed.firebaseToken || null,
-          username: parsed.username || "",
-        });
-      } catch {
+    if (!stored) {
+      setState((s) => ({ ...s, isAuthenticated: false }));
+      return;
+    }
+    // Validate the session server-side on load so a refresh doesn't show a
+    // stale/revoked login.
+    revalidateSession().then((res) => {
+      if (!alive) return;
+      if (res) {
+        setState(res);
+      } else {
+        localStorage.removeItem(AUTH_KEY);
         setState((s) => ({ ...s, isAuthenticated: false }));
       }
-    } else {
-      setState((s) => ({ ...s, isAuthenticated: false }));
-    }
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const login = (data: {

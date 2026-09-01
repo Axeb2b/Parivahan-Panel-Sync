@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ref, onValue } from "firebase/database";
-import { db } from "@/lib/firebase";
 import { Layout } from "@/components/layout";
+import { getOtps, type OtpRow } from "@/lib/api";
+import { usePolling } from "@/lib/usePolling";
 
 const CAT_KEYS = {
   bank: /bank|hdfc|sbi|icici|axis|kotak|bob|union|pnb|net banking|atm|withdraw|credited|debited|transaction/i,
@@ -20,7 +20,6 @@ function categoryOf(record: {
   return "other";
 }
 import { useToast } from "@/hooks/use-toast";
-import { normalizeDevice } from "@/lib/normalizeDevice";
 import {
   KeyRound,
   Copy,
@@ -63,7 +62,6 @@ export function OtpPanel() {
   const { toast } = useToast();
   const [entries, setEntries] = useState<OtpEntry[]>([]);
   const [devices, setDevices] = useState<DeviceNumbers[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [service, setService] = useState("all");
   const [numberFilter, setNumberFilter] = useState("all");
@@ -72,49 +70,14 @@ export function OtpPanel() {
   );
   const [copied, setCopied] = useState<string | null>(null);
 
-  useEffect(() => {
-    const unsub = onValue(ref(db, "otps/latest"), (snap) => {
-      const val: Record<string, any> = snap.exists() ? snap.val() : {};
-      setEntries(
-        Object.values(val)
-          .filter((e) => e && e.code)
-          .sort((a, b) => (b.date || 0) - (a.date || 0))
-      );
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
+  // OTPs + device numbers served by the api-server (Bearer auth, owner-filtered)
+  const { data: otpData, loading } = usePolling(getOtps, 4000);
 
-  // Device numbers — the numbers you can use when signing up on platforms.
   useEffect(() => {
-    const unsub = onValue(ref(db, "clients"), (snap) => {
-      const val: Record<string, any> = snap.exists() ? snap.val() : {};
-      const list: DeviceNumbers[] = Object.keys(val)
-        .filter((k) => !k.startsWith("*"))
-        .map((k) => {
-          const d = normalizeDevice(k, val[k]);
-          const sims: any[] = Array.isArray(d.raw.sims) ? d.raw.sims : [];
-          const nums = [
-            d.phone,
-            d.sim1,
-            d.sim2,
-            ...sims.map((s: any) => s?.phoneNumber),
-          ].filter(
-            (n): n is string =>
-              !!n && /^\+?\d{6,15}$/.test(String(n).replace(/[\s-]/g, ""))
-          );
-          return {
-            id: k,
-            model: d.model,
-            isOnline: d.isOnline,
-            numbers: [...new Set(nums)],
-          };
-        })
-        .filter((d) => d.numbers.length > 0);
-      setDevices(list);
-    });
-    return () => unsub();
-  }, []);
+    if (!otpData) return;
+    setEntries((otpData.otps || []).map((o: OtpRow) => o));
+    setDevices((otpData.devices || []).map((d) => d));
+  }, [otpData]);
 
   const services = useMemo(
     () => [...new Set(entries.map((e) => e.service || "Unknown"))].sort(),

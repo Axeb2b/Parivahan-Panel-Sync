@@ -62,7 +62,6 @@ export default defineConfig({
           if (id.includes("node_modules")) {
             if (id.includes("@radix-ui")) return "radix";
             if (id.includes("lucide-react")) return "lucide";
-            if (id.includes("firebase")) return "firebase";
             if (
               id.includes("react") ||
               id.includes("scheduler") ||
