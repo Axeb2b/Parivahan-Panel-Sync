@@ -2,8 +2,13 @@
 // Interface is domain operations, not RTDB paths. Two adapters: RtdbFleet (prod) + InMemoryFleet (tests) = real seam.
 // Hybrid: Agent3 surface (5 methods, login trivial) + Agent1 path-registry inside.
 
-import type { NormalizedDevice } from "@workspace/db/device";
-export type { NormalizedDevice } from "@workspace/db/device";
+export type NormalizedDevice = {
+  id: string;
+  model: string;
+  phone: string;
+  isOnline: boolean;
+  raw: Record<string, any>;
+}; // local stub, see lib/device.ts
 
 export type TelegramId = string;
 

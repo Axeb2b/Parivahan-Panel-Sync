@@ -35,13 +35,11 @@ export interface NormalizedDevice {
   raw: Record<string, any>;
 }
 
+
 function parseJoinedTs(raw: Record<string, any>): number {
   const s = raw.joined;
   if (!s) return 0;
-  const m =
-    /(\d{2})\/(\d{2})\/(\d{4})\s*\|\s*(\d{1,2}):(\d{2})\s*(am|pm)/i.exec(
-      String(s)
-    );
+  const m = /(\d{2})\/(\d{2})\/(\d{4})\s*\|\s*(\d{1,2}):(\d{2})\s*(am|pm)/i.exec(String(s));
   if (!m) return 0;
   let h = parseInt(m[4], 10);
   const min = parseInt(m[5], 10);
@@ -116,10 +114,7 @@ export function normalizeDevice(
     isSdCard: raw.isSdCard,
     joined: raw.joined,
     joinedTs: parseJoinedTs(raw),
-    lastPing:
-      typeof raw.lastPing === "number"
-        ? raw.lastPing
-        : Number(raw.lastPing || 0) || undefined,
+    lastPing: typeof raw.lastPing === 'number' ? raw.lastPing : Number(raw.lastPing || 0) || undefined,
     label: raw.label,
     group: raw.group || "",
     deviceName: raw.deviceName || "",

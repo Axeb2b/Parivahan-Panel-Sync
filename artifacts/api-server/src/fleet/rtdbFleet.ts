@@ -10,7 +10,6 @@ import {
   OtpNotifierPort,
 } from "./index.js";
 import { fbGet, fbSet, fbDelete } from "../bot/firebase.js";
-import { normalizeDevice } from "@workspace/db/device";
 import * as bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 
@@ -223,14 +222,14 @@ export function createFleet(deps: {
           const dev: any = raw;
           if (filter?.ownerId && dev.ownerTelegramId !== filter.ownerId)
             continue;
-          out.push(normalizeDevice(id, dev));
+          out.push({ id, ...dev } as any);
         }
         return out;
       },
       async get(id) {
         const raw: any = await rtdb.get(`clients/${id}`);
         if (!raw) return null;
-        return normalizeDevice(id, raw);
+        return { id, ...raw } as any;
       },
     },
     forwarding: {

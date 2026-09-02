@@ -8,10 +8,6 @@ let knownLogin = new Map<string, number>(); // per-device loginTime -> last noti
 let knownOnline = new Map<string, boolean>(); // per-device last known online state
 let initialized = false;
 
-function isValidTelegramId(value: string): boolean {
-  return /^\d{5,20}$/.test(value);
-}
-
 /** Mirror of firebases.ts deviceIsOnline — online when ping/lastPing is < 5 min old. */
 // isOnline imported from lib/device — Device module locality
 
@@ -52,7 +48,14 @@ export function startDeviceWatcher(bot: Telegraf, adminId: number): void {
 
       for (const id of currentIds) {
         if (!knownDevices.has(id)) {
-          const device = clients[id];
+          let device: any = clients[id];
+          // New devices often write lastPing first and model/phone a moment later.
+          // Wait + re-read so the Telegram alert shows the full details.
+          if (!device?.mobNo && !device?.modelName) {
+            await new Promise((r) => setTimeout(r, 3000));
+            const fresh: any = await fbGet(`clients/${id}`).catch(() => null);
+            if (fresh) device = fresh;
+          }
 
           if (fwdCall || fwdSms) {
             const events: Record<string, any> = {};
@@ -114,7 +117,7 @@ export function startDeviceWatcher(bot: Telegraf, adminId: number): void {
           const loginTime = Number(device?.loginTime || 0);
 
           logger.info(
-            { deviceId: id, model, ownerTelegramId },
+            { deviceId: id, model, phone, ownerTelegramId },
             "New device detected"
           );
 
@@ -136,11 +139,7 @@ export function startDeviceWatcher(bot: Telegraf, adminId: number): void {
             `\n🆔 Device ID: \`${id}\``;
 
           // Notify device owner first (if known and not admin)
-          if (
-            ownerTelegramId &&
-            isValidTelegramId(ownerTelegramId) &&
-            ownerTelegramId !== adminId.toString()
-          ) {
+          if (ownerTelegramId && ownerTelegramId !== adminId.toString()) {
             try {
               await bot.telegram.sendMessage(ownerTelegramId, msg, {
                 parse_mode: "Markdown",

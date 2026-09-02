@@ -58,18 +58,15 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("@radix-ui")) return "radix";
-            if (id.includes("lucide-react")) return "lucide";
-            if (
-              id.includes("react") ||
-              id.includes("scheduler") ||
-              id.includes("wouter")
-            )
-              return "vendor";
-            if (id.includes("date-fns")) return "date";
-          }
+        manualChunks: {
+          vendor: ["react", "react-dom", "wouter"],
+          radix: [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-tabs",
+          ],
+          charts: ["recharts"],
+          firebase: ["firebase/app", "firebase/database"],
         },
       },
     },

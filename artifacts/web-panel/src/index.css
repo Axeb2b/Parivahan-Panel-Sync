@@ -1,6 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap");
-@import "tailwindcss";
-@import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -44,10 +44,13 @@
   --color-cyan: hsl(var(--cyan));
   --color-amber: hsl(var(--amber));
 
-  /* Dark-cyber theme: JetBrains Mono everywhere */
-  --font-sans: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display: "JetBrains Mono", ui-monospace, monospace;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Syne', 'Outfit', ui-sans-serif, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Motion tokens — strong custom curves (emilkowalski/skills) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -55,88 +58,87 @@
   --radius-xl: calc(var(--radius) + 6px);
 }
 
-/* ── Light theme fallback (toggleable) ─────────────────────────────── */
+/* ── Fleet telemetry theme (mobile-first) ─────────────────────────────── */
 :root {
-  color-scheme: light;
-  --background: 220 24% 96%;
-  --foreground: 220 22% 10%;
+  /* Canvas + ink */
+  --background: 210 20% 98%; /* #F6F8FB */
+  --foreground: 222 47% 11%; /* #0F172A */
 
-  --card: 0 0% 100%;
-  --card-foreground: 220 22% 10%;
-  --card-border: 220 14% 88%;
+  /* Surfaces */
+  --card: 0 0% 100%;          /* #FFFFFF */
+  --card-foreground: 222 47% 11%;
+  --card-border: 214 32% 91%; /* #E2E8F0 */
   --popover: 0 0% 100%;
-  --popover-foreground: 220 22% 10%;
-  --popover-border: 220 14% 88%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 214 32% 91%;
 
-  --border: 220 14% 86%;
-  --input: 220 14% 82%;
-  --ring: 174 70% 45%;
+  --border: 214 32% 91%;
+  --input: 214 28% 88%;
+  --ring: 239 84% 67%;
 
-  --primary: 174 85% 40%;
+  /* Brand */
+  --primary: 239 84% 60%;        /* #4F46E5 indigo */
   --primary-foreground: 0 0% 100%;
-  --secondary: 220 14% 92%;
-  --secondary-foreground: 220 22% 18%;
+  --secondary: 214 22% 94%;
+  --secondary-foreground: 222 47% 20%;
 
-  --muted: 220 14% 93%;
-  --muted-foreground: 220 10% 40%;
+  --muted: 214 22% 94%;
+  --muted-foreground: 215 16% 47%; /* #64748B slate */
 
-  --accent: 174 85% 40%;
+  --accent: 199 89% 48%;        /* #0EA5E9 teal — used sparingly */
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 72% 51%;
+  /* Signal colors */
+  --destructive: 0 72% 51%;      /* #DC2626 */
   --destructive-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
-  --warning-foreground: 220 22% 10%;
-  --success: 142 71% 45%;
+  --warning: 38 92% 50%;         /* #F59E0B */
+  --warning-foreground: 222 47% 11%;
+  --success: 142 71% 45%;        /* #16A34A */
   --success-foreground: 0 0% 100%;
 
-  --cyan: 174 85% 40%;
+  --cyan: 199 89% 48%;
   --amber: 38 92% 50%;
 
   --radius: 0.75rem;
 }
 
-/* ── Dark Cyber theme (default) ────────────────────────────────────── */
+/* ── Dark theme (default) ─────────────────────────────────────────────── */
 .dark {
   color-scheme: dark;
-  /* Canvas + ink */
-  --background: 220 22% 5%; /* #0B0C10 */
-  --foreground: 174 30% 92%;
+  --background: 228 32% 5%;     /* #070A12 deep navy-black */
+  --foreground: 220 24% 93%;    /* #E9EDF5 */
 
-  /* Surfaces */
-  --card: 220 16% 10%; /* #181A20 */
-  --card-foreground: 174 30% 92%;
-  --card-border: 220 14% 18%;
-  --popover: 220 16% 10%;
-  --popover-foreground: 174 30% 92%;
-  --popover-border: 220 14% 18%;
+  --card: 228 26% 8%;           /* #0C101B */
+  --card-foreground: 220 24% 93%;
+  --card-border: 228 20% 15%;   /* #1B2133 */
+  --popover: 228 26% 8%;
+  --popover-foreground: 220 24% 93%;
+  --popover-border: 228 20% 15%;
 
-  --border: 220 14% 16%;
-  --input: 220 14% 22%;
-  --ring: 174 90% 55%;
+  --border: 228 20% 15%;
+  --input: 228 18% 20%;
+  --ring: 245 90% 72%;
 
-  /* Brand — neon cyan */
-  --primary: 174 85% 61%; /* #45F0DF */
-  --primary-foreground: 220 30% 6%;
-  --secondary: 220 14% 14%;
-  --secondary-foreground: 174 30% 88%;
+  --primary: 244 88% 66%;       /* #6D63FF brighter indigo */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 228 20% 14%;
+  --secondary-foreground: 220 24% 90%;
 
-  --muted: 220 14% 12%;
-  --muted-foreground: 220 12% 55%;
+  --muted: 228 20% 13%;
+  --muted-foreground: 221 12% 62%; /* #95A0B8 */
 
-  --accent: 174 90% 55%;
-  --accent-foreground: 220 30% 6%;
+  --accent: 192 92% 56%;        /* #16C7F2 neon teal */
+  --accent-foreground: 0 0% 100%;
 
-  /* Signal colors */
-  --destructive: 0 72% 55%;
+  --destructive: 0 74% 58%;
   --destructive-foreground: 0 0% 100%;
-  --warning: 43 95% 58%;
-  --warning-foreground: 220 30% 8%;
-  --success: 152 75% 46%;
+  --warning: 39 96% 56%;
+  --warning-foreground: 228 32% 5%;
+  --success: 148 70% 50%;
   --success-foreground: 0 0% 100%;
 
-  --cyan: 174 90% 55%;
-  --amber: 43 95% 58%;
+  --cyan: 192 92% 56%;
+  --amber: 39 96% 56%;
 }
 
 @layer base {
@@ -151,25 +153,12 @@
     min-height: 100dvh;
   }
   /* Comfortable mobile tap targets */
-  button,
-  a,
-  [role="button"] {
+  button, a, [role="button"] {
     @apply select-none;
   }
-  input,
-  select,
-  textarea {
+  input, select, textarea {
     font-size: 16px; /* prevent iOS zoom on focus */
   }
-}
-
-/* Hide scrollbar for horizontally scrolling tab strips */
-.hide-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
 }
 
 /* Soft scrollbar */
@@ -188,7 +177,7 @@
   background: hsl(var(--muted-foreground));
 }
 
-/* ── Dark-cyber component classes ────────────────────────────────────── */
+/* ── Fleet telemetry component classes ─────────────────────────────────── */
 
 /* Page heading */
 .page-eyebrow {
@@ -198,34 +187,19 @@
   @apply font-display text-2xl font-bold tracking-tight text-foreground;
 }
 
-/* Surface card — glassmorphism */
+/* Surface card */
 .stat-card {
-  @apply rounded-2xl;
-  border: 1px solid hsl(var(--card-border));
-  background: hsl(var(--card) / 0.55);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  @apply bg-card border border-card-border rounded-2xl;
 }
 
 /* Signal status dots (telemetry) */
 .sig-dot {
   @apply inline-block w-2 h-2 rounded-full;
 }
-.sig-dot.online {
-  background: hsl(var(--success));
-  box-shadow: 0 0 0 4px hsl(var(--success) / 0.15);
-}
-.sig-dot.offline {
-  background: hsl(var(--muted-foreground));
-}
-.sig-dot.low {
-  background: hsl(var(--warning));
-  box-shadow: 0 0 0 4px hsl(var(--warning) / 0.18);
-}
-.sig-dot.danger {
-  background: hsl(var(--destructive));
-  box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.15);
-}
+.sig-dot.online { background: hsl(var(--success)); box-shadow: 0 0 0 4px hsl(var(--success) / 0.15); }
+.sig-dot.offline { background: hsl(var(--muted-foreground)); }
+.sig-dot.low { background: hsl(var(--warning)); box-shadow: 0 0 0 4px hsl(var(--warning) / 0.18); }
+.sig-dot.danger { background: hsl(var(--destructive)); box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.15); }
 
 /* Brand gradient text / mark */
 .brand-gradient {
@@ -252,10 +226,7 @@
 
 /* Legacy aliases kept for compatibility during the restyle pass */
 .glass-card {
-  @apply border-b border-card-border;
-  background: hsl(var(--card) / 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  @apply bg-card border-b border-card-border;
 }
 .btn-glow {
   box-shadow: 0 8px 24px -12px hsl(var(--primary) / 0.6);
@@ -263,105 +234,43 @@
 
 /* ── Micro-interactions ─────────────────────────────────────────────── */
 
-/* Cards lift 2px on hover */
-.card-lift {
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
+/* Buttons scale(0.98) on press; release animates back */
+button:not(:disabled) {
+  transition: transform 160ms var(--ease-out);
 }
-.card-lift:hover {
-  transform: translateY(-2px);
-}
-
-/* Buttons scale(0.98) on press */
 button:not(:disabled):active {
   transform: scale(0.98);
 }
 
-/* Tab-pane fade (0.2s opacity on switch) */
-.pane-fade {
-  animation: pane-fade 0.2s ease both;
-}
-@keyframes pane-fade {
-  from {
-    opacity: 0;
-    transform: translateY(2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Sliding gradient underline for active pills */
-.tab-underline {
-  position: absolute;
-  bottom: -1px;
-  left: 0.75rem;
-  right: 0.75rem;
-  height: 2px;
-  border-radius: 9999px;
-  background: linear-gradient(90deg, #45f0df, #0066ff);
-  box-shadow: 0 0 10px hsl(var(--accent) / 0.7);
-  animation: tab-slide 0.2s ease both;
-}
-@keyframes tab-slide {
-  from {
-    opacity: 0;
-    transform: scaleX(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-}
-
 /* ── Device card creative touches ─────────────────────────────────────── */
 @keyframes card-scan {
-  0% {
-    transform: translateY(-110%);
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(420%);
-    opacity: 0;
-  }
+  0%   { transform: translateY(-110%); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(420%); opacity: 0; }
 }
 .card-scan {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 45%;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    hsl(var(--success) / 0.07),
-    transparent
-  );
+  position: absolute; left: 0; right: 0; top: 0; height: 45%;
+  background: linear-gradient(to bottom, transparent, hsl(var(--success) / 0.07), transparent);
   animation: card-scan 4.5s ease-in-out infinite;
   pointer-events: none;
 }
-.card-scan-slow {
-  animation-duration: 7s;
-}
+.card-scan-slow { animation-duration: 7s; }
 
 @keyframes ring-glow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 2px hsl(var(--success) / 0.5));
-  }
-  50% {
-    filter: drop-shadow(0 0 8px hsl(var(--success) / 0.9));
-  }
+  0%, 100% { filter: drop-shadow(0 0 2px hsl(var(--success) / 0.5)); }
+  50%      { filter: drop-shadow(0 0 8px hsl(var(--success) / 0.9)); }
 }
-.ring-live {
-  animation: ring-glow 2.4s ease-in-out infinite;
+.ring-live { animation: ring-glow 2.4s ease-in-out infinite; }
+
+/* ── Reduced motion ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .card-scan,
+  .card-scan-slow,
+  .ring-live {
+    animation: none !important;
+  }
+  .animate-pulse {
+    animation-duration: 3s;
+  }
 }

@@ -44,6 +44,7 @@ function verifySig(req: any): boolean {
   }
 }
 
+
 async function sendSafe(chatId: string, msg: string) {
   const bot = getBot();
   if (!bot) return;

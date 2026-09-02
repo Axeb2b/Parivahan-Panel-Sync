@@ -22,10 +22,10 @@ export interface Plan {
 
 export const PLANS: Plan[] = [
   {
-    id: "FREE",
-    name: "Free",
-    price: "₹0",
-    tagline: "Basic SMS sync for one device",
+    id: 'FREE',
+    name: 'Free',
+    price: '₹0',
+    tagline: 'Basic SMS sync for one device',
     features: {
       deviceLimit: 1,
       financeScan: false,
@@ -36,10 +36,10 @@ export const PLANS: Plan[] = [
     },
   },
   {
-    id: "PRO",
-    name: "Pro",
-    price: "₹499/mo",
-    tagline: "Finance intelligence for serious users",
+    id: 'PRO',
+    name: 'Pro',
+    price: '₹499/mo',
+    tagline: 'Finance intelligence for serious users',
     popular: true,
     features: {
       deviceLimit: 5,
@@ -51,10 +51,10 @@ export const PLANS: Plan[] = [
     },
   },
   {
-    id: "VIP",
-    name: "VIP",
-    price: "₹999/mo",
-    tagline: "Everything, unlimited, priority",
+    id: 'VIP',
+    name: 'VIP',
+    price: '₹999/mo',
+    tagline: 'Everything, unlimited, priority',
     features: {
       deviceLimit: null,
       financeScan: true,
@@ -67,21 +67,17 @@ export const PLANS: Plan[] = [
 ];
 
 export function getPlan(id?: string | null): Plan {
-  const plan = PLANS.find((p) => p.id === (id || "").toUpperCase());
+  const plan = PLANS.find((p) => p.id === (id || '').toUpperCase());
   return plan || PLANS[1];
 }
 
 export function planFeatureLabels(f: PlanFeatures): string[] {
   const labels: string[] = [];
-  labels.push(
-    f.deviceLimit === null
-      ? "Unlimited devices"
-      : `${f.deviceLimit} device${f.deviceLimit === 1 ? "" : "s"}`
-  );
-  if (f.financeScan) labels.push("Bank & finance SMS sorting");
-  if (f.smsInfo) labels.push("Amounts, banks & transaction info");
-  if (f.multiFirebase) labels.push("Multi-Firebase aggregation");
-  if (f.apkAccess) labels.push("APK downloads");
-  if (f.prioritySupport) labels.push("Priority support");
+  labels.push(f.deviceLimit === null ? 'Unlimited devices' : `${f.deviceLimit} device${f.deviceLimit === 1 ? '' : 's'}`);
+  if (f.financeScan) labels.push('Bank & finance SMS sorting');
+  if (f.smsInfo) labels.push('Amounts, banks & transaction info');
+  if (f.multiFirebase) labels.push('Multi-Firebase aggregation');
+  if (f.apkAccess) labels.push('APK downloads');
+  if (f.prioritySupport) labels.push('Priority support');
   return labels;
 }

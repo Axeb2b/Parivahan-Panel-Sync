@@ -1,10 +1,5 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { signInWithFirebaseToken } from '@/lib/firebase';
 
 interface AuthState {
   isAuthenticated: boolean | null;
@@ -16,98 +11,60 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (data: {
-    telegramId: string;
-    isAdmin: boolean;
-    username: string;
-    sessionId?: string;
-    firebaseToken?: string | null;
-  }) => void;
+  login: (data: { telegramId: string; isAdmin: boolean; username: string; sessionId?: string; firebaseToken?: string | null }) => void;
   logout: () => void;
 }
 
-const AUTH_KEY = "cyberzone_auth";
+const AUTH_KEY = 'cyberzone_auth';
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-async function revalidateSession(): Promise<AuthState | null> {
-  const stored = localStorage.getItem(AUTH_KEY);
-  if (!stored) return null;
-  let parsed: any;
-  try {
-    parsed = JSON.parse(stored);
-  } catch {
-    return null;
-  }
-  if (!parsed.telegramId || !parsed.sessionId) return null;
-  try {
-    const r = await fetch("/api/auth/me", {
-      headers: {
-        Authorization: `Bearer ${parsed.telegramId}:${parsed.sessionId}`,
-      },
-    });
-    if (!r.ok) return null;
-    const me = await r.json();
-    return {
-      isAuthenticated: true,
-      userId: me.telegramId || parsed.telegramId,
-      isAdmin: !!me.isAdmin,
-      sessionId: me.sessionId || parsed.sessionId,
-      firebaseToken: parsed.firebaseToken || null,
-      username: me.username || parsed.username || "",
-    };
-  } catch {
-    // Network blip — keep the stored session rather than force-logging out.
-    return {
-      isAuthenticated: true,
-      userId: parsed.telegramId,
-      isAdmin: !!parsed.isAdmin,
-      sessionId: parsed.sessionId,
-      firebaseToken: parsed.firebaseToken || null,
-      username: parsed.username || "",
-    };
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     isAuthenticated: null,
     userId: null,
     isAdmin: false,
-    username: "",
+    username: '',
     sessionId: null,
     firebaseToken: null,
   });
 
   useEffect(() => {
-    let alive = true;
     const stored = localStorage.getItem(AUTH_KEY);
-    if (!stored) {
-      setState((s) => ({ ...s, isAuthenticated: false }));
-      return;
-    }
-    // Validate the session server-side on load so a refresh doesn't show a
-    // stale/revoked login.
-    revalidateSession().then((res) => {
-      if (!alive) return;
-      if (res) {
-        setState(res);
-      } else {
-        localStorage.removeItem(AUTH_KEY);
-        setState((s) => ({ ...s, isAuthenticated: false }));
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setState({
+          isAuthenticated: true,
+          userId: parsed.telegramId || null,
+          isAdmin: parsed.isAdmin || false,
+          sessionId: parsed.sessionId || null,
+          firebaseToken: parsed.firebaseToken || null,
+          username: parsed.username || '',
+        });
+        if (parsed.firebaseToken) {
+          void signInWithFirebaseToken(parsed.firebaseToken);
+        } else {
+          // No stored token (older session) — mint one from the server and sign in.
+          void (async () => {
+            try {
+              const r = await fetch("/api/auth/firebase-token?telegramId=" + encodeURIComponent(parsed.telegramId || ""), { headers: authHeaders() });
+              const d = await r.json();
+              if (d.firebaseToken) {
+                localStorage.setItem(AUTH_KEY, JSON.stringify({ ...parsed, firebaseToken: d.firebaseToken }));
+                await signInWithFirebaseToken(d.firebaseToken);
+              }
+            } catch { /* ignore */ }
+          })();
+        }
+      } catch {
+        setState(s => ({ ...s, isAuthenticated: false }));
       }
-    });
-    return () => {
-      alive = false;
-    };
+    } else {
+      setState(s => ({ ...s, isAuthenticated: false }));
+    }
   }, []);
 
-  const login = (data: {
-    telegramId: string;
-    isAdmin: boolean;
-    username: string;
-    sessionId?: string;
-    firebaseToken?: string | null;
-  }) => {
+  const login = (data: { telegramId: string; isAdmin: boolean; username: string; sessionId?: string; firebaseToken?: string | null }) => {
     localStorage.setItem(AUTH_KEY, JSON.stringify(data));
     setState({
       isAuthenticated: true,
@@ -121,14 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem(AUTH_KEY);
-    setState({
-      isAuthenticated: false,
-      userId: null,
-      isAdmin: false,
-      username: "",
-      sessionId: null,
-      firebaseToken: null,
-    });
+    setState({ isAuthenticated: false, userId: null, isAdmin: false, username: '', sessionId: null, firebaseToken: null });
   };
 
   return (
@@ -140,6 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }

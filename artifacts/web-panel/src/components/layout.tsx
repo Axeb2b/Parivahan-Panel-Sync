@@ -1,15 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLocation, Link } from "wouter";
-import { useSearch } from "@/lib/search";
 import {
   LogOut,
-  Zap,
+  Crown,
+  LayoutGrid,
+  MessageSquare,
+  Send,
   Search,
+  Settings,
+  Zap,
+  ScanLine,
+  KeyRound,
+  Database,
   Sun,
   Moon,
-  ChevronsLeft,
-  ChevronsRight,
+  Menu,
+  X,
 } from "lucide-react";
 
 const THEME_KEY = "harryaxe-theme";
@@ -21,82 +28,14 @@ function getInitialTheme(): "dark" | "light" {
   } catch {
     /* ignore */
   }
-  return "dark"; // dark cyber is the default look
+  return "dark"; // dark tech is the default look
 }
-
-interface NavItem {
-  href: string;
-  label: string;
-  fa: string; // FontAwesome class, e.g. "fa-microchip"
-  adminOnly: boolean;
-}
-
-const navGroups: { label: string; links: NavItem[] }[] = [
-  {
-    label: "Fleet",
-    links: [
-      {
-        href: "/dashboard",
-        label: "Devices",
-        fa: "fa-microchip",
-        adminOnly: false,
-      },
-      { href: "/all-sms", label: "SMS", fa: "fa-envelope", adminOnly: false },
-      { href: "/otps", label: "OTP", fa: "fa-key", adminOnly: false },
-      { href: "/data", label: "Data", fa: "fa-database", adminOnly: false },
-    ],
-  },
-  {
-    label: "Management",
-    links: [
-      {
-        href: "/subscriptions",
-        label: "Users",
-        fa: "fa-user-group",
-        adminOnly: true,
-      },
-      {
-        href: "/telegram",
-        label: "Telegram",
-        fa: "fa-paper-plane",
-        adminOnly: false,
-      },
-      {
-        href: "/apk-studio",
-        label: "APK Studio",
-        fa: "fa-box-open",
-        adminOnly: false,
-      },
-      {
-        href: "/firebases",
-        label: "Firebases",
-        fa: "fa-fire",
-        adminOnly: true,
-      },
-    ],
-  },
-  {
-    label: "Tools",
-    links: [
-      {
-        href: "/user-search",
-        label: "Search",
-        fa: "fa-magnifying-glass",
-        adminOnly: false,
-      },
-      { href: "/tool", label: "Aadhaar", fa: "fa-id-card", adminOnly: false },
-      { href: "/pam", label: "PAM", fa: "fa-robot", adminOnly: false },
-      { href: "/profile", label: "Profile", fa: "fa-gear", adminOnly: false },
-    ],
-  },
-];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAdmin, username } = useAuth();
   const [location, setLocation] = useLocation();
   const [theme, setTheme] = useState<"dark" | "light">(getInitialTheme);
-  const [collapsed, setCollapsed] = useState(false);
-  const { query, setQuery, searchRef, focusSearch } = useSearch();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -108,12 +47,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
+    // Close the mobile drawer when the route changes
+    setDrawerOpen(false);
+  }, [location]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        focusSearch();
-      }
-      if (e.key === "Escape") setCollapsed(false);
+      if (e.key === "Escape") setDrawerOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -124,14 +64,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setLocation("/");
   };
 
-  const visibleGroups = navGroups
-    .map((g) => ({
-      ...g,
-      links: g.links.filter((l) => !l.adminOnly || isAdmin),
-    }))
-    .filter((g) => g.links.length > 0);
+  const navLinks = [
+    {
+      href: "/dashboard",
+      label: "Devices",
+      icon: LayoutGrid,
+      adminOnly: false,
+    },
+    { href: "/all-sms", label: "SMS", icon: MessageSquare, adminOnly: false },
+    { href: "/otps", label: "OTP", icon: KeyRound, adminOnly: false },
+    { href: "/firebases", label: "Firebases", icon: Database, adminOnly: true },
+    { href: "/data", label: "Data", icon: ScanLine, adminOnly: false },
+    { href: "/subscriptions", label: "Users", icon: Crown, adminOnly: true },
+    { href: "/telegram", label: "Telegram", icon: Send, adminOnly: false },
+    { href: "/apk-studio", label: "APK Studio", icon: Zap, adminOnly: false },
+    { href: "/user-search", label: "Search", icon: Search, adminOnly: false },
+    { href: "/profile", label: "Profile", icon: Settings, adminOnly: false },
+  ];
 
-  const visibleLinks = visibleGroups.flatMap((g) => g.links);
+  const visibleLinks = navLinks.filter((l) => !l.adminOnly || isAdmin);
 
   const isActive = (href: string) =>
     location === href || location.startsWith(href + "/");
@@ -151,208 +102,142 @@ export function Layout({ children }: { children: React.ReactNode }) {
     </button>
   );
 
-  const SearchBox = () => (
-    <div className="relative w-full">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-      <input
-        ref={searchRef}
-        data-search
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search phone, model, UPI, IP…"
-        aria-label="Global search"
-        className="w-full bg-card/70 border border-card-border rounded-xl py-2 pl-9 pr-14 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition-all"
-      />
-      <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-md bg-muted border border-card-border text-[10px] font-mono text-muted-foreground">
-        Ctrl K
-      </kbd>
-    </div>
-  );
-
-  const UserChip = ({ showLabel = true }: { showLabel?: boolean }) => (
-    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center text-[10px] font-bold uppercase shrink-0">
-        {(username || "U").slice(0, 1)}
-      </span>
-      {showLabel && (
-        <span className="truncate">
-          {isAdmin ? "Admin" : username || "User"}
-        </span>
-      )}
-    </div>
+  const NavList = ({ onNavigate }: { onNavigate?: () => void }) => (
+    <>
+      {visibleLinks.map(({ href, label, icon: Icon }) => {
+        const active = isActive(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            onClick={onNavigate}
+            className={`nav-chip px-3 py-2.5 ${active ? "nav-chip-active" : "nav-chip-idle hover:bg-muted"}`}
+          >
+            <Icon className="w-[18px] h-[18px]" />
+            <span>{label}</span>
+          </Link>
+        );
+      })}
+    </>
   );
 
   return (
     <div className="min-h-dvh bg-background text-foreground font-sans md:flex">
-      {/* ── Desktop sidebar (collapsible to 64px icons-only) ── */}
-      <aside
-        className={`hidden md:flex flex-col sticky top-0 h-dvh bg-card border-r border-card-border transition-[width] duration-200 shrink-0 ${
-          collapsed ? "w-16" : "w-60"
-        }`}
-      >
-        <div
-          className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} px-3 py-5 mb-4`}
-        >
-          <Link
-            href="/dashboard"
-            title="HARRYAXE"
-            className={`flex items-center gap-3 min-w-0 ${collapsed ? "justify-center w-full" : "px-1"}`}
-          >
-            <span className="brand-mark w-9 h-9 rounded-xl shrink-0 shadow-sm shadow-primary/30">
-              <Zap className="w-4 h-4" />
+      {/* ── Desktop sidebar ── */}
+      <aside className="hidden md:flex flex-col w-60 shrink-0 sticky top-0 h-dvh bg-card border-r border-card-border px-4 py-5">
+        <Link href="/dashboard" className="flex items-center gap-3 mb-8 px-2">
+          <span className="brand-mark w-10 h-10 rounded-xl shadow-sm shadow-primary/30">
+            <Zap className="w-5 h-5" />
+          </span>
+          <span className="flex flex-col leading-tight">
+            <span className="font-display font-bold text-lg tracking-tight brand-gradient">
+              HARRYAXE
             </span>
-            {!collapsed && (
-              <span className="flex flex-col leading-tight min-w-0">
-                <span className="font-display font-bold text-lg tracking-tight brand-gradient truncate">
-                  HARRYAXE
-                </span>
-                <span className="page-eyebrow">Control Panel</span>
-              </span>
-            )}
-          </Link>
-          {!collapsed && (
-            <button
-              onClick={() => setCollapsed(true)}
-              aria-label="Collapse sidebar"
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+            <span className="page-eyebrow">Control Panel</span>
+          </span>
+        </Link>
 
-        {collapsed && (
-          <button
-            onClick={() => setCollapsed(false)}
-            aria-label="Expand sidebar"
-            className="mx-2 mb-2 flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors self-center"
-          >
-            <ChevronsRight className="w-4 h-4" />
-          </button>
-        )}
-
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2">
-          {visibleGroups.map((group) => (
-            <div key={group.label} className="mb-4">
-              {!collapsed && (
-                <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                  {group.label}
-                </p>
-              )}
-              <div className="space-y-1">
-                {group.links.map(({ href, label, fa }) => {
-                  const active = isActive(href);
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      title={collapsed ? label : undefined}
-                      className={`nav-chip ${collapsed ? "justify-center px-0" : "px-3"} py-2.5 ${active ? "nav-chip-active" : "nav-chip-idle hover:bg-muted"}`}
-                    >
-                      <i
-                        className={`fa-solid ${fa} fa-fw ${collapsed ? "text-base" : "text-[15px]"}`}
-                      />
-                      {!collapsed && <span>{label}</span>}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        <nav className="flex-1 flex flex-col gap-1">
+          <NavList />
         </nav>
 
-        <div className="mt-4 pt-4 border-t border-card-border space-y-1 px-2">
-          <div
-            className={`flex items-center gap-2 py-2 text-xs font-medium text-muted-foreground ${
-              collapsed ? "justify-center" : "px-2"
-            }`}
-          >
-            <UserChip showLabel={!collapsed} />
-            {!collapsed && (
-              <span className="ml-auto">
-                <ThemeButton />
-              </span>
-            )}
+        <div className="mt-4 pt-4 border-t border-card-border space-y-1">
+          <div className="px-3 py-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center text-[10px] font-bold uppercase">
+              {(username || "U").slice(0, 1)}
+            </span>
+            <span className="truncate">
+              {isAdmin ? "Admin" : username || "User"}
+            </span>
+            <span className="ml-auto">
+              <ThemeButton />
+            </span>
           </div>
           <button
             onClick={handleLogout}
-            title={collapsed ? "Logout" : undefined}
-            className={`nav-chip w-full ${collapsed ? "justify-center px-0" : "px-3"} py-2.5 nav-chip-idle hover:text-destructive hover:bg-destructive/10`}
+            className="nav-chip px-3 py-2.5 w-full text-left nav-chip-idle hover:text-destructive hover:bg-destructive/10"
           >
             <LogOut className="w-[18px] h-[18px]" />
-            {!collapsed && <span>Logout</span>}
+            <span>Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* ── Right column: header(s) + content ── */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* Desktop top header with global search */}
-        <header className="hidden md:flex sticky top-0 z-30 glass-card border-b border-card-border items-center gap-4 px-6 h-16">
-          <div className="w-full max-w-md flex-1">
-            <SearchBox />
-          </div>
-          <div className="ml-auto flex items-center gap-3">
-            <UserChip />
-            <ThemeButton />
-          </div>
-        </header>
+      {/* ── Mobile top bar ── */}
+      <header className="md:hidden sticky top-0 z-30 glass-card flex items-center justify-between px-4 h-14">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <span className="brand-mark w-8 h-8 rounded-lg shadow-sm shadow-primary/30">
+            <Zap className="w-4 h-4" />
+          </span>
+          <span className="flex flex-col leading-tight">
+            <span className="font-display font-bold text-base tracking-tight brand-gradient">
+              HARRYAXE
+            </span>
+            <span className="page-eyebrow" style={{ fontSize: 9 }}>
+              Control Panel
+            </span>
+          </span>
+        </Link>
+        <div className="flex items-center gap-1.5">
+          <ThemeButton />
+          <button
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-muted-foreground active:bg-muted transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
+      </header>
 
-        {/* Mobile top bar + search */}
-        <header className="md:hidden sticky top-0 z-30 glass-card border-b border-card-border">
-          <div className="flex items-center justify-between px-4 h-14">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <span className="brand-mark w-8 h-8 rounded-lg shadow-sm shadow-primary/30">
-                <Zap className="w-4 h-4" />
+      {/* ── Mobile drawer (slide-in, accessible from the top bar) ── */}
+      {drawerOpen && (
+        <div className="md:hidden fixed inset-0 z-40">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <div className="absolute right-0 top-0 bottom-0 w-72 max-w-[85vw] bg-card border-l border-card-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-card-border">
+              <span className="font-display font-bold tracking-tight brand-gradient">
+                HARRYAXE
               </span>
-              <span className="flex flex-col leading-tight">
-                <span className="font-display font-bold text-base tracking-tight brand-gradient">
-                  HARRYAXE
+              <button
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close menu"
+                className="flex items-center justify-center w-9 h-9 rounded-full text-muted-foreground active:bg-muted"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+              <NavList onNavigate={() => setDrawerOpen(false)} />
+            </div>
+            <div className="px-3 py-4 border-t border-card-border space-y-1">
+              <div className="px-3 py-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center text-[10px] font-bold uppercase">
+                  {(username || "U").slice(0, 1)}
                 </span>
-                <span className="page-eyebrow" style={{ fontSize: 9 }}>
-                  Control Panel
+                <span className="truncate">
+                  {isAdmin ? "Admin" : username || "User"}
                 </span>
-              </span>
-            </Link>
-            <ThemeButton />
+              </div>
+              <button
+                onClick={handleLogout}
+                className="nav-chip px-3 py-2.5 w-full text-left nav-chip-idle hover:text-destructive hover:bg-destructive/10"
+              >
+                <LogOut className="w-[18px] h-[18px]" />
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
-          <div className="px-4 pb-3">
-            <SearchBox />
-          </div>
-        </header>
+        </div>
+      )}
 
-        {/* Page content */}
-        <main className="flex-1 min-w-0 overflow-x-hidden px-4 md:px-8 py-5 pb-28 md:py-8 md:pb-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
-        </main>
-      </div>
-
-      {/* ── Mobile bottom nav (<768px) ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-card border-t border-card-border border-b-0 flex items-stretch pb-[env(safe-area-inset-bottom)]">
-        {visibleLinks.map(({ href, label, fa }) => {
-          const active = isActive(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[9px] font-medium transition-colors min-w-0 ${
-                active ? "text-accent" : "text-muted-foreground"
-              }`}
-            >
-              <i className={`fa-solid ${fa} fa-fw text-[15px]`} />
-              <span className="truncate w-full text-center">{label}</span>
-            </Link>
-          );
-        })}
-        <button
-          onClick={handleLogout}
-          className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-2 py-2 text-[9px] font-medium text-muted-foreground transition-colors"
-        >
-          <LogOut className="w-[15px] h-[15px]" />
-          <span>Logout</span>
-        </button>
-      </nav>
+      {/* ── Page content ── */}
+      <main className="flex-1 min-w-0 overflow-x-hidden px-4 md:px-8 py-5 md:py-8">
+        <div className="max-w-7xl mx-auto">{children}</div>
+      </main>
     </div>
   );
 }

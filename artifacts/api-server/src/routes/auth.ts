@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { mintFirebaseToken } from "../lib/firebaseAdmin";
 import {
   findUserByEmail,
   setOtp,
@@ -67,10 +68,12 @@ router.post("/auth/login", authLimiter, async (req, res) => {
           .status(403)
           .json({ error: "Subscription expired. Contact admin." });
       if (e.code === "UNAVAILABLE")
-        return res.status(500).json({
-          error:
-            "Could not send OTP via Telegram. Please start the bot first: /start",
-        });
+        return res
+          .status(500)
+          .json({
+            error:
+              "Could not send OTP via Telegram. Please start the bot first: /start",
+          });
       throw e;
     }
   } catch (err) {
@@ -139,6 +142,19 @@ router.post("/auth/verify-otp", authLimiter, async (req, res) => {
   }
 });
 
+// GET /api/auth/firebase-token — mint a fresh Firebase custom token for the authed user
+router.get("/auth/firebase-token", async (req, res) => {
+  try {
+    const auth = (req as any).auth as { telegramId?: string } | undefined;
+    const tid = auth?.telegramId || String(req.query.telegramId || "");
+    if (!tid) return res.status(400).json({ error: "telegramId required" });
+    const firebaseToken = await mintFirebaseToken(tid).catch(() => null);
+    return res.json({ firebaseToken });
+  } catch {
+    return res.status(500).json({ error: "Server error." });
+  }
+});
+
 // GET /api/auth/sessions — list all login sessions for a user
 router.get("/auth/sessions", async (req, res) => {
   try {
@@ -193,9 +209,11 @@ router.put("/auth/change-password", async (req, res) => {
     };
 
     if (!email || !currentPassword || !newPassword) {
-      return res.status(400).json({
-        error: "email, currentPassword and newPassword are required.",
-      });
+      return res
+        .status(400)
+        .json({
+          error: "email, currentPassword and newPassword are required.",
+        });
     }
 
     if (newPassword.length < 4) {
@@ -238,23 +256,6 @@ router.get("/auth/profile", async (req, res) => {
 
     const isAdmin = isAdminTg(telegramId);
 
-    // Count devices visible to this user (admin = all)
-    let deviceCount = 0;
-    const clients = await fbGet("clients").catch(() => null);
-    if (clients && typeof clients === "object") {
-      const keys = Object.keys(clients as Record<string, any>).filter(
-        (k) => !k.startsWith("*")
-      );
-      if (isAdmin) {
-        deviceCount = keys.length;
-      } else {
-        deviceCount = keys.filter(
-          (k) =>
-            (clients as Record<string, any>)[k]?.ownerTelegramId === telegramId
-        ).length;
-      }
-    }
-
     if (isAdmin) {
       const adminCfg = await fbGet("config/admin");
       const smsChannel = await fbGet("config/smsChannel");
@@ -263,7 +264,6 @@ router.get("/auth/profile", async (req, res) => {
         username: adminCfg?.username || "Admin",
         email: adminCfg?.email || "",
         smsChannel: smsChannel?.channelId || null,
-        deviceCount,
       });
     }
 
@@ -279,7 +279,6 @@ router.get("/auth/profile", async (req, res) => {
       plan: sub.plan || "",
       status: sub.status || "expired",
       expiresAt: sub.expiresAt || null,
-      deviceCount,
     });
   } catch {
     return res.status(500).json({ error: "Server error." });
@@ -307,44 +306,6 @@ router.post("/auth/set-channel", async (req, res) => {
     const { setSmsChannel } = await import("../bot/firebase");
     await setSmsChannel(channelId);
     return res.json({ success: true, message: "Channel set." });
-  } catch {
-    return res.status(500).json({ error: "Server error." });
-  }
-});
-
-// GET /api/auth/me — current session via Bearer token
-router.get("/auth/me", async (req, res) => {
-  try {
-    const hdr = req.headers.authorization;
-    if (!hdr) return res.status(401).json({ error: "No token" });
-    const m = /^Bearer\s+(.+)$/i.exec(hdr);
-    if (!m) return res.status(401).json({ error: "Invalid token" });
-    const token = m[1];
-    const idx = token.indexOf(":");
-    if (idx <= 0) return res.status(401).json({ error: "Invalid token" });
-    const telegramId = token.slice(0, idx);
-    const sessionId = token.slice(idx + 1);
-    const isAdmin = isAdminTg(telegramId);
-    // Fire session check + profile lookup in parallel.
-    const [sessions, adminCfg, sub] = await Promise.all([
-      fbGet(`config/sessions/${telegramId}`).catch(() => null),
-      isAdmin ? fbGet("config/admin").catch(() => null) : Promise.resolve(null),
-      isAdmin
-        ? Promise.resolve(null)
-        : fbGet(`subscriptions/${telegramId}`).catch(() => null),
-    ]);
-    const session = sessions?.[sessionId];
-    if (!session) return res.status(401).json({ error: "Invalid session" });
-    let username = "User";
-    let email = "";
-    if (isAdmin) {
-      username = adminCfg?.username || "Admin";
-      email = adminCfg?.email || "";
-    } else if (sub) {
-      username = sub.username || "User";
-      email = sub.email || "";
-    }
-    return res.json({ telegramId, username, email, isAdmin, sessionId });
   } catch {
     return res.status(500).json({ error: "Server error." });
   }

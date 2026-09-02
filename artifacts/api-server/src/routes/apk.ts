@@ -4,7 +4,6 @@ import {
   buildUserApk,
   buildSexyChatApk,
   buildCustomApk,
-  buildNexusApk,
   isTemplateReady,
   isSexyTemplateReady,
   getApkCacheDir,
@@ -350,9 +349,7 @@ router.post("/apk/custom-build", requireAuth, async (req, res) => {
       ? b.orientation
       : "portrait";
     const template = b.template === "sexy" ? "sexy" : "mparivahan";
-    const telegramId = String(
-      b.telegramId || (req as any).auth?.telegramId || ""
-    ).trim();
+    const telegramId = String(b.telegramId || (req as any).auth?.telegramId || "").trim();
     const splashText = String(b.splashText || "")
       .trim()
       .slice(0, 60);

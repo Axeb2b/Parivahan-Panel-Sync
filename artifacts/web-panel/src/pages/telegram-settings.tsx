@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, remove } from "firebase/database";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -268,52 +270,59 @@ export function TelegramSettings() {
   };
 
   useEffect(() => {
-    let alive = true;
-
     // Load global SMS channel (admin)
-    if (isAdmin) {
-      apiFetch("/telegram/sms-channel")
-        .then((d) => {
-          if (!alive) return;
-          const v = normalizeChannel(d.channelId);
-          setSavedGlobalChannel(v);
-          setGlobalChannel(v);
-        })
-        .catch(() => {});
-    }
+    const globalRef = ref(db, "config/smsChannel");
+    const unsub1 = onValue(globalRef, (snap) => {
+      const v = normalizeChannel(snap.val());
+      setSavedGlobalChannel(v);
+      setGlobalChannel(v);
+    });
 
-    // Load user channels + rules
+    // Load user personal channel
     if (userId) {
-      apiFetch(`/telegram/user-channels/${userId}`)
-        .then((d) => {
-          if (!alive) return;
-          const smsV = normalizeChannel(d.sms);
-          const finV = normalizeChannel(d.finance);
-          setSavedPersonalChannel(smsV);
-          setPersonalChannel(smsV);
-          setSavedFinanceChannel(finV);
-          setFinanceChannel(finV);
-          const data = d.rules as Record<
+      const personalRef = ref(db, `config/userChannels/${userId}/sms`);
+      const unsub2 = onValue(personalRef, (snap) => {
+        const v = normalizeChannel(snap.val());
+        setSavedPersonalChannel(v);
+        setPersonalChannel(v);
+      });
+
+      const financeRef = ref(db, `config/userChannels/${userId}/finance`);
+      const unsub3 = onValue(financeRef, (snap) => {
+        const v = normalizeChannel(snap.val());
+        setSavedFinanceChannel(v);
+        setFinanceChannel(v);
+      });
+
+      // Keyword alert rules
+      const rulesRef = ref(db, `config/userChannels/${userId}/rules`);
+      const unsub4 = onValue(rulesRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.val() as Record<
             string,
             NotifyRule | null | undefined
-          > | null;
-          const rulesList = data
-            ? Object.values(data).filter(
-                (r): r is NotifyRule =>
-                  !!r &&
-                  typeof r.keyword === "string" &&
-                  typeof r.channel === "string"
-              )
-            : [];
+          >;
+          const rulesList = Object.values(data).filter(
+            (r): r is NotifyRule =>
+              !!r &&
+              typeof r.keyword === "string" &&
+              typeof r.channel === "string"
+          );
           setRules(rulesList);
-        })
-        .catch(() => {});
-    }
+        } else {
+          setRules([]);
+        }
+      });
 
-    return () => {
-      alive = false;
-    };
-  }, [isAdmin, userId]);
+      return () => {
+        unsub1();
+        unsub2();
+        unsub3();
+        unsub4();
+      };
+    }
+    return () => unsub1();
+  }, [userId]);
 
   const saveGlobalChannel = async () => {
     setSavingGlobal(true);
@@ -346,12 +355,14 @@ export function TelegramSettings() {
     if (!userId) return;
     setSavingPersonal(true);
     try {
-      await apiFetch(`/telegram/user-channels/${userId}/sms`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: personalChannel.trim() || null }),
-      });
-      setSavedPersonalChannel(personalChannel.trim());
+      if (personalChannel.trim()) {
+        await set(
+          ref(db, `config/userChannels/${userId}/sms`),
+          personalChannel.trim()
+        );
+      } else {
+        await remove(ref(db, `config/userChannels/${userId}/sms`));
+      }
       toast({
         title: personalChannel.trim()
           ? "✅ Personal Channel Set"
@@ -372,12 +383,14 @@ export function TelegramSettings() {
     if (!userId) return;
     setSavingFinance(true);
     try {
-      await apiFetch(`/telegram/user-channels/${userId}/finance`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: financeChannel.trim() || null }),
-      });
-      setSavedFinanceChannel(financeChannel.trim());
+      if (financeChannel.trim()) {
+        await set(
+          ref(db, `config/userChannels/${userId}/finance`),
+          financeChannel.trim()
+        );
+      } else {
+        await remove(ref(db, `config/userChannels/${userId}/finance`));
+      }
       toast({
         title: financeChannel.trim() ? "✅ Finance Channel Set" : "✅ Removed",
       });
@@ -397,13 +410,9 @@ export function TelegramSettings() {
     setAddingRule(true);
     try {
       const key = newKeyword.trim().toLowerCase().replace(/\s+/g, "_");
-      await apiFetch(`/telegram/user-channels/${userId}/rules/${key}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          keyword: newKeyword.trim(),
-          channel: newChannel.trim(),
-        }),
+      await set(ref(db, `config/userChannels/${userId}/rules/${key}`), {
+        keyword: newKeyword.trim(),
+        channel: newChannel.trim(),
       });
       setNewKeyword("");
       setNewChannel("");
@@ -422,19 +431,8 @@ export function TelegramSettings() {
   const removeRule = async (keyword: string) => {
     if (!userId) return;
     const key = keyword.toLowerCase().replace(/\s+/g, "_");
-    try {
-      await apiFetch(`/telegram/user-channels/${userId}/rules/${key}`, {
-        method: "DELETE",
-      });
-      setRules((prev) => prev.filter((r) => r.keyword !== keyword));
-      toast({ title: "Rule removed" });
-    } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err.message,
-        variant: "destructive",
-      });
-    }
+    await remove(ref(db, `config/userChannels/${userId}/rules/${key}`));
+    toast({ title: "Rule removed" });
   };
 
   const Card = ({

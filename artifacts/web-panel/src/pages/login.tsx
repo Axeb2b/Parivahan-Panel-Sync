@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
+import { signInWithFirebaseToken } from "@/lib/firebase";
 import { Mail, Lock, ArrowRight, Loader2, Zap } from "lucide-react";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
@@ -159,6 +160,7 @@ export function Login() {
         sessionId: data.sessionId || sessionId,
         firebaseToken: data.firebaseToken || null,
       });
+      void signInWithFirebaseToken(data.firebaseToken);
       setLocation("/dashboard");
     } catch {
       setError("Could not connect to server. Try again.");

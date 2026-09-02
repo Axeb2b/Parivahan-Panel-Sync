@@ -8,7 +8,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
-app.set("trust proxy", 1);
+app.set('trust proxy', 1);
 app.disable("x-powered-by");
 
 app.use(
@@ -30,40 +30,15 @@ app.use(
     },
   })
 );
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false,
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        connectSrc: ["'self'", "https://*.firebaseio.com"],
-        imgSrc: ["'self'", "data:", "blob:"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      },
-    },
-  })
-);
+app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors());
-// Rate limit: 100 req/15min per IP (fleet locality: one place).
-// High-frequency panel polling + health checks are exempt or the live panel
-// throttles itself.
+// Rate limit: 100 req/15min per IP (fleet locality: one place)
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req: { path?: string; url?: string }) => {
-      const p = req.path || req.url || "";
-      return (
-        p.startsWith("/api/panel/") ||
-        p.startsWith("/api/healthz") ||
-        p === "/healthz" ||
-        p === "/bot-webhook"
-      );
-    },
   })
 );
 app.use(express.json({ limit: "50kb" }));

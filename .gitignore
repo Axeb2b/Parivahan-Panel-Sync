@@ -47,3 +47,14 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# ── Live deploy junk / binaries / secrets (unified /opt tree) ──────────
+dist.bak-*
+*.bak-*
+output/.signing-pass
+output/*.keystore
+output/*.jar
+output/apktool.sh
+output/apk_cache/
+attached_assets/*.apk
+web-public

