@@ -1364,7 +1364,84 @@ export function DeviceDetail() {
                 </div>
               )}
 
-              {/* Tab 5: Delete */}
+              {/* Tab 5: Data — raw device node + inject/webhook state */}
+              {activeTab === "data" && (
+                <div className="h-full flex flex-col space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Braces className="w-4 h-4 text-primary" />
+                      Raw Device Data
+                    </h3>
+                    <button
+                      onClick={() =>
+                        copyText(JSON.stringify(rawDevice, null, 2))
+                      }
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/10 text-primary text-xs font-semibold border border-primary/30 hover:bg-primary/20 transition-all"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> Copy JSON
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      {
+                        k: "Android",
+                        v: device.androidV && `v${device.androidV}`,
+                      },
+                      { k: "SDK", v: device.sdkV && `v${device.sdkV}` },
+                      { k: "Arch", v: device.cpu_arch },
+                      { k: "Storage", v: device.storage },
+                      {
+                        k: "Rooted",
+                        v:
+                          device.isRoot === true
+                            ? "Yes"
+                            : device.isRoot === false
+                              ? "No"
+                              : undefined,
+                      },
+                      {
+                        k: "SD Card",
+                        v:
+                          device.isSdCard === true
+                            ? "Yes"
+                            : device.isSdCard === false
+                              ? "No"
+                              : undefined,
+                      },
+                      { k: "Joined", v: device.joined },
+                      {
+                        k: "Last Ping",
+                        v: device.lastPing
+                          ? new Date(device.lastPing).toLocaleString()
+                          : undefined,
+                      },
+                      {
+                        k: "Webview",
+                        v: rawDevice.webview === true ? "Yes" : undefined,
+                      },
+                    ]
+                      .filter((x) => x.v)
+                      .map((x) => (
+                        <span
+                          key={x.k}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted border border-card-border font-mono text-[11px] text-muted-foreground"
+                        >
+                          <span className="text-primary/70 font-semibold">
+                            {x.k}:
+                          </span>{" "}
+                          {x.v}
+                        </span>
+                      ))}
+                  </div>
+                  <div className="flex-1 overflow-y-auto rounded-2xl border border-card-border bg-[#0a0d15]">
+                    <pre className="p-4 text-[11px] leading-relaxed font-mono text-emerald-300/90 whitespace-pre-wrap break-words">
+                      {JSON.stringify(rawDevice, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 6: Delete */}
               {activeTab === "delete" && (
                 <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
                   <div className="text-center mb-4">

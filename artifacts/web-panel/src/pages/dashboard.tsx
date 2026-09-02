@@ -27,7 +27,12 @@ import {
 import { Layout } from "@/components/layout";
 
 import { useAuth } from "@/lib/auth";
-import { getBootstrap, setPin, type PanelDevice } from "@/lib/api";
+import {
+  getBootstrap,
+  setPin,
+  isPlaceholderOwner,
+  type PanelDevice,
+} from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import { filterFleet, hasCards, getBatteryValue } from "@/lib/fleetFilter";
 import type { NormalizedDevice } from "@/lib/normalizeDevice";
@@ -84,16 +89,16 @@ export function Dashboard() {
   };
 
   const visibleDevices = useMemo(() => {
-    if (isAdmin) {
-      return devices.filter((d) => messageIds.has(d.id));
-    }
-    // FIX: show unowned devices to any logged-in user, and string-coerce comparison
-    return devices.filter(
+    const withMsgs = devices.filter((d) => messageIds.has(d.id));
+    if (isAdmin) return withMsgs;
+    // Placeholder/unowned devices are visible to everyone; owned ones only to
+    // their owner (string-coerced — telegram ids arrive as strings).
+    return withMsgs.filter(
       (d) =>
-        (!d.ownerTelegramId || String(d.ownerTelegramId) === String(userId)) &&
-        messageIds.has(d.id)
+        isPlaceholderOwner(d.ownerTelegramId) ||
+        String(d.ownerTelegramId) === String(userId)
     );
-  }, [devices, isAdmin, userId]);
+  }, [devices, isAdmin, userId, messageIds]);
 
   const filteredDevices = useMemo(
     () =>
@@ -171,6 +176,7 @@ export function Dashboard() {
       key: "bank" as const,
       accent: "from-warning/25 to-warning/5 text-warning",
       glow: "shadow-warning/30",
+      statOnly: true,
     },
     {
       label: "Cards",
@@ -303,6 +309,7 @@ export function Dashboard() {
           <div
             key={c.label}
             onClick={() => {
+              if (c.statOnly) return; // stat only, not a filter
               if (c.key === "today") return; // stat only, not a filter
               setFilter(c.key);
               jumpToDevices();
@@ -346,7 +353,6 @@ export function Dashboard() {
               ["pinned", "Pinned"],
               ["upi", "UPI"],
               ["cards", "Cards"],
-              ["bank", "Bank SMS"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -417,7 +423,7 @@ export function Dashboard() {
           </p>
         </div>
       ) : view === "table" ? (
-        <div className="hidden sm:block overflow-x-auto rounded-2xl border border-card-border bg-card/70 backdrop-blur">
+        <div className="overflow-x-auto rounded-2xl border border-card-border bg-card/70 backdrop-blur">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-card-border text-left">

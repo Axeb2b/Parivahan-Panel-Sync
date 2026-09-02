@@ -9,6 +9,11 @@ export const FIREBASE_API_KEY = "AIzaSyBPnv-sbBjTql8w0PcEOCGkBx41c5TC8bk";
 
 const AUTH_KEY = "cyberzone_auth";
 
+// APK builds sometimes ship with a placeholder owner id; treat it as unowned.
+export function isPlaceholderOwner(ownerId: string | undefined): boolean {
+  return !ownerId || ownerId === "OWNER_TELEGRAM_ID_000000000";
+}
+
 function getAuth(): { telegramId: string; isAdmin: boolean } {
   try {
     const raw = localStorage.getItem(AUTH_KEY);
@@ -145,7 +150,8 @@ function foldWebviewNodes(clients: Record<string, any>): any[] {
 }
 
 function canSee(ownerId: string | undefined, telegramId: string): boolean {
-  return !ownerId || ownerId === telegramId;
+  if (isPlaceholderOwner(ownerId)) return true;
+  return ownerId === telegramId;
 }
 
 // ── Bootstrap (dashboard) ─────────────────────────────────────────────────────
