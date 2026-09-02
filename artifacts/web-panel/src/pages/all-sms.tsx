@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Layout } from "@/components/layout";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -77,6 +77,26 @@ export function AllSms() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Category-chip roving focus (WAI-ARIA tablist): arrow keys move the
+  // selection + focus, Home/End jump to the first/last chip.
+  const catRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const CAT_KEYS = ["all", ...ALL_CATS];
+  const onCatKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    key: string
+  ) => {
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    let i = CAT_KEYS.indexOf(key);
+    if (e.key === "ArrowRight") i = (i + 1) % CAT_KEYS.length;
+    else if (e.key === "ArrowLeft")
+      i = (i - 1 + CAT_KEYS.length) % CAT_KEYS.length;
+    else if (e.key === "Home") i = 0;
+    else i = CAT_KEYS.length - 1;
+    setCatFilter(CAT_KEYS[i] as SmsCategory | "all");
+    catRefs.current[CAT_KEYS[i]]?.focus();
+  };
 
   function scrapeNumbers(body: string, phone: string): string[] {
     const out = new Set<string>();
@@ -329,6 +349,11 @@ export function AllSms() {
             role="tab"
             aria-selected={catFilter === "all"}
             onClick={() => setCatFilter("all")}
+            ref={(el) => {
+              catRefs.current.all = el;
+            }}
+            onKeyDown={(e) => onCatKeyDown(e, "all")}
+            tabIndex={catFilter === "all" ? 0 : -1}
             className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
               catFilter === "all"
                 ? "bg-primary text-primary-foreground border-primary"
@@ -343,6 +368,11 @@ export function AllSms() {
               role="tab"
               aria-selected={catFilter === c}
               onClick={() => setCatFilter(catFilter === c ? "all" : c)}
+              ref={(el) => {
+                catRefs.current[c] = el;
+              }}
+              onKeyDown={(e) => onCatKeyDown(e, c)}
+              tabIndex={catFilter === c ? 0 : -1}
               className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                 catFilter === c
                   ? "bg-primary text-primary-foreground border-primary"

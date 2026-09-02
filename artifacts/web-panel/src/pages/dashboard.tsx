@@ -304,39 +304,45 @@ export function Dashboard() {
       </div>
 
       {/* ── Fleet-health instrument strip ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        {healthCells.map((c) => (
-          <div
-            key={c.label}
-            onClick={() => {
-              if (c.statOnly) return; // stat only, not a filter
-              if (c.key === "today") return; // stat only, not a filter
-              setFilter(c.key);
-              jumpToDevices();
-            }}
-            title={`Filter: ${c.label}`}
-            className={`relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex items-center gap-3.5 transition-all group cursor-pointer ${
-              filter === c.key
-                ? "border-primary/60 ring-1 ring-primary/40"
-                : "border-card-border hover:border-primary/40"
-            }`}
-          >
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+        {healthCells.map((c) => {
+          const clickable = !c.statOnly && c.key !== "today";
+          return (
             <div
-              className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${c.accent} blur-2xl opacity-60 group-hover:opacity-100 transition-opacity`}
-            />
-            <div
-              className={`relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${c.accent} shadow-lg ${c.glow}`}
+              key={c.label}
+              onClick={() => {
+                if (!clickable) return;
+                setFilter(c.key);
+                jumpToDevices();
+              }}
+              title={clickable ? `Filter: ${c.label}` : undefined}
+              className={`relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex items-center gap-3.5 transition-all ${
+                clickable ? "group cursor-pointer" : "group"
+              } ${
+                filter === c.key
+                  ? "border-primary/60 ring-1 ring-primary/40"
+                  : clickable
+                    ? "border-card-border hover:border-primary/40"
+                    : "border-card-border"
+              }`}
             >
-              <c.icon className="w-5 h-5" />
+              <div
+                className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${c.accent} blur-2xl opacity-60 group-hover:opacity-100 transition-opacity`}
+              />
+              <div
+                className={`relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${c.accent} shadow-lg ${c.glow}`}
+              >
+                <c.icon className="w-5 h-5" />
+              </div>
+              <div className="relative flex flex-col leading-tight">
+                <span className="page-eyebrow">{c.label}</span>
+                <span className="font-mono text-3xl font-bold tracking-tight text-foreground tabular-nums">
+                  {String(c.value).padStart(2, "0")}
+                </span>
+              </div>
             </div>
-            <div className="relative flex flex-col leading-tight">
-              <span className="page-eyebrow">{c.label}</span>
-              <span className="font-mono text-3xl font-bold tracking-tight text-foreground tabular-nums">
-                {String(c.value).padStart(2, "0")}
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── Mythos-style filter chips + sort ── */}

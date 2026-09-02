@@ -161,6 +161,15 @@
   }
 }
 
+/* Hide scrollbar for horizontally scrolling tab strips */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Soft scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

