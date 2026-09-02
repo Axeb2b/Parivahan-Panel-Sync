@@ -61,14 +61,23 @@ export function TabBar({
             tabIndex={isActive ? 0 : -1}
             onClick={() => onChange(tab.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+            className={`relative flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
               isActive
                 ? isDanger
-                  ? "bg-destructive text-primary-foreground shadow-sm"
-                  : "bg-primary text-primary-foreground shadow-sm"
+                  ? "text-destructive"
+                  : "text-accent"
                 : "text-muted-foreground hover:bg-card hover:text-foreground"
             }`}
           >
+            {isActive && (
+              <span
+                className={`tab-underline ${
+                  isDanger
+                    ? "!bg-none !bg-destructive !shadow-none"
+                    : "bg-gradient-to-r from-accent to-[#0066FF]"
+                }`}
+              />
+            )}
             {tab.icon}
             {tab.label}
           </button>

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -44,8 +44,9 @@
   --color-cyan: hsl(var(--cyan));
   --color-amber: hsl(var(--amber));
 
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Syne", "Outfit", ui-sans-serif, sans-serif;
+  /* Dark-cyber theme: JetBrains Mono everywhere */
+  --font-sans: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "JetBrains Mono", ui-monospace, monospace;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -54,87 +55,88 @@
   --radius-xl: calc(var(--radius) + 6px);
 }
 
-/* ── Fleet telemetry theme (mobile-first) ─────────────────────────────── */
+/* ── Light theme fallback (toggleable) ─────────────────────────────── */
 :root {
-  /* Canvas + ink */
-  --background: 210 20% 98%; /* #F6F8FB */
-  --foreground: 222 47% 11%; /* #0F172A */
+  color-scheme: light;
+  --background: 220 24% 96%;
+  --foreground: 220 22% 10%;
 
-  /* Surfaces */
-  --card: 0 0% 100%; /* #FFFFFF */
-  --card-foreground: 222 47% 11%;
-  --card-border: 214 32% 91%; /* #E2E8F0 */
+  --card: 0 0% 100%;
+  --card-foreground: 220 22% 10%;
+  --card-border: 220 14% 88%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --popover-border: 214 32% 91%;
+  --popover-foreground: 220 22% 10%;
+  --popover-border: 220 14% 88%;
 
-  --border: 214 32% 91%;
-  --input: 214 28% 88%;
-  --ring: 239 84% 67%;
+  --border: 220 14% 86%;
+  --input: 220 14% 82%;
+  --ring: 174 70% 45%;
 
-  /* Brand */
-  --primary: 239 84% 60%; /* #4F46E5 indigo */
+  --primary: 174 85% 40%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 214 22% 94%;
-  --secondary-foreground: 222 47% 20%;
+  --secondary: 220 14% 92%;
+  --secondary-foreground: 220 22% 18%;
 
-  --muted: 214 22% 94%;
-  --muted-foreground: 215 16% 47%; /* #64748B slate */
+  --muted: 220 14% 93%;
+  --muted-foreground: 220 10% 40%;
 
-  --accent: 199 89% 48%; /* #0EA5E9 teal — used sparingly */
+  --accent: 174 85% 40%;
   --accent-foreground: 0 0% 100%;
 
-  /* Signal colors */
-  --destructive: 0 72% 51%; /* #DC2626 */
+  --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --warning: 38 92% 50%; /* #F59E0B */
-  --warning-foreground: 222 47% 11%;
-  --success: 142 71% 45%; /* #16A34A */
+  --warning: 38 92% 50%;
+  --warning-foreground: 220 22% 10%;
+  --success: 142 71% 45%;
   --success-foreground: 0 0% 100%;
 
-  --cyan: 199 89% 48%;
+  --cyan: 174 85% 40%;
   --amber: 38 92% 50%;
 
   --radius: 0.75rem;
 }
 
-/* ── Dark theme (default) ─────────────────────────────────────────────── */
+/* ── Dark Cyber theme (default) ────────────────────────────────────── */
 .dark {
   color-scheme: dark;
-  --background: 228 32% 5%; /* #070A12 deep navy-black */
-  --foreground: 220 24% 93%; /* #E9EDF5 */
+  /* Canvas + ink */
+  --background: 220 22% 5%; /* #0B0C10 */
+  --foreground: 174 30% 92%;
 
-  --card: 228 26% 8%; /* #0C101B */
-  --card-foreground: 220 24% 93%;
-  --card-border: 228 20% 15%; /* #1B2133 */
-  --popover: 228 26% 8%;
-  --popover-foreground: 220 24% 93%;
-  --popover-border: 228 20% 15%;
+  /* Surfaces */
+  --card: 220 16% 10%; /* #181A20 */
+  --card-foreground: 174 30% 92%;
+  --card-border: 220 14% 18%;
+  --popover: 220 16% 10%;
+  --popover-foreground: 174 30% 92%;
+  --popover-border: 220 14% 18%;
 
-  --border: 228 20% 15%;
-  --input: 228 18% 20%;
-  --ring: 245 90% 72%;
+  --border: 220 14% 16%;
+  --input: 220 14% 22%;
+  --ring: 174 90% 55%;
 
-  --primary: 244 88% 66%; /* #6D63FF brighter indigo */
-  --primary-foreground: 0 0% 100%;
-  --secondary: 228 20% 14%;
-  --secondary-foreground: 220 24% 90%;
+  /* Brand — neon cyan */
+  --primary: 174 85% 61%; /* #45F0DF */
+  --primary-foreground: 220 30% 6%;
+  --secondary: 220 14% 14%;
+  --secondary-foreground: 174 30% 88%;
 
-  --muted: 228 20% 13%;
-  --muted-foreground: 221 12% 62%; /* #95A0B8 */
+  --muted: 220 14% 12%;
+  --muted-foreground: 220 12% 55%;
 
-  --accent: 192 92% 56%; /* #16C7F2 neon teal */
-  --accent-foreground: 0 0% 100%;
+  --accent: 174 90% 55%;
+  --accent-foreground: 220 30% 6%;
 
-  --destructive: 0 74% 58%;
+  /* Signal colors */
+  --destructive: 0 72% 55%;
   --destructive-foreground: 0 0% 100%;
-  --warning: 39 96% 56%;
-  --warning-foreground: 228 32% 5%;
-  --success: 148 70% 50%;
+  --warning: 43 95% 58%;
+  --warning-foreground: 220 30% 8%;
+  --success: 152 75% 46%;
   --success-foreground: 0 0% 100%;
 
-  --cyan: 192 92% 56%;
-  --amber: 39 96% 56%;
+  --cyan: 174 90% 55%;
+  --amber: 43 95% 58%;
 }
 
 @layer base {
@@ -186,7 +188,7 @@
   background: hsl(var(--muted-foreground));
 }
 
-/* ── Fleet telemetry component classes ─────────────────────────────────── */
+/* ── Dark-cyber component classes ────────────────────────────────────── */
 
 /* Page heading */
 .page-eyebrow {
@@ -196,9 +198,13 @@
   @apply font-display text-2xl font-bold tracking-tight text-foreground;
 }
 
-/* Surface card */
+/* Surface card — glassmorphism */
 .stat-card {
-  @apply bg-card border border-card-border rounded-2xl;
+  @apply rounded-2xl;
+  border: 1px solid hsl(var(--card-border));
+  background: hsl(var(--card) / 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 /* Signal status dots (telemetry) */
@@ -246,10 +252,69 @@
 
 /* Legacy aliases kept for compatibility during the restyle pass */
 .glass-card {
-  @apply bg-card border-b border-card-border;
+  @apply border-b border-card-border;
+  background: hsl(var(--card) / 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .btn-glow {
   box-shadow: 0 8px 24px -12px hsl(var(--primary) / 0.6);
+}
+
+/* ── Micro-interactions ─────────────────────────────────────────────── */
+
+/* Cards lift 2px on hover */
+.card-lift {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Buttons scale(0.98) on press */
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+/* Tab-pane fade (0.2s opacity on switch) */
+.pane-fade {
+  animation: pane-fade 0.2s ease both;
+}
+@keyframes pane-fade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Sliding gradient underline for active pills */
+.tab-underline {
+  position: absolute;
+  bottom: -1px;
+  left: 0.75rem;
+  right: 0.75rem;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #45f0df, #0066ff);
+  box-shadow: 0 0 10px hsl(var(--accent) / 0.7);
+  animation: tab-slide 0.2s ease both;
+}
+@keyframes tab-slide {
+  from {
+    opacity: 0;
+    transform: scaleX(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
 }
 
 /* ── Device card creative touches ─────────────────────────────────────── */

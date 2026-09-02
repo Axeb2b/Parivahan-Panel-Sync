@@ -40,6 +40,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "next-themes";
+import { SearchProvider } from "@/lib/search";
+import { toast } from "@/hooks/use-toast";
 
 // Error Boundary — shows the actual error instead of a white screen
 class ErrorBoundary extends Component<
@@ -241,12 +243,24 @@ function ShareLinkImporter() {
         // strip the ?s= from the URL so it doesn't re-import
         window.history.replaceState({}, "", window.location.pathname);
         if (json.success) {
-          alert("✅ Imported shared panel: " + (json.firebase?.name || url));
+          toast({
+            title: "Panel imported",
+            description:
+              "Imported shared panel: " + (json.firebase?.name || url),
+          });
         } else {
-          alert("⚠️ Import failed: " + (json.error || "unknown"));
+          toast({
+            title: "Import failed",
+            description: json.error || "unknown error",
+            variant: "destructive",
+          });
         }
       } catch (err: any) {
-        alert("⚠️ Import failed: " + (err?.message || "network error"));
+        toast({
+          title: "Import failed",
+          description: err?.message || "network error",
+          variant: "destructive",
+        });
       }
     })();
   }, [isAuthenticated, isAdmin, location]);
@@ -257,17 +271,19 @@ function ShareLinkImporter() {
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          <TooltipProvider>
-            <WouterRouter base="">
-              <ShareLinkImporter />
-              <Router />
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
-        </ThemeProvider>
-      </AuthProvider>
+      <SearchProvider>
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+            <TooltipProvider>
+              <WouterRouter base="">
+                <ShareLinkImporter />
+                <Router />
+              </WouterRouter>
+              <Toaster />
+            </TooltipProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </SearchProvider>
     </ErrorBoundary>
   );
 }

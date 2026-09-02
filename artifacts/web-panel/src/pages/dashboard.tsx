@@ -1,20 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  Search,
   Smartphone,
-  Battery,
-  BatteryWarning,
   Pin,
   PinOff,
   Activity,
   ChevronRight,
-  Wifi,
-  Cpu,
-  HardDrive,
   Radio,
   Terminal,
-  ShieldCheck,
   Gauge,
   Table2,
   LayoutGrid as GridIcon,
@@ -22,11 +15,11 @@ import {
   IndianRupee,
   Signal,
   Copy,
-  Zap,
 } from "lucide-react";
 import { Layout } from "@/components/layout";
 
 import { useAuth } from "@/lib/auth";
+import { useSearch } from "@/lib/search";
 import {
   getBootstrap,
   setPin,
@@ -44,7 +37,7 @@ export function Dashboard() {
   const [, setLocation] = useLocation();
   const { data: boot, loading } = usePolling(getBootstrap, 3000);
   const [devices, setDevices] = useState<NormalizedDevice[]>([]);
-  const [search, setSearch] = useState("");
+  const { query: search } = useSearch();
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [messageIds, setMessageIds] = useState<Set<string>>(new Set());
   const [bankSmsCount, setBankSmsCount] = useState(0);
@@ -211,15 +204,8 @@ export function Dashboard() {
   };
 
   const batteryTone = (pct: number): "danger" | "warn" | "good" =>
-    pct <= 20 ? "danger" : pct <= 50 ? "warn" : "good";
+    pct > 60 ? "good" : pct >= 20 ? "warn" : "danger";
 
-  // Static lookup so Tailwind sees literal class names (no dynamic concat).
-  const ACCENT_VIA: Record<string, string> = {
-    good: "via-success/70",
-    warn: "via-warning/70",
-    danger: "via-warning/70",
-    offline: "via-muted-foreground/50",
-  };
   const RING_STROKE: Record<string, string> = {
     good: "stroke-success",
     warn: "stroke-warning",
@@ -274,16 +260,6 @@ export function Dashboard() {
             </p>
           </div>
 
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search phone, model, UPI, IP..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-card/70 backdrop-blur border border-card-border rounded-xl py-3 pl-11 pr-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/50 transition-all placeholder:text-muted-foreground font-mono"
-            />
-          </div>
           <div className="flex items-center gap-1.5 p-1 rounded-xl border border-card-border bg-card/70 backdrop-blur w-fit">
             <button
               onClick={() => setView("grid")}
@@ -304,7 +280,7 @@ export function Dashboard() {
       </div>
 
       {/* ── Fleet-health instrument strip ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
         {healthCells.map((c) => {
           const clickable = !c.statOnly && c.key !== "today";
           return (
@@ -579,62 +555,28 @@ export function Dashboard() {
           </table>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both">
-          {filteredDevices.map((device, i) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both">
+          {filteredDevices.map((device) => {
             const batteryNum = getBatteryValue(device.battery);
             const isPinned = pinnedIds.has(device.id);
             const online = device.isOnline;
             const tone = batteryTone(batteryNum);
-            const toneColor = online
-              ? tone === "danger"
-                ? "warning"
-                : tone === "warn"
-                  ? "warning"
-                  : "success"
-              : "muted-foreground";
-            const viaClass = online ? ACCENT_VIA[tone] : ACCENT_VIA.offline;
-            const segs = Math.max(1, Math.ceil(batteryNum / 20));
-            const segColors = [
-              "bg-success",
-              "bg-success",
-              "bg-success",
-              "bg-success",
-              "bg-success",
-            ];
-            if (tone === "danger") segColors.fill("bg-warning");
-            else if (tone === "warn") {
-              segColors[4] = "bg-warning";
-              segColors[3] = "bg-warning";
-            }
 
             return (
               <Link
                 key={device.id}
                 href={`/device/${device.id}`}
-                className={`group relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${
+                className={`group relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex flex-col gap-3 card-lift ${
                   isPinned
-                    ? "border-primary/50 shadow-lg shadow-primary/10"
-                    : "border-card-border hover:border-primary/40 hover:shadow-primary/10"
+                    ? "border-accent/50 shadow-lg shadow-accent/10"
+                    : "border-card-border hover:border-accent/50"
                 }`}
-                style={{ animationDelay: `${i * 50}ms` }}
               >
-                {/* Top accent line + ambient glow */}
-                <span
-                  className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${viaClass} to-transparent`}
-                />
-                {online && <span className="card-scan" />}
-                <span
-                  className={`absolute -top-14 -right-14 w-36 h-36 rounded-full blur-3xl ${online ? "bg-success/10" : "bg-muted-foreground/5"} group-hover:scale-125 transition-transform duration-500`}
-                />
-                {isPinned && (
-                  <span className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-primary/20 to-transparent" />
-                )}
-
-                {/* Header row — Mythos: model + device id */}
-                <div className="relative flex justify-between items-start mb-3">
+                {/* Header: model bold left + ring + pill right */}
+                <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <h3
-                      className="font-display font-semibold text-sm truncate max-w-[10rem] group-hover:text-primary transition-colors"
+                      className="font-display font-semibold text-sm truncate group-hover:text-accent transition-colors"
                       title={device.model}
                     >
                       {device.deviceName || device.model}
@@ -645,23 +587,16 @@ export function Dashboard() {
                         />
                       )}
                     </h3>
-                    <p
-                      className="font-mono text-[10px] text-muted-foreground truncate max-w-[10rem] mt-0.5"
-                      title={device.id}
-                    >
-                      {device.id.slice(0, 16)}
-                    </p>
                   </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     {device.battery && (
                       <div
-                        className={`relative w-11 h-11 ${online ? "ring-live" : ""}`}
+                        className="relative w-10 h-10"
                         title={`Battery ${device.battery}`}
                       >
                         <svg
                           viewBox="0 0 36 36"
-                          className="w-11 h-11 -rotate-90"
+                          className="w-10 h-10 -rotate-90"
                         >
                           <circle
                             cx="18"
@@ -688,23 +623,6 @@ export function Dashboard() {
                         </span>
                       </div>
                     )}
-                    <button
-                      onClick={(e) => togglePin(device.id, e)}
-                      title={isPinned ? "Unpin" : "Pin to top"}
-                      aria-label={isPinned ? "Unpin" : "Pin to top"}
-                      className={`p-2 rounded-full transition-all ${
-                        isPinned
-                          ? "bg-primary/15 text-primary shadow-lg shadow-primary/20"
-                          : "text-muted-foreground hover:text-foreground active:bg-muted"
-                      }`}
-                    >
-                      {isPinned ? (
-                        <PinOff className="w-4 h-4" />
-                      ) : (
-                        <Pin className="w-4 h-4" />
-                      )}
-                    </button>
-
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${
                         online
@@ -715,120 +633,74 @@ export function Dashboard() {
                       <span
                         className={`w-1.5 h-1.5 rounded-full ${online ? "bg-success animate-pulse" : "bg-muted-foreground"}`}
                       />
-                      {online ? "LIVE" : "OFFLINE"}
+                      {online ? "ONLINE" : "OFFLINE"}
                     </span>
                   </div>
                 </div>
 
-                {/* Mythos-style two-column stats */}
-                <div className="relative grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
-                  <div className="flex flex-col">
+                {/* Two-column details: number+network | android+storage */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div className="flex flex-col min-w-0">
+                    <span className="page-eyebrow">Number</span>
+                    <span className="font-mono font-semibold truncate">
+                      {device.phone || "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="page-eyebrow">Network</span>
+                    <span className="font-mono text-muted-foreground truncate">
+                      {device.raw.service_provider || "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
                     <span className="page-eyebrow">Android</span>
-                    <span className="font-mono font-medium text-xs text-foreground truncate">
+                    <span className="font-mono truncate">
                       {device.androidV ? `v${device.androidV}` : "—"}
                     </span>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="page-eyebrow">Battery</span>
-                    <span
-                      className={`font-mono font-medium text-xs truncate ${batteryNum <= 20 ? "text-warning" : "text-foreground"}`}
-                    >
-                      {device.battery || "—"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="page-eyebrow">Number</span>
-                    <span className="flex items-center gap-1 min-w-0">
-                      <span className="font-mono font-semibold text-xs text-foreground truncate group-hover:text-primary transition-colors">
-                        {device.phone || "Unknown"}
-                      </span>
-                      {device.phone && (
-                        <button
-                          onClick={(e) => quickCopy(device.phone, e)}
-                          title="Copy number"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </button>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="page-eyebrow">Network</span>
-                    <span className="font-mono font-medium text-xs text-muted-foreground truncate">
-                      {device.raw.service_provider ||
-                        (device.upi ? device.upi : "—")}
+                  <div className="flex flex-col min-w-0">
+                    <span className="page-eyebrow">Storage</span>
+                    <span className="font-mono text-muted-foreground truncate">
+                      {device.storage || "—"}
                     </span>
                   </div>
                 </div>
 
-                {/* Spec chips */}
-                <div className="relative mt-3.5 flex items-center gap-1.5 flex-wrap">
-                  {device.androidV && (
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
-                      <Terminal className="w-2.5 h-2.5 text-primary/70" /> A
-                      {device.androidV}
-                    </span>
-                  )}
-                  {device.cpu_arch && (
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
-                      <Cpu className="w-2.5 h-2.5 text-primary/70" />{" "}
-                      {device.cpu_arch.slice(0, 10)}
-                    </span>
-                  )}
-                  {device.storage && (
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
-                      <HardDrive className="w-2.5 h-2.5 text-primary/70" />{" "}
-                      {device.storage}
-                    </span>
-                  )}
-                  {device.raw.service_provider && (
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
-                      <Signal className="w-2.5 h-2.5 text-primary/70" />{" "}
-                      {device.raw.service_provider}
-                    </span>
-                  )}
-                  {device.ip_address && (
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
-                      <Wifi className="w-2.5 h-2.5 text-primary/70" />
-                      {device.ip_address.split(".").slice(0, 2).join(".")}…
-                    </span>
-                  )}
-                  {device.ownerTelegramId && isAdmin && (
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md border border-card-border">
-                      <ShieldCheck className="w-2.5 h-2.5 text-primary/70" />{" "}
-                      {device.ownerTelegramId.slice(0, 8)}…
-                    </span>
-                  )}
-                </div>
-
-                {/* Footer: UPI / storage + chevron */}
-                <div className="relative mt-4 pt-3 border-t border-card-border flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {device.upi ? (
-                      <>
-                        <span className="page-eyebrow shrink-0">UPI</span>
-                        <span className="font-mono text-[11px] font-semibold text-primary truncate">
-                          {device.upi}
-                        </span>
-                        <button
-                          onClick={(e) => quickCopy(device.upi, e)}
-                          title="Copy UPI"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </button>
-                      </>
-                    ) : device.storage ? (
-                      <span className="font-mono text-[10px] font-medium text-muted-foreground truncate">
-                        <HardDrive className="w-3 h-3 inline mr-1 text-primary/60" />
-                        {device.storage}
-                      </span>
+                {/* Footer: pin toggle + SN bottom-right (copy on hover) */}
+                <div className="flex items-center justify-between gap-2 pt-2 mt-auto border-t border-card-border">
+                  <button
+                    onClick={(e) => togglePin(device.id, e)}
+                    title={isPinned ? "Unpin" : "Pin to top"}
+                    aria-label={isPinned ? "Unpin" : "Pin to top"}
+                    className={`flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-1 transition-all ${
+                      isPinned
+                        ? "bg-accent/15 text-accent"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {isPinned ? (
+                      <PinOff className="w-3 h-3" />
                     ) : (
-                      <span className="page-eyebrow">No card data</span>
+                      <Pin className="w-3 h-3" />
                     )}
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-all group-hover:translate-x-1 shrink-0" />
+                    {isPinned ? "Pinned" : "Pin"}
+                  </button>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="font-mono text-[10px] text-muted-foreground truncate"
+                      title={device.id}
+                    >
+                      SN: {device.id.slice(0, 18)}
+                    </span>
+                    <button
+                      onClick={(e) => quickCopy(device.id, e)}
+                      title="Copy serial number"
+                      aria-label="Copy serial number"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-muted-foreground hover:text-accent shrink-0"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </span>
                 </div>
               </Link>
             );
