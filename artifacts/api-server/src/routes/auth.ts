@@ -324,22 +324,25 @@ router.get("/auth/me", async (req, res) => {
     if (idx <= 0) return res.status(401).json({ error: "Invalid token" });
     const telegramId = token.slice(0, idx);
     const sessionId = token.slice(idx + 1);
-    const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
-    const session = sessions[sessionId];
-    if (!session) return res.status(401).json({ error: "Invalid session" });
     const isAdmin = isAdminTg(telegramId);
+    // Fire session check + profile lookup in parallel.
+    const [sessions, adminCfg, sub] = await Promise.all([
+      fbGet(`config/sessions/${telegramId}`).catch(() => null),
+      isAdmin ? fbGet("config/admin").catch(() => null) : Promise.resolve(null),
+      isAdmin
+        ? Promise.resolve(null)
+        : fbGet(`subscriptions/${telegramId}`).catch(() => null),
+    ]);
+    const session = sessions?.[sessionId];
+    if (!session) return res.status(401).json({ error: "Invalid session" });
     let username = "User";
     let email = "";
     if (isAdmin) {
-      const adminCfg = (await fbGet("config/admin")) as any;
       username = adminCfg?.username || "Admin";
       email = adminCfg?.email || "";
-    } else {
-      const sub = (await fbGet(`subscriptions/${telegramId}`)) as any;
-      if (sub) {
-        username = sub.username || "User";
-        email = sub.email || "";
-      }
+    } else if (sub) {
+      username = sub.username || "User";
+      email = sub.email || "";
     }
     return res.json({ telegramId, username, email, isAdmin, sessionId });
   } catch {
