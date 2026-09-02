@@ -320,15 +320,16 @@ export const getDevice = async (id: string) => {
   let device: any = null;
   let messages: Record<string, any> = {};
   for (const inst of instances) {
-    const c = await fb(inst.url, inst.key, `clients/${id}`).catch(() => null);
+    // Fetch client node + messages in parallel per instance.
+    const [c, msgs] = await Promise.all([
+      fb(inst.url, inst.key, `clients/${id}`).catch(() => null),
+      fb(inst.url, inst.key, `messages/${id}`).catch(() => null),
+    ]);
     if (c && typeof c === "object") {
       device = { ...normalizeDevice(id, c), raw: c };
       device.instanceId = inst.id;
       device.instanceName = inst.name;
     }
-    const msgs = await fb(inst.url, inst.key, `messages/${id}`).catch(
-      () => null
-    );
     if (msgs && typeof msgs === "object") messages = { ...messages, ...msgs };
     if (device) break;
   }

