@@ -64,25 +64,75 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setLocation("/");
   };
 
-  const navLinks = [
+  const navGroups = [
     {
-      href: "/dashboard",
-      label: "Devices",
-      icon: LayoutGrid,
-      adminOnly: false,
+      label: "Fleet",
+      links: [
+        {
+          href: "/dashboard",
+          label: "Devices",
+          icon: LayoutGrid,
+          adminOnly: false,
+        },
+        {
+          href: "/all-sms",
+          label: "SMS",
+          icon: MessageSquare,
+          adminOnly: false,
+        },
+        { href: "/otps", label: "OTP", icon: KeyRound, adminOnly: false },
+        { href: "/data", label: "Data", icon: ScanLine, adminOnly: false },
+      ],
     },
-    { href: "/all-sms", label: "SMS", icon: MessageSquare, adminOnly: false },
-    { href: "/otps", label: "OTP", icon: KeyRound, adminOnly: false },
-    { href: "/firebases", label: "Firebases", icon: Database, adminOnly: true },
-    { href: "/data", label: "Data", icon: ScanLine, adminOnly: false },
-    { href: "/subscriptions", label: "Users", icon: Crown, adminOnly: true },
-    { href: "/telegram", label: "Telegram", icon: Send, adminOnly: false },
-    { href: "/apk-studio", label: "APK Studio", icon: Zap, adminOnly: false },
-    { href: "/user-search", label: "Search", icon: Search, adminOnly: false },
-    { href: "/profile", label: "Profile", icon: Settings, adminOnly: false },
+    {
+      label: "Management",
+      links: [
+        {
+          href: "/subscriptions",
+          label: "Users",
+          icon: Crown,
+          adminOnly: true,
+        },
+        { href: "/telegram", label: "Telegram", icon: Send, adminOnly: false },
+        {
+          href: "/apk-studio",
+          label: "APK Studio",
+          icon: Zap,
+          adminOnly: false,
+        },
+        {
+          href: "/firebases",
+          label: "Firebases",
+          icon: Database,
+          adminOnly: true,
+        },
+      ],
+    },
+    {
+      label: "Tools",
+      links: [
+        {
+          href: "/user-search",
+          label: "Search",
+          icon: Search,
+          adminOnly: false,
+        },
+        {
+          href: "/profile",
+          label: "Profile",
+          icon: Settings,
+          adminOnly: false,
+        },
+      ],
+    },
   ];
 
-  const visibleLinks = navLinks.filter((l) => !l.adminOnly || isAdmin);
+  const visibleGroups = navGroups
+    .map((g) => ({
+      ...g,
+      links: g.links.filter((l) => !l.adminOnly || isAdmin),
+    }))
+    .filter((g) => g.links.length > 0);
 
   const isActive = (href: string) =>
     location === href || location.startsWith(href + "/");
@@ -103,22 +153,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 
   const NavList = ({ onNavigate }: { onNavigate?: () => void }) => (
-    <>
-      {visibleLinks.map(({ href, label, icon: Icon }) => {
-        const active = isActive(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            onClick={onNavigate}
-            className={`nav-chip px-3 py-2.5 ${active ? "nav-chip-active" : "nav-chip-idle hover:bg-muted"}`}
-          >
-            <Icon className="w-[18px] h-[18px]" />
-            <span>{label}</span>
-          </Link>
-        );
-      })}
-    </>
+    <div className="space-y-4">
+      {visibleGroups.map((group) => (
+        <div key={group.label}>
+          <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            {group.label}
+          </p>
+          <div className="space-y-1">
+            {group.links.map(({ href, label, icon: Icon }) => {
+              const active = isActive(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={onNavigate}
+                  className={`nav-chip px-3 py-2.5 ${active ? "nav-chip-active" : "nav-chip-idle hover:bg-muted"}`}
+                >
+                  <Icon className="w-[18px] h-[18px]" />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 
   return (
