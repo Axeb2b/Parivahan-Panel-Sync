@@ -87,6 +87,9 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [telegramId, setTelegramId] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+  const boxRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const autoSubmitGuard = useRef("");
   const [sessionId] = useState(() =>
     typeof crypto !== "undefined" && (crypto as any).randomUUID
       ? (crypto as any).randomUUID()
@@ -100,9 +103,8 @@ export function Login() {
     if (isAuthenticated === true) setLocation("/dashboard");
   }, [isAuthenticated, setLocation]);
 
-  const handleCredentials = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
+  const requestOtp = async (): Promise<boolean> => {
+    if (!email || !password) return false;
     setLoading(true);
     setError("");
 
@@ -116,21 +118,39 @@ export function Login() {
 
       if (!res.ok) {
         setError(data.error || "Login failed");
-        return;
+        return false;
       }
 
       setTelegramId(data.telegramId);
+      setOtp("");
+      autoSubmitGuard.current = "";
       setStep("otp");
+      setCooldown(30);
+      return true;
     } catch {
       setError("Could not connect to server. Try again.");
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOtp = async (e: React.FormEvent) => {
+  const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp || !telegramId) return;
+    await requestOtp();
+  };
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const submitOtp = async (code: string) => {
+    const clean = code.replace(/\D/g, "").slice(0, 6);
+    if (clean.length < 6 || !telegramId || loading) return;
+    if (autoSubmitGuard.current === `${telegramId}:${clean}`) return;
+    autoSubmitGuard.current = `${telegramId}:${clean}`;
     setLoading(true);
     setError("");
 
@@ -140,7 +160,7 @@ export function Login() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           telegramId,
-          otp: otp.trim(),
+          otp: clean,
           sessionId,
           device: (navigator.userAgent || "Unknown").slice(0, 60),
         }),
@@ -148,6 +168,7 @@ export function Login() {
       const data = await res.json();
 
       if (!res.ok) {
+        autoSubmitGuard.current = "";
         setError(data.error || "OTP verification failed");
         return;
       }
@@ -161,10 +182,53 @@ export function Login() {
       });
       setLocation("/dashboard");
     } catch {
+      autoSubmitGuard.current = "";
       setError("Could not connect to server. Try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitOtp(otp);
+  };
+
+  // Auto-submit the moment the 6th digit lands (type or paste).
+  useEffect(() => {
+    if (step === "otp" && otp.length === 6) {
+      void submitOtp(otp);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp, step]);
+
+  const setDigit = (i: number, v: string) => {
+    const d = v.replace(/\D/g, "").slice(-1);
+    setOtp((prev) => {
+      const arr = (prev + "------").slice(0, 6).split("");
+      arr[i] = d;
+      return arr.join("").replace(/-/g, "");
+    });
+    if (d && i < 5) boxRefs.current[i + 1]?.focus();
+  };
+
+  const handleBoxKey = (i: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otp[i] && i > 0) {
+      e.preventDefault();
+      setOtp((prev) => prev.slice(0, i - 1) + prev.slice(i));
+      boxRefs.current[i - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const clean = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
+    if (!clean) return;
+    setOtp(clean);
+    boxRefs.current[Math.min(clean.length, 5)]?.focus();
   };
 
   return (
@@ -301,18 +365,44 @@ export function Login() {
                 minutes.
               </div>
 
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                className="w-full bg-muted/40 border border-input rounded-xl py-3.5 px-4 text-foreground text-center font-mono text-xl tracking-[0.5em] placeholder:text-muted-foreground placeholder:font-sans placeholder:text-base placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                placeholder="000000"
-                autoFocus
-                required
-              />
+              <div
+                className="flex items-center justify-between gap-2"
+                onPaste={handleOtpPaste}
+              >
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <input
+                    key={i}
+                    ref={(el) => {
+                      boxRefs.current[i] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={1}
+                    value={otp[i] ?? ""}
+                    onChange={(e) => setDigit(i, e.target.value)}
+                    onKeyDown={(e) => handleBoxKey(i, e)}
+                    aria-label={`Digit ${i + 1} of 6`}
+                    autoFocus={i === 0}
+                    className="w-full min-w-0 flex-1 aspect-square max-w-12 rounded-xl border border-input bg-muted/40 text-center font-mono text-xl font-bold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 transition-all"
+                  />
+                ))}
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Didn&apos;t get the code?
+                </span>
+                <button
+                  type="button"
+                  disabled={loading || cooldown > 0}
+                  onClick={() => void requestOtp()}
+                  className="font-semibold text-primary hover:text-primary/80 disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                >
+                  {cooldown > 0
+                    ? `Resend in 0:${String(cooldown).padStart(2, "0")}`
+                    : "Resend code"}
+                </button>
+              </div>
 
               {error && (
                 <div className="p-3 bg-destructive/10 border border-destructive/25 text-destructive text-sm rounded-xl">

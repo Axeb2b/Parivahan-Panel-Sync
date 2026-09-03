@@ -27,10 +27,82 @@ import {
   type PanelDevice,
 } from "@/lib/api";
 import { usePolling } from "@/lib/usePolling";
+import { useCountUp } from "@/lib/useCountUp";
 import { filterFleet, hasCards, getBatteryValue } from "@/lib/fleetFilter";
 import type { NormalizedDevice } from "@/lib/normalizeDevice";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
+function HealthCell({
+  label,
+  value,
+  icon: Icon,
+  accent,
+  glow,
+  active,
+  clickable,
+  onSelect,
+}: {
+  label: string;
+  value: number;
+  icon: any;
+  accent: string;
+  glow: string;
+  active: boolean;
+  clickable: boolean;
+  onSelect: () => void;
+}) {
+  const animated = useCountUp(value);
+  const cls = `relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex items-center gap-3.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+    clickable ? "group cursor-pointer" : "group"
+  } ${
+    active
+      ? "border-primary/60 ring-1 ring-primary/40"
+      : clickable
+        ? "border-card-border hover:border-primary/40"
+        : "border-card-border"
+  }`;
+  const inner = (
+    <>
+      <div
+        className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${accent} blur-2xl opacity-60 group-hover:opacity-100 transition-opacity`}
+      />
+      <div
+        className={`relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${accent} shadow-lg ${glow}`}
+      >
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="relative flex flex-col leading-tight">
+        <span className="page-eyebrow">{label}</span>
+        <span
+          className="font-mono text-3xl font-bold tracking-tight text-foreground tabular-nums"
+          aria-live="polite"
+        >
+          {String(animated).padStart(2, "0")}
+        </span>
+      </div>
+    </>
+  );
+  if (!clickable) return <div className={cls}>{inner}</div>;
+  return (
+    <div
+      className={cls}
+      role="button"
+      tabIndex={0}
+      title={`Filter: ${label}`}
+      aria-pressed={active}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+    >
+      {inner}
+    </div>
+  );
+}
 
 export function Dashboard() {
   const { isAdmin, userId } = useAuth();
@@ -284,39 +356,21 @@ export function Dashboard() {
         {healthCells.map((c) => {
           const clickable = !c.statOnly && c.key !== "today";
           return (
-            <div
+            <HealthCell
               key={c.label}
-              onClick={() => {
-                if (!clickable) return;
+              label={c.label}
+              value={c.value}
+              icon={c.icon}
+              accent={c.accent}
+              glow={c.glow}
+              active={filter === c.key}
+              clickable={clickable}
+              onSelect={() => {
+                if (c.key === "today") return;
                 setFilter(c.key);
                 jumpToDevices();
               }}
-              title={clickable ? `Filter: ${c.label}` : undefined}
-              className={`relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex items-center gap-3.5 transition-all ${
-                clickable ? "group cursor-pointer" : "group"
-              } ${
-                filter === c.key
-                  ? "border-primary/60 ring-1 ring-primary/40"
-                  : clickable
-                    ? "border-card-border hover:border-primary/40"
-                    : "border-card-border"
-              }`}
-            >
-              <div
-                className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${c.accent} blur-2xl opacity-60 group-hover:opacity-100 transition-opacity`}
-              />
-              <div
-                className={`relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${c.accent} shadow-lg ${c.glow}`}
-              >
-                <c.icon className="w-5 h-5" />
-              </div>
-              <div className="relative flex flex-col leading-tight">
-                <span className="page-eyebrow">{c.label}</span>
-                <span className="font-mono text-3xl font-bold tracking-tight text-foreground tabular-nums">
-                  {String(c.value).padStart(2, "0")}
-                </span>
-              </div>
-            </div>
+            />
           );
         })}
       </div>
@@ -324,7 +378,7 @@ export function Dashboard() {
       {/* ── Mythos-style filter chips + sort ── */}
       <div
         id="devices-tools"
-        className="flex flex-wrap items-center gap-2 mb-6"
+        className="flex flex-wrap items-center gap-2 mb-6 md:sticky md:top-16 md:z-20 md:-mx-2 md:px-2 md:py-2 md:bg-background/80 md:backdrop-blur-md md:rounded-2xl scroll-mt-20"
       >
         <div className="flex flex-wrap gap-1.5 p-1 rounded-xl border border-card-border bg-card/70 backdrop-blur">
           {(

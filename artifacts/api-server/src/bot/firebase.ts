@@ -132,10 +132,6 @@ export async function fetchAccessToken(): Promise<string | null> {
   }
 }
 
-async function authedUrl(path: string): Promise<string> {
-  return `${DB_URL}/${path}.json`;
-}
-
 // RTDB accepts OAuth2 access tokens via the Authorization: Bearer header
 // (the `?access_token=` query param is not honored by Realtime Database).
 async function fbFetch(path: string, init: RequestInit = {}): Promise<Response> {
@@ -179,7 +175,7 @@ export async function fbUpdate(path: string, data: any): Promise<void> {
 }
 
 export async function fbDelete(path: string): Promise<void> {
-  const res = await fetch(await authedUrl(path), {
+  const res = await fbFetch(path, {
     method: "DELETE",
     signal: AbortSignal.timeout(15_000),
   });

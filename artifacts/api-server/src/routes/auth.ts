@@ -6,7 +6,7 @@ import {
   verifyAndDeleteOtp,
   isSubscriptionActive,
   fbGet,
-  fbSet,
+  fbUpdate,
 } from "../bot/firebase";
 import { getBot } from "../bot/index";
 import { createFleet, RtdbAdapter } from "../fleet/rtdbFleet";
@@ -111,7 +111,8 @@ router.post("/auth/verify-otp", authLimiter, async (req, res) => {
     const isAdmin = principal.kind === "admin";
     const username = principal.username;
 
-    // Register session (device is logged in)
+    // Register session (device is logged in). PATCH-merge so concurrent
+    // logins from other devices never clobber each other's sessions.
     const { sessionId = "", device = "unknown" } = req.body ?? {};
     const sessionToken =
       sessionId ||
@@ -119,15 +120,21 @@ router.post("/auth/verify-otp", authLimiter, async (req, res) => {
         ? (crypto as any).randomUUID()
         : Math.random().toString(36).slice(2) + Date.now().toString(36));
     try {
-      const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
-      sessions[sessionToken] = {
-        device: device || "Unknown browser",
-        ip: req.ip || "",
-        loggedInAt: new Date().toISOString(),
-        lastSeen: new Date().toISOString(),
-      };
-      await fbSet(`config/sessions/${telegramId}`, sessions);
-    } catch {}
+      await fbUpdate(`config/sessions/${telegramId}`, {
+        [sessionToken]: {
+          device: device || "Unknown browser",
+          ip: req.ip || "",
+          loggedInAt: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+        },
+      });
+    } catch {
+      // Never hand out a session that was not persisted — that is the
+      // phantom-login loop (refresh → /me 401 → logged out).
+      return res
+        .status(500)
+        .json({ error: "Could not save session. Try again." });
+    }
 
     return res.json({
       success: true,
@@ -175,9 +182,9 @@ router.delete("/auth/sessions/:sessionId", async (req, res) => {
     const sessionId = req.params.sessionId;
     if (!telegramId || !sessionId)
       return res.status(400).json({ error: "Missing params" });
-    const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
-    delete sessions[sessionId];
-    await fbSet(`config/sessions/${telegramId}`, sessions);
+    await fbUpdate(`config/sessions/${telegramId}`, {
+      [sessionId]: null,
+    });
     return res.json({ success: true, message: "Session logged out." });
   } catch {
     return res.status(500).json({ error: "Server error." });
@@ -190,9 +197,9 @@ router.post("/auth/logout", async (req, res) => {
     const { telegramId, sessionId } = req.body ?? {};
     if (!telegramId || !sessionId)
       return res.status(400).json({ error: "Missing params" });
-    const sessions = (await fbGet(`config/sessions/${telegramId}`)) || {};
-    delete sessions[sessionId];
-    await fbSet(`config/sessions/${telegramId}`, sessions);
+    await fbUpdate(`config/sessions/${telegramId}`, {
+      [sessionId]: null,
+    });
     return res.json({ success: true });
   } catch {
     return res.status(500).json({ error: "Server error." });
