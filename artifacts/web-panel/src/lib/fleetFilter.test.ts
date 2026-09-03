@@ -23,7 +23,12 @@ describe("filterFleet", () => {
   const list = [
     dev("d1", { isOnline: true, joinedTs: now - 1000 }),
     dev("d2", { isOnline: false, joinedTs: now - 2000 }),
-    dev("d3", { isOnline: true, upi: "a@okhdfc", group: "g1", joinedTs: now - 3000 }),
+    dev("d3", {
+      isOnline: true,
+      upi: "a@okhdfc",
+      group: "g1",
+      joinedTs: now - 3000,
+    }),
     dev("d4", { isOnline: false, group: "g1", joinedTs: now - 4000 }),
   ];
 

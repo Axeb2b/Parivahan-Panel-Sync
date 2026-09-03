@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { ref, onValue, off } from "firebase/database";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -41,30 +39,6 @@ export function Profile() {
   const [deviceCount, setDeviceCount] = useState(0);
   const [sessions, setSessions] = useState<Record<string, any>>({});
 
-  // Count devices assigned to this user (admin = all)
-  useEffect(() => {
-    if (!userId) return;
-    const clientsRef = ref(db, "clients");
-    const handler = onValue(clientsRef, (snap) => {
-      const data = snap.val();
-      if (!data) {
-        setDeviceCount(0);
-        return;
-      }
-      if (isAdmin) {
-        setDeviceCount(
-          Object.keys(data).filter((k) => !k.startsWith("*")).length
-        );
-      } else {
-        const count = Object.values(data).filter(
-          (d: any) => d?.ownerTelegramId === userId
-        ).length;
-        setDeviceCount(count);
-      }
-    });
-    return () => off(clientsRef, "value", handler);
-  }, [userId, isAdmin]);
-
   // Fetch login sessions
   useEffect(() => {
     if (!userId) return;
@@ -96,6 +70,7 @@ export function Profile() {
     apiFetch(`/auth/profile?telegramId=${userId}`)
       .then((data) => {
         setProfile(data);
+        setDeviceCount(data.deviceCount || 0);
         if (data.smsChannel) setChannelInput(data.smsChannel);
       })
       .catch(() =>
@@ -280,7 +255,7 @@ export function Profile() {
           </div>
           <button
             onClick={logout}
-            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-full font-semibold text-sm transition-colors shadow-md shadow-red-200"
+            className="flex items-center gap-2 bg-destructive hover:bg-destructive/90 text-white px-5 py-2.5 rounded-full font-semibold text-sm transition-colors shadow-md shadow-destructive/25"
           >
             <LogOut className="w-4 h-4" /> Logout
           </button>
@@ -316,7 +291,7 @@ export function Profile() {
                   </div>
                   <button
                     onClick={() => handleLogoutSession(sid)}
-                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors"
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-destructive/10 text-destructive border border-destructive/30 hover:bg-destructive/15 transition-colors"
                   >
                     <LogOut className="w-3 h-3" /> Logout
                   </button>

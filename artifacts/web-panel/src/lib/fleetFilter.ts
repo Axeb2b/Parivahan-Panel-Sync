@@ -1,13 +1,7 @@
 import type { NormalizedDevice } from "./normalizeDevice";
 
 export type FleetFilterMode =
-  | "all"
-  | "online"
-  | "offline"
-  | "pinned"
-  | "upi"
-  | "cards"
-  | "bank";
+  "all" | "online" | "offline" | "pinned" | "upi" | "cards" | "bank";
 
 export type FleetSortMode = "newest" | "oldest" | "name" | "battery";
 
@@ -99,7 +93,9 @@ export function filterFleet(input: FleetFilterInput): NormalizedDevice[] {
       sorted.sort((a, b) => a.model.localeCompare(b.model));
       break;
     case "battery":
-      sorted.sort((a, b) => getBatteryValue(b.battery) - getBatteryValue(a.battery));
+      sorted.sort(
+        (a, b) => getBatteryValue(b.battery) - getBatteryValue(a.battery)
+      );
       break;
   }
 
