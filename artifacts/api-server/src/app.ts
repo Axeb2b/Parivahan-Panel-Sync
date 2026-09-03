@@ -39,6 +39,9 @@ app.use(
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
+    // Session revalidation fires on every page load — a 429 here must
+    // never read as "logged out". Same for the health probe.
+    skip: (req) => req.path === "/api/auth/me" || req.path === "/healthz",
   })
 );
 app.use(express.json({ limit: "50kb" }));

@@ -45,7 +45,20 @@ async function revalidateSession(): Promise<AuthState | null> {
         Authorization: `Bearer ${parsed.telegramId}:${parsed.sessionId}`,
       },
     });
-    if (!r.ok) return null;
+    // Only 401 means "session is dead" — anything else (503 store blip,
+    // 429, 5xx, or network failure below) keeps the stored session so a
+    // refresh during a backend hiccup never logs the user out.
+    if (r.status === 401) return null;
+    if (!r.ok) {
+      return {
+        isAuthenticated: true,
+        userId: parsed.telegramId,
+        isAdmin: !!parsed.isAdmin,
+        username: parsed.username || "",
+        sessionId: parsed.sessionId,
+        firebaseToken: parsed.firebaseToken || null,
+      };
+    }
     const me = await r.json();
     return {
       isAuthenticated: true,

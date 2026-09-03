@@ -331,9 +331,16 @@ router.get("/auth/me", async (req, res) => {
     const telegramId = token.slice(0, idx);
     const sessionId = token.slice(idx + 1);
     const isAdmin = isAdminTg(telegramId);
-    // Fire session check + profile lookup in parallel.
-    const [sessions, adminCfg, sub] = await Promise.all([
-      fbGet(`config/sessions/${telegramId}`).catch(() => null),
+    // Fire session check + profile lookup in parallel. A store failure
+    // (Firebase timeout/outage) is 503 — never 401 — so clients never
+    // throw away a valid session during a backend blip.
+    let sessions: any;
+    try {
+      sessions = await fbGet(`config/sessions/${telegramId}`);
+    } catch {
+      return res.status(503).json({ error: "Session store unreachable" });
+    }
+    const [adminCfg, sub] = await Promise.all([
       isAdmin ? fbGet("config/admin").catch(() => null) : Promise.resolve(null),
       isAdmin
         ? Promise.resolve(null)

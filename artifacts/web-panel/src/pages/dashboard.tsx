@@ -53,7 +53,7 @@ function HealthCell({
   onSelect: () => void;
 }) {
   const animated = useCountUp(value);
-  const cls = `relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-4 flex items-center gap-3.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+  const cls = `relative overflow-hidden rounded-2xl border bg-card/70 backdrop-blur p-3 flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
     clickable ? "group cursor-pointer" : "group"
   } ${
     active
@@ -68,14 +68,14 @@ function HealthCell({
         className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${accent} blur-2xl opacity-60 group-hover:opacity-100 transition-opacity`}
       />
       <div
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${accent} shadow-lg ${glow}`}
+        className={`relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${accent} shadow-lg ${glow}`}
       >
         <Icon className="w-5 h-5" />
       </div>
       <div className="relative flex flex-col leading-tight">
         <span className="page-eyebrow">{label}</span>
         <span
-          className="font-mono text-3xl font-bold tracking-tight text-foreground tabular-nums"
+          className="font-mono text-2xl font-bold tracking-tight text-foreground tabular-nums"
           aria-live="polite"
         >
           {String(animated).padStart(2, "0")}
@@ -297,7 +297,7 @@ export function Dashboard() {
   return (
     <Layout>
       {/* ── Page header ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-card-border bg-gradient-to-br from-primary/10 via-card/60 to-accent/10 p-6 md:p-8 mb-6">
+      <div className="relative overflow-hidden rounded-3xl border border-card-border bg-gradient-to-br from-primary/10 via-card/60 to-accent/10 p-5 md:p-6 mb-4">
         <div
           className="absolute inset-0 opacity-[0.14] pointer-events-none"
           style={{
@@ -352,7 +352,7 @@ export function Dashboard() {
       </div>
 
       {/* ── Fleet-health instrument strip ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 mb-4">
         {healthCells.map((c) => {
           const clickable = !c.statOnly && c.key !== "today";
           return (
@@ -378,7 +378,7 @@ export function Dashboard() {
       {/* ── Mythos-style filter chips + sort ── */}
       <div
         id="devices-tools"
-        className="flex flex-wrap items-center gap-2 mb-6 md:sticky md:top-16 md:z-20 md:-mx-2 md:px-2 md:py-2 md:bg-background/80 md:backdrop-blur-md md:rounded-2xl scroll-mt-20"
+        className="flex flex-wrap items-center gap-2 mb-4 md:sticky md:top-16 md:z-20 md:py-2 md:bg-background/80 md:backdrop-blur-md md:rounded-2xl scroll-mt-20"
       >
         <div className="flex flex-wrap gap-1.5 p-1 rounded-xl border border-card-border bg-card/70 backdrop-blur">
           {(

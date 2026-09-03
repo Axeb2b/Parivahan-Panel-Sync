@@ -355,7 +355,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 min-w-0 overflow-x-hidden px-4 md:px-8 py-5 pb-5 md:py-8 md:pb-8">
+        <main className="flex-1 min-w-0 overflow-x-hidden px-4 md:px-6 py-4 md:py-5">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>

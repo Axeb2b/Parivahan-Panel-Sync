@@ -232,7 +232,7 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-dvh bg-background flex flex-col items-center p-4 py-8 relative overflow-hidden">
       <ParticleField />
       {/* Subtle telemetry backdrop */}
       <div
@@ -251,7 +251,7 @@ export function Login() {
         <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-accent/10 blur-3xl" />
       </div>
 
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-md relative z-10 m-auto">
         {/* Logo */}
         <div className="text-center mb-7">
           <div className="brand-mark w-16 h-16 rounded-2xl mx-auto mb-5 shadow-lg shadow-primary/25">
