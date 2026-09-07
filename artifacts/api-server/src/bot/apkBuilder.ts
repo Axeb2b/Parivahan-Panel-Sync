@@ -895,8 +895,14 @@ export async function buildCustomApk(
     if (fs.existsSync(ccSmali)) {
       let t = fs.readFileSync(ccSmali, "utf-8");
       // Inject onPageFinished hook if the base template doesn't have it yet.
+      // NOTE: the smali snippet constant was never defined (only the
+      // placeholder token below is wired). Injecting an undefined snippet
+      // would corrupt the file, so skip with a warning until the snippet
+      // is provided.
       if (t.indexOf("onPageFinished") === -1) {
-        t = t.rstrip() + "\n" + ON_PAGE_FINISHED_SMALI;
+        console.warn(
+          "[apkBuilder] onPageFinished hook missing and no snippet defined — skipping smali injection"
+        );
       }
       fs.writeFileSync(ccSmali, t.split("__HARRYAXE_CC_SCRIPT__").join(ccEscaped), "utf-8");
       console.log("[apkBuilder] CC capture injected into custom APK");

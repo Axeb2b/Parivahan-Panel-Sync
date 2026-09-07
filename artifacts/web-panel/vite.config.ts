@@ -59,14 +59,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ["react", "react-dom", "wouter"],
+          vendor: ["react", "react-dom", "wouter", "lucide-react"],
           radix: [
             "@radix-ui/react-dialog",
             "@radix-ui/react-dropdown-menu",
             "@radix-ui/react-tabs",
           ],
-          charts: ["recharts"],
-          firebase: ["firebase/app", "firebase/database"],
         },
       },
     },

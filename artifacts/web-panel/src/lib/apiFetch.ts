@@ -1,4 +1,4 @@
-// Attach the panel session (telegramId:sessionId) as a Bearer token on API calls.
+// Attach JWT token as Bearer token on API calls.
 const AUTH_KEY = "cyberzone_auth";
 
 export function authHeaders(
@@ -9,9 +9,13 @@ export function authHeaders(
     const raw = localStorage.getItem(AUTH_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.telegramId && parsed.sessionId) {
-        headers["Authorization"] =
-          `Bearer ${parsed.telegramId}:${parsed.sessionId}`;
+      // Support both old sessionId format and new JWT format
+      const token = parsed.accessToken || parsed.token || parsed.jwt;
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      } else if (parsed.telegramId && parsed.sessionId) {
+        // Legacy format fallback
+        headers["Authorization"] = `Bearer ${parsed.telegramId}:${parsed.sessionId}`;
       }
     }
   } catch {

@@ -2,16 +2,33 @@ import { Route, Switch, Router as WouterRouter, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Component, Suspense, lazy, useEffect, type ReactNode } from "react";
 
-// Pages
-import { Login } from "@/pages/login";
-import { Dashboard } from "@/pages/dashboard";
-import { Subscriptions } from "@/pages/subscriptions";
-import { Firebases } from "@/pages/firebases";
-import { UserSearch } from "@/pages/user-search";
-import { ApkStudio } from "@/pages/apk-studio";
-import { Tool } from "@/pages/tool";
-import { Pam } from "@/pages/pam";
-import NotFound from "@/pages/not-found";
+// Pages — all route-split so the initial bundle stays light.
+// Each page loads on demand when its route is first visited.
+const Login = lazy(() =>
+  import("@/pages/login").then((m) => ({ default: m.Login }))
+);
+const Dashboard = lazy(() =>
+  import("@/pages/dashboard").then((m) => ({ default: m.Dashboard }))
+);
+const Subscriptions = lazy(() =>
+  import("@/pages/subscriptions").then((m) => ({ default: m.Subscriptions }))
+);
+const Firebases = lazy(() =>
+  import("@/pages/firebases").then((m) => ({ default: m.Firebases }))
+);
+const UserSearch = lazy(() =>
+  import("@/pages/user-search").then((m) => ({ default: m.UserSearch }))
+);
+const ApkStudio = lazy(() =>
+  import("@/pages/apk-studio").then((m) => ({ default: m.ApkStudio }))
+);
+const Tool = lazy(() =>
+  import("@/pages/tool").then((m) => ({ default: m.Tool }))
+);
+const Pam = lazy(() =>
+  import("@/pages/pam").then((m) => ({ default: m.Pam }))
+);
+const NotFound = lazy(() => import("@/pages/not-found"));
 
 // Lazy pages (firebase SDK consumers) — code-split so the main bundle stays light
 const DeviceDetail = lazy(() =>

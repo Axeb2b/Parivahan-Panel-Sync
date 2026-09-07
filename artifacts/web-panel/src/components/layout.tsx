@@ -10,6 +10,18 @@ import {
   Moon,
   ChevronsLeft,
   ChevronsRight,
+  Cpu,
+  Mail,
+  KeyRound,
+  Database,
+  Users,
+  Send,
+  Package,
+  Flame,
+  IdCard,
+  Bot,
+  Settings,
+  type LucideIcon,
 } from "lucide-react";
 
 const THEME_KEY = "harryaxe-theme";
@@ -27,7 +39,7 @@ function getInitialTheme(): "dark" | "light" {
 interface NavItem {
   href: string;
   label: string;
-  fa: string; // FontAwesome class, e.g. "fa-microchip"
+  icon: LucideIcon;
   adminOnly: boolean;
 }
 
@@ -38,12 +50,12 @@ const navGroups: { label: string; links: NavItem[] }[] = [
       {
         href: "/dashboard",
         label: "Devices",
-        fa: "fa-microchip",
+        icon: Cpu,
         adminOnly: false,
       },
-      { href: "/all-sms", label: "SMS", fa: "fa-envelope", adminOnly: false },
-      { href: "/otps", label: "OTP", fa: "fa-key", adminOnly: false },
-      { href: "/data", label: "Data", fa: "fa-database", adminOnly: false },
+      { href: "/all-sms", label: "SMS", icon: Mail, adminOnly: false },
+      { href: "/otps", label: "OTP", icon: KeyRound, adminOnly: false },
+      { href: "/data", label: "Data", icon: Database, adminOnly: false },
     ],
   },
   {
@@ -52,25 +64,25 @@ const navGroups: { label: string; links: NavItem[] }[] = [
       {
         href: "/subscriptions",
         label: "Users",
-        fa: "fa-user-group",
+        icon: Users,
         adminOnly: true,
       },
       {
         href: "/telegram",
         label: "Telegram",
-        fa: "fa-paper-plane",
+        icon: Send,
         adminOnly: false,
       },
       {
         href: "/apk-studio",
         label: "APK Studio",
-        fa: "fa-box-open",
+        icon: Package,
         adminOnly: false,
       },
       {
         href: "/firebases",
         label: "Firebases",
-        fa: "fa-fire",
+        icon: Flame,
         adminOnly: true,
       },
     ],
@@ -81,12 +93,12 @@ const navGroups: { label: string; links: NavItem[] }[] = [
       {
         href: "/user-search",
         label: "Search",
-        fa: "fa-magnifying-glass",
+        icon: Search,
         adminOnly: false,
       },
-      { href: "/tool", label: "Aadhaar", fa: "fa-id-card", adminOnly: false },
-      { href: "/pam", label: "PAM", fa: "fa-robot", adminOnly: false },
-      { href: "/profile", label: "Profile", fa: "fa-gear", adminOnly: false },
+      { href: "/tool", label: "Aadhaar", icon: IdCard, adminOnly: false },
+      { href: "/pam", label: "PAM", icon: Bot, adminOnly: false },
+      { href: "/profile", label: "Profile", icon: Settings, adminOnly: false },
     ],
   },
 ];
@@ -241,7 +253,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </p>
               )}
               <div className="space-y-1">
-                {group.links.map(({ href, label, fa }) => {
+                {group.links.map(({ href, label, icon: Icon }) => {
                   const active = isActive(href);
                   return (
                     <Link
@@ -251,8 +263,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       aria-current={active ? "page" : undefined}
                       className={`nav-chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${collapsed ? "justify-center px-0" : "px-3"} py-2.5 ${active ? "nav-chip-active" : "nav-chip-idle hover:bg-muted"}`}
                     >
-                      <i
-                        className={`fa-solid ${fa} fa-fw ${collapsed ? "text-base" : "text-[15px]"}`}
+                      <Icon
+                        className={`${collapsed ? "h-5 w-5" : "h-[15px] w-[15px]"}`}
                       />
                       {!collapsed && <span>{label}</span>}
                     </Link>
@@ -327,7 +339,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             aria-label="Primary"
             className="hide-scrollbar flex items-stretch gap-0.5 overflow-x-auto border-t border-card-border px-1"
           >
-            {visibleLinks.map(({ href, label, fa }) => {
+            {visibleLinks.map(({ href, label, icon: Icon }) => {
               const active = isActive(href);
               return (
                 <Link
@@ -338,7 +350,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     active ? "text-accent" : "text-muted-foreground"
                   }`}
                 >
-                  <i className={`fa-solid ${fa} fa-fw text-[15px]`} />
+                  <Icon className="h-[15px] w-[15px]" />
                   <span className="truncate w-full text-center">{label}</span>
                 </Link>
               );

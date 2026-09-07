@@ -11,19 +11,23 @@ interface AuthState {
   userId: string | null;
   isAdmin: boolean;
   username: string;
-  sessionId: string | null;
-  firebaseToken: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  expiresAt: number | null;
 }
 
 interface AuthContextValue extends AuthState {
   login: (data: {
+    accessToken: string;
+    refreshToken: string;
     telegramId: string;
     isAdmin: boolean;
     username: string;
-    sessionId?: string;
-    firebaseToken?: string | null;
+    avatar?: string | null;
+    expiresIn: number;
   }) => void;
   logout: () => void;
+  getAccessToken: () => string | null;
 }
 
 const AUTH_KEY = "cyberzone_auth";
@@ -38,25 +42,66 @@ async function revalidateSession(): Promise<AuthState | null> {
   } catch {
     return null;
   }
-  if (!parsed.telegramId || !parsed.sessionId) return null;
+  if (!parsed.accessToken) return null;
+
+  // Check if token is expired or about to expire (within 2 min)
+  const now = Date.now();
+  const expiresAt = parsed.expiresAt || 0;
+  if (expiresAt && now > expiresAt - 120000) {
+    // Token expired or about to expire - try refresh
+    if (parsed.refreshToken) {
+      try {
+        const r = await fetch("/api/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: parsed.refreshToken }),
+        });
+        if (r.ok) {
+          const data = await r.json();
+          const tokens = {
+            accessToken: data.accessToken,
+            refreshToken: parsed.refreshToken,
+            telegramId: parsed.telegramId,
+            isAdmin: parsed.isAdmin,
+            username: parsed.username,
+            expiresAt: Date.now() + data.expiresIn * 1000,
+          };
+          localStorage.setItem(AUTH_KEY, JSON.stringify(tokens));
+          return {
+            isAuthenticated: true,
+            userId: parsed.telegramId,
+            isAdmin: parsed.isAdmin,
+            username: parsed.username,
+            accessToken: data.accessToken,
+            refreshToken: parsed.refreshToken,
+            expiresAt: Date.now() + data.expiresIn * 1000,
+          };
+        }
+      } catch {
+        /* refresh failed, fall through to revalidation */
+      }
+    }
+    return null;
+  }
+
+  // Validate access token with server
   try {
     const r = await fetch("/api/auth/me", {
       headers: {
-        Authorization: `Bearer ${parsed.telegramId}:${parsed.sessionId}`,
+        Authorization: `Bearer ${parsed.accessToken}`,
       },
     });
-    // Only 401 means "session is dead" — anything else (503 store blip,
-    // 429, 5xx, or network failure below) keeps the stored session so a
-    // refresh during a backend hiccup never logs the user out.
     if (r.status === 401) return null;
     if (!r.ok) {
+      // Network blip — keep stored session
       return {
         isAuthenticated: true,
         userId: parsed.telegramId,
         isAdmin: !!parsed.isAdmin,
         username: parsed.username || "",
-        sessionId: parsed.sessionId,
-        firebaseToken: parsed.firebaseToken || null,
+        accessToken: parsed.accessToken,
+        refreshToken: parsed.refreshToken || null,
+        expiresAt: parsed.expiresAt || null,
       };
     }
     const me = await r.json();
@@ -64,19 +109,21 @@ async function revalidateSession(): Promise<AuthState | null> {
       isAuthenticated: true,
       userId: me.telegramId || parsed.telegramId,
       isAdmin: !!me.isAdmin,
-      sessionId: me.sessionId || parsed.sessionId,
-      firebaseToken: parsed.firebaseToken || null,
       username: me.username || parsed.username || "",
+      accessToken: parsed.accessToken,
+      refreshToken: parsed.refreshToken || null,
+      expiresAt: parsed.expiresAt || null,
     };
   } catch {
-    // Network blip — keep the stored session rather than force-logging out.
+    // Network blip — keep stored session
     return {
       isAuthenticated: true,
       userId: parsed.telegramId,
       isAdmin: !!parsed.isAdmin,
-      sessionId: parsed.sessionId,
-      firebaseToken: parsed.firebaseToken || null,
       username: parsed.username || "",
+      accessToken: parsed.accessToken,
+      refreshToken: parsed.refreshToken || null,
+      expiresAt: parsed.expiresAt || null,
     };
   }
 }
@@ -87,8 +134,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: null,
     isAdmin: false,
     username: "",
-    sessionId: null,
-    firebaseToken: null,
+    accessToken: null,
+    refreshToken: null,
+    expiresAt: null,
   });
 
   useEffect(() => {
@@ -98,8 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, isAuthenticated: false }));
       return;
     }
-    // Validate the session server-side on load so a refresh doesn't show a
-    // stale/revoked login.
     revalidateSession().then((res) => {
       if (!alive) return;
       if (res) {
@@ -115,20 +161,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (data: {
+    accessToken: string;
+    refreshToken: string;
     telegramId: string;
     isAdmin: boolean;
     username: string;
-    sessionId?: string;
-    firebaseToken?: string | null;
+    expiresIn: number;
   }) => {
-    localStorage.setItem(AUTH_KEY, JSON.stringify(data));
+    const tokens = {
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      telegramId: data.telegramId,
+      isAdmin: data.isAdmin,
+      username: data.username,
+      expiresAt: Date.now() + data.expiresIn * 1000,
+    };
+    localStorage.setItem(AUTH_KEY, JSON.stringify(tokens));
     setState({
       isAuthenticated: true,
       userId: data.telegramId,
       isAdmin: data.isAdmin,
       username: data.username,
-      sessionId: data.sessionId || null,
-      firebaseToken: data.firebaseToken || null,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      expiresAt: Date.now() + data.expiresIn * 1000,
     });
   };
 
@@ -139,13 +195,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userId: null,
       isAdmin: false,
       username: "",
-      sessionId: null,
-      firebaseToken: null,
+      accessToken: null,
+      refreshToken: null,
+      expiresAt: null,
     });
   };
 
+  const getAccessToken = () => {
+    return state.accessToken;
+  };
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, logout, getAccessToken }}>
       {children}
     </AuthContext.Provider>
   );
