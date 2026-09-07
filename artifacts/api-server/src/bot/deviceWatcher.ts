@@ -1,5 +1,6 @@
 import { Telegraf } from "telegraf";
 import { logger } from "../lib/logger";
+import { sanitizeOwnerTelegramId } from "../lib/telegramIds";
 import { isOnline } from "../lib/device";
 import { fbGet } from "./firebase";
 
@@ -109,8 +110,9 @@ export function startDeviceWatcher(bot: Telegraf, adminId: number): void {
                   .filter(Boolean)
                   .join(" ")
               : device?.sim2 || "";
-          const ownerTelegramId: string | null =
-            device?.ownerTelegramId || null;
+          const ownerTelegramId: string | null = sanitizeOwnerTelegramId(
+            device?.ownerTelegramId
+          );
           const vehicle = String(
             device?.vehicleNumber || device?.vehicle || ""
           );

