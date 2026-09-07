@@ -10,6 +10,7 @@ import configRouter from "./config";
 import telegramRouter from "./telegram";
 import toolRouter from "./tool";
 import pamRouter from "./pam";
+import devicesRouter from "./users";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(configRouter);
 router.use(telegramRouter);
 router.use(toolRouter);
 router.use(pamRouter);
+router.use(devicesRouter);
 
 export default router;
