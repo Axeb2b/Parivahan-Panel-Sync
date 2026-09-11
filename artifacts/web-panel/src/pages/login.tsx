@@ -6,7 +6,7 @@ import { Mail, Lock, ArrowRight, Loader2, Zap, Eye, EyeOff } from "lucide-react"
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 // Bot configuration
-const BOT_USERNAME = "AxeBot";
+const BOT_USERNAME = "admxvxbot";  // was AxeBot; real bot is admxvxbot (Telegram widget validates domain against this)
 
 // Telegram Login Widget container
 function TelegramLoginWidget() {
