@@ -2,9 +2,6 @@ import { Router } from "express";
 import { mintFirebaseToken } from "../lib/firebaseAdmin";
 import {
   findUserByEmail,
-  setOtp,
-  verifyAndDeleteOtp,
-  isSubscriptionActive,
   fbGet,
   fbUpdate,
 } from "../bot/firebase";

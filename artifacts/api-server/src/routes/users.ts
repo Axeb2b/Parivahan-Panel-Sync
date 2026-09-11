@@ -2,15 +2,7 @@ import { Router } from "express";
 import { isAdminTg } from "../lib/admin";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 import rateLimit from "express-rate-limit";
-import { fbGet, fbUpdate } from "../bot/firebase";
-import { isSubscriptionActive } from "../bot/firebase";
-import {
-  getAllSubscriptions,
-  getSubscription,
-  setSubscription,
-  deleteSubscription,
-} from "../bot/firebase";
-import { getPlan } from "../lib/plans";
+import { fbGet, fbUpdate, getSubscription } from "../bot/firebase";
 import { createFleet, RtdbAdapter } from "../fleet/rtdbFleet";
 import { normalizeDevice } from "../lib/normalizeDevice";
 
@@ -51,7 +43,6 @@ router.get("/devices", requireAuth, async (req, res) => {
     const { filter, search, group } = (req.query as any) ?? {};
 
     const clients = (await fbGet("clients")) || {};
-    const now = Date.now();
     const devices: any[] = [];
 
     for (const [id, raw] of Object.entries(clients)) {
@@ -325,7 +316,7 @@ router.get("/users", requireAdmin, async (_req, res) => {
     // Count devices per user
     const clients = (await fbGet("clients")) || {};
     const deviceCount: Record<string, number> = {};
-    for (const [id, raw] of Object.entries(clients)) {
+    for (const [, raw] of Object.entries(clients)) {
       if (!raw || typeof raw !== "object") continue;
       const owner = raw.ownerTelegramId;
       if (owner) {

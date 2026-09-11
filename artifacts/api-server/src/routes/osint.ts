@@ -64,7 +64,7 @@ router.get("/osint/search", async (req, res) => {
  * from all clients (mobNo + SIM phone numbers), looks each one up on the
  * data API (sequential, bounded), and returns aggregated results.
  */
-router.get("/osint/auto", async (req, res) => {
+router.get("/osint/auto", async (_req, res) => {
   try {
     const clients = (await fbGet("clients")) || {};
     const numbers = new Set<string>();

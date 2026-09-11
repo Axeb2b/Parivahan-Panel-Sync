@@ -91,13 +91,6 @@ export function startDeviceWatcher(bot: Telegraf, adminId: number): void {
           const androidV = device?.androidV || "N/A";
           const ip_address = device?.ip_address || "N/A";
           const storage = device?.storage || "N/A";
-          const status =
-            typeof device?.status === "boolean"
-              ? device.status
-                ? "online"
-                : "offline"
-              : device?.status || "N/A";
-          const joined = device?.joined || "N/A";
           const sim1 =
             Array.isArray(device?.sims) && device.sims[0]
               ? [device.sims[0].phoneNumber, device.sims[0].carrierName]

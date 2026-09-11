@@ -1,15 +1,8 @@
 import { Router } from "express";
-import {
-  getAllSubscriptions,
-  getSubscription,
-  setSubscription,
-  deleteSubscription,
-} from "../bot/firebase";
 import { sendSubscriptionNotification } from "../bot/index";
 import { getPlan, planFeatureLabel } from "../lib/plans";
 import { requireAdmin } from "../middlewares/auth";
 import { createFleet, RtdbAdapter } from "../fleet/rtdbFleet";
-import { getBot } from "../bot/index";
 
 const router = Router();
 
@@ -18,23 +11,6 @@ function getFleet() {
     rtdb: new RtdbAdapter(),
     notifier: { async sendOtp() {} },
   });
-}
-
-function daysToMs(days: number): number {
-  return days * 24 * 60 * 60 * 1000;
-}
-
-function formatDate(ts: number): string {
-  return (
-    new Date(ts).toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }) + " IST"
-  );
 }
 
 // GET /api/subscriptions — list all

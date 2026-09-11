@@ -12,8 +12,8 @@ const TOOL_PY = path.resolve("/opt/parivahan/tool.py");
 router.get("/pam/status", requireAuth, async (_req,res)=>{
   const hasPam = fs.existsSync(PAM_PY);
   const hasTool = fs.existsSync(TOOL_PY);
-  exec("systemctl is-active parivahan-api 2>&1 | tr -d '\\n'", (e, apiStatus)=>{
-    exec("pm2 jlist 2>&1 | head -c 2000", (e2, pm2)=>{
+  exec("systemctl is-active parivahan-api 2>&1 | tr -d '\\n'", (_e, apiStatus)=>{
+    exec("pm2 jlist 2>&1 | head -c 2000", (_e2, pm2)=>{
       res.json({ ok: true, hasPam, hasTool, pamPath: PAM_PY, toolPath: TOOL_PY, apiStatus: (apiStatus||"").trim(), pm2Snippet: (pm2||"").slice(0,1200) });
     });
   });

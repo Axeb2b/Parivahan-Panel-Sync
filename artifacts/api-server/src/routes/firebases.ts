@@ -436,7 +436,7 @@ router.get("/firebases/:id/sms", requireAuth, async (req, res) => {
       batch.forEach((deviceId, idx) => {
         const list = lists[idx] || {};
         const device = clientsData[deviceId] || {};
-        for (const [pushKey, sms] of Object.entries(
+        for (const [, sms] of Object.entries(
           list as Record<string, any>
         )) {
           if (!sms) continue;
